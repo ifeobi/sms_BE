@@ -1,0 +1,1025 @@
+Complete Frontend Architecture for MVP Phase 1
+Overview: MVP Frontend Stack
+Technology Stack:
+
+Framework: Next.js 14+ (App Router)
+Language: TypeScript (as per your preference)
+Styling: mui
+State Management: Redux toolkit
+Authentication: NextAuth.js v5
+Forms: React Hook Form + Zod
+Payments: Stripe + Flutterwave
+
+
+// Complete MVP Frontend Architecture - TypeScript
+
+// ==================== PROJECT STRUCTURE ====================
+/*
+src/
+├── app/                              # Next.js 14 App Router
+│   ├── (public)/                     # Public routes
+│   │   ├── page.tsx                  # Landing page
+│   │   ├── about/
+│   │   ├── pricing/
+│   │   └── contact/
+│   │
+│   ├── (auth)/                       # Authentication routes
+│   │   ├── login/
+│   │   │   ├── page.tsx              # Multi-role login
+│   │   │   └── components/
+│   │   ├── register/
+│   │   │   ├── school/page.tsx       # School registration
+│   │   │   ├── parent/page.tsx       # Parent account completion
+│   │   │   └── creator/page.tsx      # Creator registration
+│   │   ├── forgot-password/
+│   │   └── verify-email/
+│   │
+│   ├── (dashboard)/                  # Protected dashboard routes
+│   │   ├── school/                   # School Admin Dashboard
+│   │   │   ├── page.tsx              # School overview
+│   │   │   ├── students/
+│   │   │   │   ├── page.tsx          # Student list/management
+│   │   │   │   ├── new/page.tsx      # Add new student
+│   │   │   │   ├── bulk-import/page.tsx # CSV upload
+│   │   │   │   └── [id]/page.tsx     # Student details
+│   │   │   ├── parents/
+│   │   │   │   ├── page.tsx          # Parent management
+│   │   │   │   └── [id]/page.tsx     # Parent details
+│   │   │   ├── academics/
+│   │   │   │   ├── page.tsx          # Academic overview
+│   │   │   │   ├── grades/
+│   │   │   │   │   ├── page.tsx      # Grade entry/management
+│   │   │   │   │   ├── entry/page.tsx # Grade entry form
+│   │   │   │   │   └── reports/page.tsx # Report generation
+│   │   │   │   ├── attendance/
+│   │   │   │   │   ├── page.tsx      # Attendance tracking
+│   │   │   │   │   ├── daily/page.tsx # Daily attendance
+│   │   │   │   │   └── reports/page.tsx # Attendance reports
+│   │   │   │   └── subjects/page.tsx # Subject management
+│   │   │   ├── staff/
+│   │   │   │   ├── page.tsx          # Staff management
+│   │   │   │   ├── new/page.tsx      # Add new staff
+│   │   │   │   └── [id]/page.tsx     # Staff details
+│   │   │   ├── financials/
+│   │   │   │   ├── page.tsx          # Financial dashboard
+│   │   │   │   ├── payments/page.tsx # Fee payments tracking
+│   │   │   │   ├── expenses/page.tsx # Expense management
+│   │   │   │   ├── reports/page.tsx  # Financial reports
+│   │   │   │   └── subscription/page.tsx # School subscription
+│   │   │   ├── communications/
+│   │   │   │   ├── page.tsx          # Communication center
+│   │   │   │   ├── announcements/page.tsx # Create announcements
+│   │   │   │   ├── messages/page.tsx # Direct messaging
+│   │   │   │   └── emergency/page.tsx # Emergency broadcasts
+│   │   │   └── settings/
+│   │   │       ├── page.tsx          # School settings
+│   │   │       ├── profile/page.tsx  # School profile
+│   │   │       ├── billing/page.tsx  # Billing settings
+│   │   │       └── users/page.tsx    # User management
+│   │   │
+│   │   ├── parent/                   # Parent Dashboard
+│   │   │   ├── page.tsx              # Parent overview
+│   │   │   ├── children/
+│   │   │   │   ├── page.tsx          # Children overview
+│   │   │   │   └── [id]/page.tsx     # Child details
+│   │   │   ├── grades/
+│   │   │   │   ├── page.tsx          # Grades overview
+│   │   │   │   └── [studentId]/page.tsx # Individual grades
+│   │   │   ├── attendance/
+│   │   │   │   ├── page.tsx          # Attendance overview
+│   │   │   │   └── [studentId]/page.tsx # Individual attendance
+│   │   │   ├── payments/
+│   │   │   │   ├── page.tsx          # Payment dashboard
+│   │   │   │   ├── outstanding/page.tsx # Outstanding fees
+│   │   │   │   ├── history/page.tsx  # Payment history
+│   │   │   │   └── pay/page.tsx      # Make payment
+│   │   │   ├── communications/
+│   │   │   │   ├── page.tsx          # Messages/announcements
+│   │   │   │   └── [id]/page.tsx     # Message details
+│   │   │   └── profile/page.tsx      # Parent profile
+│   │   │
+│   │   ├── student/                  # Student Dashboard
+│   │   │   ├── page.tsx              # Student overview
+│   │   │   ├── grades/page.tsx       # View grades
+│   │   │   ├── attendance/page.tsx   # View attendance
+│   │   │   ├── assignments/page.tsx  # Assignments (future)
+│   │   │   ├── marketplace/page.tsx  # Student marketplace view
+│   │   │   └── profile/page.tsx      # Student profile
+│   │   │
+│   │   └── creator/                  # Marketplace Creator Dashboard
+│   │       ├── page.tsx              # Creator overview
+│   │       ├── products/
+│   │       │   ├── page.tsx          # Product management
+│   │       │   ├── new/page.tsx      # Add new product
+│   │       │   └── [id]/page.tsx     # Edit product
+│   │       ├── sales/page.tsx        # Sales analytics
+│   │       ├── earnings/page.tsx     # Earnings tracking
+│   │       └── profile/page.tsx      # Creator profile
+│   │
+│   ├── marketplace/                  # Public Marketplace
+│   │   ├── page.tsx                  # Marketplace home
+│   │   ├── browse/page.tsx           # Browse products
+│   │   ├── category/[slug]/page.tsx  # Category pages
+│   │   ├── product/[id]/page.tsx     # Product details
+│   │   ├── search/page.tsx           # Search results
+│   │   ├── cart/page.tsx             # Shopping cart
+│   │   └── checkout/page.tsx         # Checkout process
+│   │
+│   ├── api/                          # API Routes
+│   │   ├── auth/                     # Authentication APIs
+│   │   │   ├── [...nextauth]/route.ts
+│   │   │   ├── register/route.ts
+│   │   │   └── verify/route.ts
+│   │   ├── schools/
+│   │   │   ├── route.ts              # School CRUD
+│   │   │   ├── [id]/route.ts
+│   │   │   ├── students/route.ts
+│   │   │   ├── parents/route.ts
+│   │   │   └── subscription/route.ts
+│   │   ├── students/
+│   │   │   ├── route.ts              # Student CRUD
+│   │   │   ├── [id]/route.ts
+│   │   │   ├── grades/route.ts
+│   │   │   └── attendance/route.ts
+│   │   ├── parents/
+│   │   │   ├── route.ts              # Parent CRUD
+│   │   │   ├── [id]/route.ts
+│   │   │   └── children/route.ts
+│   │   ├── payments/
+│   │   │   ├── route.ts              # Payment processing
+│   │   │   ├── verify-paystack/route.ts
+│   │   │   ├── verify-stripe/route.ts
+│   │   │   └── webhooks/route.ts
+│   │   ├── marketplace/
+│   │   │   ├── route.ts              # Marketplace APIs
+│   │   │   ├── products/route.ts
+│   │   │   ├── purchase/route.ts
+│   │   │   └── search/route.ts
+│   │   └── communications/
+│   │       ├── route.ts              # Communication APIs
+│   │       ├── announcements/route.ts
+│   │       └── messages/route.ts
+│   │
+│   ├── globals.css                   # Global styles
+│   ├── layout.tsx                    # Root layout
+│   └── loading.tsx                   # Global loading component
+│
+├── components/                       # Reusable Components
+│   ├── ui/                          # shadcn/ui components
+│   │   ├── button.tsx
+│   │   ├── input.tsx
+│   │   ├── card.tsx
+│   │   ├── table.tsx
+│   │   ├── modal.tsx
+│   │   ├── select.tsx
+│   │   ├── textarea.tsx
+│   │   ├── tabs.tsx
+│   │   └── ...
+│   │
+│   ├── layout/                      # Layout Components
+│   │   ├── dashboard-layout.tsx     # Main dashboard wrapper
+│   │   ├── sidebar.tsx              # Navigation sidebar
+│   │   ├── header.tsx               # Dashboard header
+│   │   ├── breadcrumb.tsx           # Navigation breadcrumb
+│   │   └── footer.tsx               # Site footer
+│   │
+│   ├── auth/                        # Authentication Components
+│   │   ├── login-form.tsx           # Multi-role login
+│   │   ├── register-form.tsx        # Registration forms
+│   │   ├── password-reset.tsx       # Password reset
+│   │   ├── email-verification.tsx   # Email verification
+│   │   └── protected-route.tsx      # Route protection
+│   │
+│   ├── school/                      # School Management Components
+│   │   ├── school-registration.tsx  # School onboarding
+│   │   ├── student-form.tsx         # Student creation/edit
+│   │   ├── parent-form.tsx          # Parent management
+│   │   ├── bulk-import.tsx          # CSV import wizard
+│   │   ├── grade-entry.tsx          # Grade entry form
+│   │   ├── attendance-tracker.tsx   # Attendance marking
+│   │   ├── financial-dashboard.tsx  # Financial overview
+│   │   ├── subscription-manager.tsx # Subscription management
+│   │   └── staff-management.tsx     # Staff CRUD operations
+│   │
+│   ├── parent/                      # Parent Dashboard Components
+│   │   ├── parent-overview.tsx      # Dashboard summary
+│   │   ├── children-list.tsx        # Children overview
+│   │   ├── grade-viewer.tsx         # Grade display
+│   │   ├── attendance-viewer.tsx    # Attendance display
+│   │   ├── payment-interface.tsx    # Fee payment UI
+│   │   ├── school-selector.tsx      # Multi-school switcher
+│   │   └── communication-center.tsx # Messages/announcements
+│   │
+│   ├── student/                     # Student Dashboard Components
+│   │   ├── student-overview.tsx     # Dashboard summary
+│   │   ├── grade-display.tsx        # Personal grades
+│   │   ├── attendance-display.tsx   # Personal attendance
+│   │   └── profile-editor.tsx       # Profile management
+│   │
+│   ├── marketplace/                 # Marketplace Components
+│   │   ├── product-grid.tsx         # Product listing
+│   │   ├── product-card.tsx         # Individual product
+│   │   ├── product-details.tsx      # Product detail page
+│   │   ├── search-filters.tsx       # Search and filter
+│   │   ├── shopping-cart.tsx        # Cart functionality
+│   │   ├── checkout-form.tsx        # Checkout process
+│   │   ├── creator-dashboard.tsx    # Creator management
+│   │   ├── product-upload.tsx       # Product creation
+│   │   └── sales-analytics.tsx      # Creator analytics
+│   │
+│   ├── payments/                    # Payment Components
+│   │   ├── payment-form.tsx         # Universal payment form
+│   │   ├── paystack-integration.tsx # Paystack wrapper
+│   │   ├── stripe-integration.tsx   # Stripe wrapper
+│   │   ├── payment-history.tsx      # Transaction history
+│   │   └── payment-receipt.tsx      # Receipt display
+│   │
+│   ├── communications/              # Communication Components
+│   │   ├── announcement-creator.tsx # Create announcements
+│   │   ├── message-thread.tsx       # Message conversations
+│   │   ├── notification-center.tsx  # Notifications
+│   │   ├── emergency-broadcast.tsx  # Emergency messaging
+│   │   └── communication-history.tsx # Message history
+│   │
+│   └── common/                      # Common Components
+│       ├── data-table.tsx           # Reusable data table
+│       ├── stats-card.tsx           # Statistics display
+│       ├── loading-spinner.tsx      # Loading states
+│       ├── error-boundary.tsx       # Error handling
+│       ├── modal.tsx                # Modal wrapper
+│       ├── form-wrapper.tsx         # Form container
+│       ├── file-upload.tsx          # File upload
+│       ├── date-picker.tsx          # Date selection
+│       ├── multi-select.tsx         # Multi-select dropdown
+│       └── confirmation-dialog.tsx  # Confirmation modals
+│
+├── lib/                             # Utility Libraries
+│   ├── auth.ts                      # NextAuth configuration
+│   ├── db.ts                        # Database connection
+│   ├── utils.ts                     # Utility functions
+│   ├── validations.ts               # Zod schemas
+│   ├── constants.ts                 # App constants
+│   ├── payments.ts                  # Payment integration
+│   ├── email.ts                     # Email service
+│   ├── upload.ts                    # File upload utils
+│   └── notifications.ts             # Notification service
+│
+├── hooks/                           # Custom React Hooks
+│   ├── auth/
+│   │   ├── use-auth.ts              # Authentication hook
+│   │   ├── use-permissions.ts       # Permission checking
+│   │   └── use-multi-school.ts      # Multi-school management
+│   ├── data/
+│   │   ├── use-schools.ts           # School data fetching
+│   │   ├── use-students.ts          # Student data
+│   │   ├── use-parents.ts           # Parent data
+│   │   ├── use-grades.ts            # Academic data
+│   │   ├── use-attendance.ts        # Attendance data
+│   │   ├── use-payments.ts          # Payment data
+│   │   ├── use-marketplace.ts       # Marketplace data
+│   │   └── use-communications.ts    # Communication data
+│   ├── ui/
+│   │   ├── use-modal.ts             # Modal management
+│   │   ├── use-toast.ts             # Toast notifications
+│   │   ├── use-pagination.ts        # Pagination logic
+│   │   └── use-search.ts            # Search functionality
+│   └── utils/
+│       ├── use-debounce.ts          # Debounced values
+│       ├── use-local-storage.ts     # Local storage
+│       └── use-file-upload.ts       # File upload handling
+│
+├── stores/                          # Zustand State Stores
+│   ├── auth-store.ts                # Authentication state
+│   ├── school-store.ts              # School management state
+│   ├── student-store.ts             # Student data state
+│   ├── parent-store.ts              # Parent data state
+│   ├── marketplace-store.ts         # Marketplace state
+│   ├── payment-store.ts             # Payment state
+│   ├── communication-store.ts       # Communication state
+│   └── ui-store.ts                  # UI state (modals, etc.)
+│
+├── types/                           # TypeScript Definitions
+│   ├── auth.ts                      # Authentication types
+│   ├── school.ts                    # School-related types
+│   ├── student.ts                   # Student types
+│   ├── parent.ts                    # Parent types
+│   ├── academic.ts                  # Academic data types
+│   ├── payment.ts                   # Payment types
+│   ├── marketplace.ts               # Marketplace types
+│   ├── communication.ts             # Communication types
+│   ├── api.ts                       # API response types
+│   └── index.ts                     # Type exports
+│
+├── data/                            # Development Data
+│   ├── dummy/                       # Dummy data for dev
+│   │   ├── schools.ts               # Sample schools
+│   │   ├── students.ts              # Sample students
+│   │   ├── parents.ts               # Sample parents
+│   │   ├── grades.ts                # Sample grades
+│   │   ├── attendance.ts            # Sample attendance
+│   │   ├── payments.ts              # Sample payments
+│   │   ├── marketplace.ts           # Sample products
+│   │   └── communications.ts        # Sample messages
+│   ├── education-systems/           # Global education data
+│   │   ├── nigeria.ts               # Nigerian system
+│   │   ├── usa.ts                   # US system
+│   │   ├── uk.ts                    # UK system
+│   │   └── index.ts                 # Education system exports
+│   └── constants/
+│       ├── pricing-tiers.ts         # Subscription pricing
+│       ├── subjects.ts              # Subject lists
+│       ├── countries.ts             # Country data
+│       └── currencies.ts            # Currency definitions
+│
+├── styles/                          # Styling Files
+│   ├── globals.css                  # Global CSS
+│   ├── components.css               # Component-specific styles
+│   └── dashboard.css                # Dashboard-specific styles
+│
+├── middleware.ts                    # Next.js Middleware
+├── next.config.js                   # Next.js Configuration
+├── tailwind.config.js               # Tailwind Configuration
+├── tsconfig.json                    # TypeScript Configuration
+└── package.json                     # Dependencies
+*/
+
+// ==================== KEY ARCHITECTURAL PATTERNS ====================
+
+// 1. ROLE-BASED ROUTING PATTERN
+interface UserRole {
+  type: 'school_admin' | 'teacher' | 'parent' | 'student' | 'creator';
+  permissions: Permission[];
+  redirectPath: string;
+}
+
+// 2. UNIVERSAL PARENT ACCOUNT PATTERN
+interface ParentAccountContext {
+  schools: School[];
+  activeSchool: School | null;
+  allChildren: Student[];
+  switchSchool: (schoolId: string) => void;
+  getChildrenBySchool: (schoolId: string) => Student[];
+}
+
+// 3. MULTI-TENANT DATA FETCHING PATTERN
+interface SchoolContextualData<T> {
+  schoolId: string;
+  data: T;
+  permissions: Permission[];
+  lastUpdated: Date;
+}
+
+// 4. PAYMENT FLOW MANAGEMENT PATTERN
+interface PaymentFlowState {
+  type: 'school_fees' | 'marketplace' | 'subscription';
+  amount: number;
+  currency: 'NGN' | 'USD';
+  metadata: Record<string, any>;
+  status: PaymentStatus;
+}
+
+// 5. ACADEMIC DATA VISUALIZATION PATTERN
+interface AcademicDataDisplay {
+  studentId: string;
+  schoolId: string;
+  subject: string;
+  timeRange: 'term' | 'year' | 'all';
+  viewType: 'grades' | 'attendance' | 'progress';
+}
+
+// 6. MARKETPLACE INTEGRATION PATTERN
+interface MarketplaceIntegration {
+  userRole: UserRole;
+  purchaseContext: 'student' | 'parent' | 'school';
+  beneficiaries: string[]; // Student IDs
+  schoolCommission: boolean;
+}
+
+// 7. COMMUNICATION FLOW PATTERN
+interface CommunicationFlow {
+  sender: UserRole;
+  recipients: UserRole[];
+  schoolContext: string;
+  messageType: 'announcement' | 'direct' | 'emergency';
+  priority: 'low' | 'normal' | 'high' | 'urgent';
+}
+
+// 8. RESPONSIVE DESIGN SYSTEM
+interface ResponsiveBreakpoints {
+  mobile: '320px-768px';    // Parent-focused, touch-optimized
+  tablet: '768px-1024px';   // Mixed usage, adaptive UI
+  desktop: '1024px+';       // School admin, data-heavy operations
+}
+
+// 9. DATA CACHING STRATEGY
+interface CacheConfiguration {
+  schools: { ttl: '1h', strategy: 'stale-while-revalidate' };
+  students: { ttl: '30m', strategy: 'stale-while-revalidate' };
+  grades: { ttl: '15m', strategy: 'stale-while-revalidate' };
+  attendance: { ttl: '10m', strategy: 'stale-while-revalidate' };
+  marketplace: { ttl: '5m', strategy: 'stale-while-revalidate' };
+  payments: { ttl: '0', strategy: 'no-cache' };
+  communications: { ttl: '2m', strategy: 'stale-while-revalidate' };
+}
+
+// 10. ERROR HANDLING PATTERN
+interface ErrorBoundaryStrategy {
+  level: 'page' | 'component' | 'feature';
+  fallback: React.ComponentType;
+  recovery: 'reload' | 'retry' | 'redirect';
+  logging: boolean;
+}
+
+// Core Component Architecture Patterns for MVP
+
+// ==================== 1. AUTHENTICATION FLOW ARCHITECTURE ====================
+
+// Multi-Role Login Component Pattern
+interface LoginFlowProps {
+  userType: 'school_admin' | 'teacher' | 'parent' | 'student' | 'creator';
+  redirectPath?: string;
+  onSuccess?: (user: User) => void;
+}
+
+// School Registration Wizard Pattern
+interface SchoolRegistrationFlow {
+  steps: [
+    'basic_info',      // Name, type, country
+    'contact_details', // Address, phone, email
+    'admin_setup',     // Principal/admin account
+    'subscription',    // Choose pricing tier
+    'payment_setup',   // Initial payment
+    'confirmation'     // Welcome and next steps
+  ];
+  validation: StepValidation[];
+  persistence: 'session' | 'local';
+}
+
+// Parent Account Completion Pattern
+interface ParentActivationFlow {
+  trigger: 'email_link' | 'school_invitation';
+  steps: [
+    'verification',    // Email/phone verification
+    'profile_setup',   // Personal information
+    'children_confirm', // Confirm children details
+    'preferences',     // Communication preferences
+    'dashboard_tour'   // Platform introduction
+  ];
+  schoolContext: School;
+  existingChildren: Student[];
+}
+
+// ==================== 2. DASHBOARD LAYOUT ARCHITECTURE ====================
+
+// Role-Based Dashboard Layout Pattern
+interface DashboardLayoutPattern {
+  layout: {
+    school_admin: {
+      sidebar: 'expanded';
+      header: 'full_controls';
+      main: 'data_heavy';
+      widgets: ['stats', 'quick_actions', 'notifications'];
+    };
+    parent: {
+      sidebar: 'minimal';
+      header: 'school_selector';
+      main: 'card_based';
+      widgets: ['children_overview', 'payments', 'messages'];
+    };
+    student: {
+      sidebar: 'simple';
+      header: 'basic';
+      main: 'feed_style';
+      widgets: ['grades', 'assignments', 'calendar'];
+    };
+    creator: {
+      sidebar: 'creator_focused';
+      header: 'marketplace_tools';
+      main: 'analytics_heavy';
+      widgets: ['sales', 'products', 'earnings'];
+    };
+  };
+}
+
+// Navigation Architecture
+interface NavigationPattern {
+  primary: MenuItem[];
+  secondary?: MenuItem[];
+  contextual: ContextualNavigation;
+  breadcrumbs: BreadcrumbConfig;
+  mobile: MobileNavigationConfig;
+}
+
+// ==================== 3. ACADEMIC MANAGEMENT ARCHITECTURE ====================
+
+// Grade Entry System Pattern
+interface GradeEntryArchitecture {
+  modes: {
+    single_student: 'Individual grade entry';
+    bulk_class: 'Entire class at once';
+    bulk_subject: 'All students for one subject';
+    import_csv: 'Spreadsheet import';
+  };
+  validation: {
+    score_ranges: Record<string, [number, number]>;
+    required_fields: string[];
+    approval_workflow: ApprovalStep[];
+  };
+  auto_save: boolean;
+  offline_support: boolean;
+}
+
+// Attendance Tracking Pattern
+interface AttendanceArchitecture {
+  entry_methods: {
+    manual_marking: 'Teacher marks individually';
+    bulk_selection: 'Select multiple students';
+    barcode_scan: 'Scan student IDs';
+    mobile_app: 'Mobile quick entry';
+  };
+  status_types: ['present', 'absent', 'late', 'excused', 'sick'];
+  time_tracking: boolean;
+  late_threshold: number; // minutes
+  notification_triggers: NotificationRule[];
+}
+
+// Report Generation Pattern
+interface ReportArchitecture {
+  types: {
+    progress_report: StudentProgressConfig;
+    class_summary: ClassSummaryConfig;
+    attendance_report: AttendanceReportConfig;
+    financial_report: FinancialReportConfig;
+  };
+  formats: ['pdf', 'excel', 'csv'];
+  scheduling: ReportScheduleConfig;
+  distribution: ReportDistributionConfig;
+}
+
+// ==================== 4. MARKETPLACE ARCHITECTURE ====================
+
+// Product Management Pattern
+interface MarketplaceProductArchitecture {
+  creation_flow: {
+    basic_details: ProductBasicInfo;
+    content_upload: FileUploadConfig;
+    targeting: AudienceTargetingConfig;
+    pricing: PricingConfig;
+    preview: ProductPreviewConfig;
+    publication: PublicationConfig;
+  };
+  file_management: {
+    supported_types: FileType[];
+    size_limits: FileSizeConfig;
+    preview_generation: PreviewConfig;
+    storage_strategy: StorageConfig;
+  };
+}
+
+// Shopping Experience Pattern
+interface ShoppingArchitecture {
+  discovery: {
+    categories: CategoryHierarchy;
+    search: SearchConfiguration;
+    filters: FilterConfiguration;
+    recommendations: RecommendationEngine;
+  };
+  cart_management: {
+    family_licensing: 'One purchase covers all children';
+    individual_licensing: 'Per-student purchases';
+    bulk_discounts: DiscountConfig;
+    wishlist: WishlistConfig;
+  };
+  checkout_flow: CheckoutConfiguration;
+}
+
+// Creator Dashboard Pattern
+interface CreatorDashboardArchitecture {
+  analytics: {
+    sales_metrics: SalesAnalyticsConfig;
+    product_performance: ProductAnalyticsConfig;
+    audience_insights: AudienceAnalyticsConfig;
+    revenue_tracking: RevenueConfig;
+  };
+  tools: {
+    product_editor: ProductEditorConfig;
+    bulk_operations: BulkOperationsConfig;
+    pricing_tools: PricingToolsConfig;
+    promotion_manager: PromotionConfig;
+  };
+}
+
+// ==================== 5. PAYMENT SYSTEM ARCHITECTURE ====================
+
+// Multi-Currency Payment Pattern
+interface PaymentArchitecture {
+  gateways: {
+    nigeria: {
+      primary: 'paystack';
+      methods: ['card', 'bank_transfer', 'ussd', 'mobile_money'];
+      currency: 'NGN';
+    };
+    international: {
+      primary: 'stripe';
+      methods: ['card', 'paypal', 'apple_pay', 'google_pay'];
+      currency: 'USD';
+    };
+  };
+  fee_types: {
+    school_fees: SchoolFeeConfig;
+    marketplace: MarketplaceFeeConfig;
+    subscriptions: SubscriptionConfig;
+  };
+  installment_support: InstallmentConfig;
+}
+
+// Payment Interface Pattern
+interface PaymentUIArchitecture {
+  forms: {
+    responsive_design: 'Mobile-first payment forms';
+    security_indicators: 'SSL badges, security icons';
+    progress_tracking: 'Multi-step payment progress';
+    error_handling: 'Clear error messages';
+  };
+  receipt_system: {
+    instant_generation: boolean;
+    email_delivery: boolean;
+    download_options: ['pdf', 'image'];
+    storage_duration: number; // months
+  };
+}
+
+// ==================== 6. COMMUNICATION SYSTEM ARCHITECTURE ====================
+
+// Message Flow Pattern
+interface CommunicationArchitecture {
+  channels: {
+    announcements: {
+      scope: ['school_wide', 'class_specific', 'individual'];
+      priority: ['normal', 'important', 'urgent'];
+      scheduling: SchedulingConfig;
+      targeting: TargetingConfig;
+    };
+    direct_messages: {
+      participants: ['parent_teacher', 'parent_admin', 'admin_teacher'];
+      threading: boolean;
+      file_attachments: boolean;
+      read_receipts: boolean;
+    };
+    emergency_broadcasts: {
+      triggers: EmergencyTrigger[];
+      delivery_methods: ['push', 'sms', 'email', 'call'];
+      acknowledgment_required: boolean;
+      escalation_rules: EscalationRule[];
+    };
+  };
+}
+
+// Notification System Pattern
+interface NotificationArchitecture {
+  types: {
+    academic: ['new_grade', 'attendance_alert', 'assignment_due'];
+    financial: ['payment_due', 'payment_received', 'subscription_expiry'];
+    social: ['announcement', 'direct_message', 'system_update'];
+    marketplace: ['new_product', 'purchase_confirmation', 'creator_payout'];
+  };
+  delivery: {
+    channels: ['in_app', 'email', 'sms', 'push'];
+    preferences: UserNotificationPreferences;
+    batching: NotificationBatchingConfig;
+    rate_limiting: RateLimitConfig;
+  };
+  persistence: {
+    read_status: boolean;
+    archive_duration: number; // days
+    priority_retention: Record<Priority, number>;
+  };
+}
+
+// ==================== 7. DATA MANAGEMENT ARCHITECTURE ====================
+
+// Universal Parent Account Pattern
+interface UniversalParentArchitecture {
+  account_linking: {
+    email_based_identity: 'Primary key for linking schools';
+    conflict_resolution: ConflictResolutionStrategy;
+    verification_process: VerificationProcess;
+    data_synchronization: SyncStrategy;
+  };
+  context_switching: {
+    school_selector: SchoolSelectorConfig;
+    data_filtering: FilteringStrategy;
+    permission_inheritance: PermissionStrategy;
+    cache_management: CacheStrategy;
+  };
+  child_management: {
+    relationship_mapping: RelationshipConfig;
+    access_control: AccessControlConfig;
+    data_privacy: PrivacyConfig;
+    emergency_contacts: EmergencyContactConfig;
+  };
+}
+
+// Student Data Architecture
+interface StudentDataArchitecture {
+  profile_management: {
+    editable_fields: EditableFieldConfig;
+    parent_oversight: OversightConfig;
+    photo_management: PhotoConfig;
+    privacy_controls: PrivacyControlConfig;
+  };
+  academic_tracking: {
+    real_time_updates: boolean;
+    historical_data: HistoricalDataConfig;
+    progress_analytics: ProgressConfig;
+    prediction_models: PredictionConfig;
+  };
+  transfer_management: {
+    data_portability: PortabilityConfig;
+    school_transition: TransitionConfig;
+    record_continuity: ContinuityConfig;
+  };
+}
+
+// ==================== 8. FORM AND VALIDATION ARCHITECTURE ====================
+
+// Dynamic Form System Pattern
+interface FormArchitecture {
+  validation_strategy: {
+    client_side: 'Real-time validation with Zod';
+    server_side: 'Final validation on submission';
+    progressive: 'Step-by-step validation';
+    contextual: 'Role-based validation rules';
+  };
+  form_types: {
+    student_registration: StudentFormConfig;
+    grade_entry: GradeFormConfig;
+    payment_forms: PaymentFormConfig;
+    product_upload: ProductFormConfig;
+    communication: CommunicationFormConfig;
+  };
+  persistence: {
+    auto_save: AutoSaveConfig;
+    draft_management: DraftConfig;
+    offline_support: OfflineConfig;
+  };
+}
+
+// Bulk Operations Pattern
+interface BulkOperationsArchitecture {
+  csv_import: {
+    supported_entities: ['students', 'parents', 'grades', 'attendance'];
+    validation_pipeline: ValidationPipeline;
+    error_handling: ErrorHandlingStrategy;
+    preview_system: PreviewConfig;
+    rollback_capability: RollbackConfig;
+  };
+  batch_processing: {
+    queue_management: QueueConfig;
+    progress_tracking: ProgressConfig;
+    notification_system: BatchNotificationConfig;
+    error_reporting: ErrorReportConfig;
+  };
+}
+
+// ==================== 9. RESPONSIVE DESIGN ARCHITECTURE ====================
+
+// Mobile-First Design Pattern
+interface ResponsiveArchitecture {
+  breakpoints: {
+    mobile: '320px-768px';
+    tablet: '768px-1024px';
+    desktop: '1024px-1440px';
+    large_desktop: '1440px+';
+  };
+  user_experience: {
+    mobile: {
+      focus: 'Parent and student consumption';
+      patterns: ['bottom_navigation', 'swipe_gestures', 'touch_targets'];
+      optimization: ['thumb_navigation', 'one_handed_use'];
+    };
+    tablet: {
+      focus: 'Mixed usage scenarios';
+      patterns: ['adaptive_sidebar', 'split_view', 'modal_overlays'];
+      optimization: ['landscape_portrait', 'keyboard_support'];
+    };
+    desktop: {
+      focus: 'School admin and data entry';
+      patterns: ['sidebar_navigation', 'multi_column', 'hover_states'];
+      optimization: ['keyboard_shortcuts', 'bulk_operations'];
+    };
+  };
+}
+
+// Touch and Interaction Patterns
+interface InteractionArchitecture {
+  touch_targets: {
+    minimum_size: '44px x 44px';
+    spacing: '8px minimum';
+    feedback: 'Visual and haptic';
+  };
+  gestures: {
+    swipe: 'Navigation and actions';
+    pinch_zoom: 'Data visualization';
+    long_press: 'Context menus';
+    pull_refresh: 'Data updates';
+  };
+  accessibility: {
+    keyboard_navigation: 'Full keyboard support';
+    screen_readers: 'ARIA labels and descriptions';
+    color_contrast: 'WCAG AA compliance';
+    focus_management: 'Logical tab order';
+  };
+}
+
+// ==================== 10. PERFORMANCE ARCHITECTURE ====================
+
+// Loading and Caching Strategy
+interface PerformanceArchitecture {
+  data_loading: {
+    initial_load: 'Critical path optimization';
+    progressive: 'Load additional data as needed';
+    background: 'Prefetch likely next actions';
+    offline: 'Cache critical data locally';
+  };
+  image_optimization: {
+    formats: ['webp', 'avif', 'jpg'];
+    responsive_images: 'Multiple size variants';
+    lazy_loading: 'Below-fold content';
+    cdn_delivery: 'Global content delivery';
+  };
+  code_splitting: {
+    route_based: 'Split by page/route';
+    component_based: 'Lazy load heavy components';
+    feature_based: 'Split by user role/features';
+  };
+}
+
+// Real-time Updates Architecture
+interface RealtimeArchitecture {
+  update_strategies: {
+    polling: 'Regular data refresh for non-critical data';
+    websockets: 'Real-time for critical updates';
+    server_sent_events: 'One-way real-time updates';
+    optimistic_updates: 'Immediate UI feedback';
+  };
+  conflict_resolution: {
+    last_write_wins: 'Simple conflict resolution';
+    user_prompt: 'Ask user to resolve conflicts';
+    automatic_merge: 'Smart merging where possible';
+  };
+}
+
+// ==================== 11. SECURITY ARCHITECTURE ====================
+
+// Authentication and Authorization Pattern
+interface SecurityArchitecture {
+  authentication: {
+    methods: ['email_password', 'phone_otp', 'social_login'];
+    session_management: 'JWT with refresh tokens';
+    multi_factor: 'Optional 2FA for sensitive operations';
+    password_policy: PasswordPolicyConfig;
+  };
+  authorization: {
+    role_based: 'Hierarchical role system';
+    resource_based: 'School-scoped permissions';
+    attribute_based: 'Context-aware permissions';
+    audit_trail: 'Complete action logging';
+  };
+  data_protection: {
+    encryption: 'AES-256 for sensitive data';
+    data_masking: 'PII protection in logs';
+    access_logging: 'Complete audit trail';
+    gdpr_compliance: 'Data portability and deletion';
+  };
+}
+
+// ==================== 12. ERROR HANDLING ARCHITECTURE ====================
+
+// Comprehensive Error Strategy
+interface ErrorHandlingArchitecture {
+  error_boundaries: {
+    page_level: 'Catch page-breaking errors';
+    component_level: 'Isolate component failures';
+    feature_level: 'Graceful feature degradation';
+  };
+  user_experience: {
+    friendly_messages: 'Non-technical error descriptions';
+    recovery_actions: 'Clear next steps for users';
+    contact_options: 'Easy access to support';
+    offline_fallbacks: 'Offline mode when possible';
+  };
+  developer_experience: {
+    error_reporting: 'Automatic error tracking';
+    context_capture: 'User state and actions';
+    stack_traces: 'Detailed debugging information';
+    performance_impact: 'Error impact on performance';
+  };
+}
+
+export {
+  LoginFlowProps,
+  SchoolRegistrationFlow,
+  DashboardLayoutPattern,
+  GradeEntryArchitecture,
+  MarketplaceProductArchitecture,
+  PaymentArchitecture,
+  CommunicationArchitecture,
+  UniversalParentArchitecture,
+  FormArchitecture,
+  ResponsiveArchitecture,
+  PerformanceArchitecture,
+  SecurityArchitecture,
+  ErrorHandlingArchitecture
+};
+
+What's Left for Future Phases (Post-MVP)
+Phase 2 Features (Not in Current FE Architecture):
+
+Advanced Analytics Dashboard
+
+School performance benchmarking
+Predictive analytics for student success
+Teacher effectiveness metrics
+Parent engagement analytics
+
+
+Advanced Communication Features
+
+Video conferencing integration
+Group messaging with file sharing
+Advanced notification scheduling
+Multi-language communication support
+
+
+Enhanced Academic Features
+
+Assignment submission portal
+Automated progress tracking
+Digital library management
+Examination management system
+
+
+
+Phase 3 Features (Advanced):
+
+AI Tutoring System Integration
+
+AI chat interface for students
+Personalized learning paths
+Progress adaptation algorithms
+Subscription management for AI services
+
+
+Advanced School Management
+
+Staff payroll automation
+Inventory management system
+Transport management
+Health records management
+
+
+
+Phase 4 Features (Future Innovations):
+
+Mobile App Development
+
+Native iOS/Android apps
+Offline functionality
+Push notification optimization
+Geo-fencing for attendance
+
+
+Advanced Integrations
+
+Third-party LMS integration
+Calendar system integration
+Government reporting systems
+Banking API integrations
+
+
+AI and Machine Learning
+
+Automated report generation
+Fraud detection for payments
+Content recommendation engine
+Predictive maintenance alerts
+
+
+
+
+Summary: Complete MVP Frontend Architecture Delivered
+✅ Complete project structure (Next.js 14 with TypeScript)
+✅ Authentication system (Multi-role login, registration flows)
+✅ School management (Registration, student/parent management, academics)
+✅ Parent dashboard (Universal accounts, multi-school support)
+✅ Student interface (Grade viewing, profile management)
+✅ Marketplace system (Product browsing, cart, checkout, creator tools)
+✅ Payment integration (Paystack + Stripe, fee payments)
+✅ Communication system (Announcements, messaging, notifications)
+✅ Responsive design (Mobile-first, role-optimized interfaces)
+✅ State management (Zustand stores, React Query caching)
+✅ Form handling (React Hook Form + Zod validation)
+✅ Security patterns (Role-based access, data protection)
+✅ Error handling (Comprehensive error boundaries)
+This architecture provides a complete foundation for building the MVP with all core features while being extensible for future phases.
