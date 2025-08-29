@@ -1,12 +1,18 @@
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
+import { EmailService } from '../email/email.service';
+import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 export declare class AuthService {
     private usersService;
     private jwtService;
-    constructor(usersService: UsersService, jwtService: JwtService);
-    validateUser(email: string, password: string): Promise<any>;
+    private emailService;
+    private prisma;
+    constructor(usersService: UsersService, jwtService: JwtService, emailService: EmailService, prisma: PrismaService);
+    validateUser(email: string, password: string, userType?: string): Promise<any>;
     login(loginDto: LoginDto): Promise<{
         access_token: string;
         user: {
@@ -23,12 +29,28 @@ export declare class AuthService {
         user: {
             id: string;
             email: string;
+            type: string;
+            firstName: string;
+            lastName: string;
+            profilePicture: string | null;
+        };
+        school: {
+            id: string;
+            name: string;
+            type: string;
+        };
+    } | {
+        access_token: string;
+        user: {
+            id: string;
+            email: string;
             type: import(".prisma/client").$Enums.UserType;
             firstName: string;
             lastName: string;
             profilePicture: string | null;
         };
     }>;
+    private registerSchoolAdmin;
     createMasterAccount(): Promise<{
         message: string;
         credentials?: undefined;
@@ -42,9 +64,35 @@ export declare class AuthService {
         user: {
             id: string;
             email: string;
-            type: import(".prisma/client").$Enums.UserType;
+            type: string;
             firstName: string;
             lastName: string;
         };
     }>;
+    sendVerificationEmail(email: string, userType: string, userName?: string): Promise<{
+        success: boolean;
+        message: string;
+        email: string;
+        userType: string;
+    }>;
+    verifyEmail(email: string, code: string): Promise<{
+        success: boolean;
+        message: string;
+        email: string;
+    }>;
+    forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    private generateResetToken;
+    getSchoolAdminProfile(userId: string): Promise<{
+        isActive: boolean;
+        role: string;
+        schoolId: string;
+    } | null>;
+    getUserProfile(user: any): Promise<any>;
 }

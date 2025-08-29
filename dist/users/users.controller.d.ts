@@ -14,6 +14,7 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
+        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
@@ -41,6 +42,7 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
+        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
@@ -66,6 +68,7 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
+        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
@@ -81,6 +84,7 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
+        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;

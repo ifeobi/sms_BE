@@ -17,9 +17,12 @@ const common_1 = require("@nestjs/common");
 const auth_service_1 = require("./auth.service");
 const login_dto_1 = require("./dto/login.dto");
 const register_dto_1 = require("./dto/register.dto");
+const forgot_password_dto_1 = require("./dto/forgot-password.dto");
+const reset_password_dto_1 = require("./dto/reset-password.dto");
 const local_auth_guard_1 = require("./guards/local-auth.guard");
 const jwt_auth_guard_1 = require("./guards/jwt-auth.guard");
 const swagger_1 = require("@nestjs/swagger");
+const class_transformer_1 = require("class-transformer");
 let AuthController = class AuthController {
     authService;
     constructor(authService) {
@@ -29,16 +32,44 @@ let AuthController = class AuthController {
         return this.authService.login(loginDto);
     }
     async register(registerDto) {
-        return this.authService.register(registerDto);
+        console.log('=== REGISTRATION REQUEST ===');
+        console.log('Received registration request');
+        console.log('Request body:', JSON.stringify(registerDto, null, 2));
+        console.log('Request body type:', typeof registerDto);
+        console.log('Request body keys:', Object.keys(registerDto));
+        console.log('================================');
+        const cleanRegisterDto = (0, class_transformer_1.plainToClass)(register_dto_1.RegisterDto, registerDto, {
+            excludeExtraneousValues: true,
+        });
+        console.log('=== CLEANED DATA ===');
+        console.log('Cleaned data:', JSON.stringify(cleanRegisterDto, null, 2));
+        console.log('Cleaned data keys:', Object.keys(cleanRegisterDto));
+        console.log('================================');
+        return this.authService.register(cleanRegisterDto);
     }
     async loginLocal(req) {
         return this.authService.login(req.user);
     }
     getProfile(req) {
-        return req.user;
+        return this.authService.getUserProfile(req.user);
     }
     async createMasterAccount() {
         return this.authService.createMasterAccount();
+    }
+    async sendVerificationEmail(data) {
+        return this.authService.sendVerificationEmail(data.email, data.userType, data.userName);
+    }
+    async verifyEmail(data) {
+        return this.authService.verifyEmail(data.email, data.code);
+    }
+    async resendVerificationEmail(data) {
+        return this.authService.sendVerificationEmail(data.email, data.userType, data.userName);
+    }
+    async forgotPassword(forgotPasswordDto) {
+        return this.authService.forgotPassword(forgotPasswordDto);
+    }
+    async resetPassword(resetPasswordDto) {
+        return this.authService.resetPassword(resetPasswordDto);
     }
 };
 exports.AuthController = AuthController;
@@ -90,6 +121,53 @@ __decorate([
     __metadata("design:paramtypes", []),
     __metadata("design:returntype", Promise)
 ], AuthController.prototype, "createMasterAccount", null);
+__decorate([
+    (0, common_1.Post)('send-verification'),
+    (0, swagger_1.ApiOperation)({ summary: 'Send verification email' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Verification email sent' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "sendVerificationEmail", null);
+__decorate([
+    (0, common_1.Post)('verify-email'),
+    (0, swagger_1.ApiOperation)({ summary: 'Verify email code' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Email verified successfully' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "verifyEmail", null);
+__decorate([
+    (0, common_1.Post)('resend-verification'),
+    (0, swagger_1.ApiOperation)({ summary: 'Resend verification email' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Verification email resent' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "resendVerificationEmail", null);
+__decorate([
+    (0, common_1.Post)('forgot-password'),
+    (0, swagger_1.ApiOperation)({ summary: 'Request password reset' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Password reset email sent' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid request data' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [forgot_password_dto_1.ForgotPasswordDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "forgotPassword", null);
+__decorate([
+    (0, common_1.Post)('reset-password'),
+    (0, swagger_1.ApiOperation)({ summary: 'Reset password with token' }),
+    (0, swagger_1.ApiResponse)({ status: 200, description: 'Password reset successfully' }),
+    (0, swagger_1.ApiResponse)({ status: 400, description: 'Invalid token or passwords' }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [reset_password_dto_1.ResetPasswordDto]),
+    __metadata("design:returntype", Promise)
+], AuthController.prototype, "resetPassword", null);
 exports.AuthController = AuthController = __decorate([
     (0, swagger_1.ApiTags)('Authentication'),
     (0, common_1.Controller)('auth'),

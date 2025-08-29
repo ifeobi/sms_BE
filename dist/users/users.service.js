@@ -18,9 +18,26 @@ let UsersService = class UsersService {
         this.prisma = prisma;
     }
     async create(createUserDto) {
-        return this.prisma.user.create({
-            data: createUserDto,
-        });
+        console.log('=== USER CREATION DEBUG ===');
+        console.log('Creating user with data:', JSON.stringify(createUserDto, null, 2));
+        console.log('Data keys:', Object.keys(createUserDto));
+        console.log('================================');
+        try {
+            const user = await this.prisma.user.create({
+                data: createUserDto,
+            });
+            console.log('✅ User created successfully:', user.id);
+            console.log('================================');
+            return user;
+        }
+        catch (error) {
+            console.error('❌ User creation failed:', error);
+            console.error('Error message:', error.message);
+            console.error('Error code:', error.code);
+            console.error('Error meta:', error.meta);
+            console.log('================================');
+            throw error;
+        }
     }
     async findAll() {
         return this.prisma.user.findMany({
@@ -48,10 +65,22 @@ let UsersService = class UsersService {
         }
         return user;
     }
-    async findByEmail(email) {
-        return this.prisma.user.findUnique({
-            where: { email },
-        });
+    async findByEmail(email, type) {
+        if (type) {
+            return this.prisma.user.findUnique({
+                where: {
+                    email_type: {
+                        email,
+                        type: type
+                    }
+                },
+            });
+        }
+        else {
+            return this.prisma.user.findFirst({
+                where: { email },
+            });
+        }
     }
     async update(id, updateUserDto) {
         await this.findById(id);
@@ -71,7 +100,7 @@ let UsersService = class UsersService {
         return this.prisma.user.findMany({
             where: {
                 type: type,
-                isActive: true
+                isActive: true,
             },
             select: {
                 id: true,

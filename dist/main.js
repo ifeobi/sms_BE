@@ -5,6 +5,7 @@ const app_module_1 = require("./app.module");
 const common_1 = require("@nestjs/common");
 const swagger_1 = require("@nestjs/swagger");
 async function bootstrap() {
+    const logger = new common_1.Logger('Main');
     const app = await core_1.NestFactory.create(app_module_1.AppModule);
     app.enableCors({
         origin: process.env.CORS_ORIGIN || 'http://localhost:3000',
@@ -12,7 +13,7 @@ async function bootstrap() {
     });
     app.useGlobalPipes(new common_1.ValidationPipe({
         whitelist: true,
-        forbidNonWhitelisted: true,
+        forbidNonWhitelisted: false,
         transform: true,
     }));
     const config = new swagger_1.DocumentBuilder()
@@ -27,6 +28,8 @@ async function bootstrap() {
     await app.listen(port);
     console.log(`🚀 Application is running on: http://localhost:${port}`);
     console.log(`📚 Swagger documentation: http://localhost:${port}/api`);
+    console.log(`Database URL: ${process.env.DATABASE_URL?.replace(/:[^:]*@/, ':****@') || 'Not set'}`);
+    console.log('✅ Application startup completed successfully');
 }
 bootstrap();
 //# sourceMappingURL=main.js.map

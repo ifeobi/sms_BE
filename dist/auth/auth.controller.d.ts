@@ -1,6 +1,8 @@
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 export declare class AuthController {
     private authService;
     constructor(authService: AuthService);
@@ -16,6 +18,21 @@ export declare class AuthController {
         };
     }>;
     register(registerDto: RegisterDto): Promise<{
+        access_token: string;
+        user: {
+            id: string;
+            email: string;
+            type: string;
+            firstName: string;
+            lastName: string;
+            profilePicture: string | null;
+        };
+        school: {
+            id: string;
+            name: string;
+            type: string;
+        };
+    } | {
         access_token: string;
         user: {
             id: string;
@@ -37,7 +54,7 @@ export declare class AuthController {
             profilePicture: any;
         };
     }>;
-    getProfile(req: any): any;
+    getProfile(req: any): Promise<any>;
     createMasterAccount(): Promise<{
         message: string;
         credentials?: undefined;
@@ -51,9 +68,45 @@ export declare class AuthController {
         user: {
             id: string;
             email: string;
-            type: import(".prisma/client").$Enums.UserType;
+            type: string;
             firstName: string;
             lastName: string;
         };
+    }>;
+    sendVerificationEmail(data: {
+        email: string;
+        userType: string;
+        userName?: string;
+    }): Promise<{
+        success: boolean;
+        message: string;
+        email: string;
+        userType: string;
+    }>;
+    verifyEmail(data: {
+        email: string;
+        code: string;
+    }): Promise<{
+        success: boolean;
+        message: string;
+        email: string;
+    }>;
+    resendVerificationEmail(data: {
+        email: string;
+        userType: string;
+        userName?: string;
+    }): Promise<{
+        success: boolean;
+        message: string;
+        email: string;
+        userType: string;
+    }>;
+    forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{
+        success: boolean;
+        message: string;
+    }>;
+    resetPassword(resetPasswordDto: ResetPasswordDto): Promise<{
+        success: boolean;
+        message: string;
     }>;
 }

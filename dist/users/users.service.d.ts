@@ -14,6 +14,7 @@ export declare class UsersService {
         phone: string | null;
         isActive: boolean;
         id: string;
+        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
@@ -41,12 +42,13 @@ export declare class UsersService {
         phone: string | null;
         isActive: boolean;
         id: string;
+        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
     }>;
-    findByEmail(email: string): Promise<{
+    findByEmail(email: string, type?: string): Promise<{
         type: import(".prisma/client").$Enums.UserType;
         email: string;
         password: string;
@@ -56,6 +58,7 @@ export declare class UsersService {
         phone: string | null;
         isActive: boolean;
         id: string;
+        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
@@ -71,6 +74,7 @@ export declare class UsersService {
         phone: string | null;
         isActive: boolean;
         id: string;
+        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
@@ -86,6 +90,7 @@ export declare class UsersService {
         phone: string | null;
         isActive: boolean;
         id: string;
+        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;

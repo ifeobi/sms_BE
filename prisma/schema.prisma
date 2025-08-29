@@ -14,11 +14,12 @@ datasource db {
 
 model User {
   id             String   @id @default(cuid())
-  email          String   @unique
+  email          String
   password       String
   type           UserType
   firstName      String
   lastName       String
+  fullName       String?  // For schools that prefer full names
   profilePicture String?
   phone          String?
   isActive       Boolean  @default(true)
@@ -36,6 +37,8 @@ model User {
   createdBy      String?
   lastLoginAt    DateTime?
 
+  // Composite unique constraint: same email can't be used twice for same user type
+  @@unique([email, type])
   @@map("users")
 }
 
@@ -53,8 +56,19 @@ enum UserType {
 model School {
   id        String   @id @default(cuid())
   name      String
-  type      SchoolType
+  type      String   // Flexible string instead of enum
   country   String
+  
+  // Address fields for Google Maps integration
+  street    String?
+  city      String?
+  state     String?
+  postalCode String?
+  latitude  Float?
+  longitude Float?
+  formattedAddress String? // Full formatted address from Google Maps
+  landmark  String? // Optional landmark for easier location identification
+  
   logo      String?
   isActive  Boolean  @default(true)
   createdAt DateTime @default(now())
@@ -71,14 +85,9 @@ model School {
   classes      Class[]
   levels       Level[]
   teacherAssignments TeacherAssignment[]
+  bulkImports  BulkImport[]
 
   @@map("schools")
-}
-
-enum SchoolType {
-  PRIMARY
-  SECONDARY
-  TERTIARY
 }
 
 // ==================== STUDENT MANAGEMENT ====================
@@ -161,6 +170,7 @@ model Student {
   promotionHistory PromotionRecord[]
   emergencyContacts EmergencyContact[]
   previousSchools PreviousSchool[]
+  bulkImportRecords BulkImportRecord[]
 
   @@map("students")
 }
@@ -314,6 +324,12 @@ model ParentSchoolRelationship {
   relationshipType ParentRelationshipType
   isActive       Boolean  @default(true)
   createdAt      DateTime @default(now())
+  
+  // Verification fields for parent-child linking
+  verificationCode String?
+  isVerified      Boolean  @default(false)
+  verificationExpiresAt DateTime?
+  verifiedAt      DateTime?
 
   // Relationships
   parent         Parent   @relation(fields: [parentUserId], references: [id])
@@ -328,6 +344,54 @@ enum ParentRelationshipType {
   MOTHER
   GUARDIAN
   OTHER
+}
+
+// ==================== BULK IMPORT MANAGEMENT ====================
+
+model BulkImport {
+  id                String   @id @default(cuid())
+  schoolId          String
+  importedBy        String
+  totalRecords      Int
+  successfulRecords Int      @default(0)
+  failedRecords     Int      @default(0)
+  status            BulkImportStatus @default(PROCESSING)
+  errorLog          Json?
+  createdAt         DateTime @default(now())
+  completedAt       DateTime?
+
+  // Relationships
+  school            School   @relation(fields: [schoolId], references: [id])
+  records           BulkImportRecord[]
+
+  @@map("bulk_imports")
+}
+
+enum BulkImportStatus {
+  PROCESSING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+// ==================== VERIFICATION CODES ====================
+
+model VerificationCode {
+  id        String   @id @default(cuid())
+  email     String
+  code      String   @db.VarChar(10)
+  type      VerificationCodeType
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@map("verification_codes")
+}
+
+enum VerificationCodeType {
+  PARENT_LINKING
+  PASSWORD_RESET
+  EMAIL_VERIFICATION
 }
 
 // ==================== ACADEMIC RECORDS ====================
@@ -815,4 +879,43 @@ enum MarketplaceCategory {
   ASSESSMENT
   WORKSHEET
   AUDIO_BOOK
+}
+
+// ==================== PASSWORD RESET ====================
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  userType  UserType
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("password_resets")
+}
+
+// ==================== BULK IMPORT RECORDS ====================
+
+model BulkImportRecord {
+  id             String   @id @default(cuid())
+  bulkImportId   String
+  studentId      String?
+  errorMessage   String?
+  status         BulkImportRecordStatus @default(PENDING)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  // Relationships
+  bulkImport     BulkImport @relation(fields: [bulkImportId], references: [id])
+  student        Student?   @relation(fields: [studentId], references: [id])
+
+  @@map("bulk_import_records")
+}
+
+enum BulkImportRecordStatus {
+  PENDING
+  SUCCESS
+  FAILED
+  SKIPPED
 }

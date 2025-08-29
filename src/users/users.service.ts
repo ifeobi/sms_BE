@@ -8,9 +8,29 @@ export class UsersService {
   constructor(private prisma: PrismaService) {}
 
   async create(createUserDto: CreateUserDto) {
-    return this.prisma.user.create({
-      data: createUserDto,
-    });
+    console.log('=== USER CREATION DEBUG ===');
+    console.log(
+      'Creating user with data:',
+      JSON.stringify(createUserDto, null, 2),
+    );
+    console.log('Data keys:', Object.keys(createUserDto));
+    console.log('================================');
+
+    try {
+      const user = await this.prisma.user.create({
+        data: createUserDto,
+      });
+      console.log('✅ User created successfully:', user.id);
+      console.log('================================');
+      return user;
+    } catch (error) {
+      console.error('❌ User creation failed:', error);
+      console.error('Error message:', error.message);
+      console.error('Error code:', error.code);
+      console.error('Error meta:', error.meta);
+      console.log('================================');
+      throw error;
+    }
   }
 
   async findAll() {
@@ -43,10 +63,23 @@ export class UsersService {
     return user;
   }
 
-  async findByEmail(email: string) {
-    return this.prisma.user.findUnique({
-      where: { email },
-    });
+  async findByEmail(email: string, type?: string) {
+    if (type) {
+      // Use composite unique constraint
+      return this.prisma.user.findUnique({
+        where: { 
+          email_type: {
+            email,
+            type: type as any
+          }
+        },
+      });
+    } else {
+      // Find by email only (returns first match)
+      return this.prisma.user.findFirst({
+        where: { email },
+      });
+    }
   }
 
   async update(id: string, updateUserDto: UpdateUserDto) {
@@ -69,9 +102,9 @@ export class UsersService {
 
   async findByType(type: string) {
     return this.prisma.user.findMany({
-      where: { 
+      where: {
         type: type as any,
-        isActive: true 
+        isActive: true,
       },
       select: {
         id: true,
@@ -85,4 +118,4 @@ export class UsersService {
       },
     });
   }
-} 
+}

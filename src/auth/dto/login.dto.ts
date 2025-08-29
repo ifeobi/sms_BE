@@ -10,4 +10,11 @@ export class LoginDto {
   @IsString()
   @MinLength(6)
   password: string;
-} 
+
+  @ApiProperty({
+    example: 'SCHOOL_ADMIN',
+    enum: ['SCHOOL_ADMIN', 'PARENT', 'TEACHER', 'STUDENT', 'CREATOR'],
+  })
+  @IsString()
+  userType: string;
+}
