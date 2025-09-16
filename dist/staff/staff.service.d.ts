@@ -139,8 +139,8 @@ export declare class StaffService {
                     isActive: boolean;
                     id: string;
                     name: string;
-                    schoolId: string;
                     code: string;
+                    schoolId: string;
                 };
             } & {
                 isActive: boolean;
@@ -255,8 +255,8 @@ export declare class StaffService {
                 isActive: boolean;
                 id: string;
                 name: string;
-                schoolId: string;
                 code: string;
+                schoolId: string;
             };
         } & {
             isActive: boolean;
@@ -369,8 +369,8 @@ export declare class StaffService {
                 isActive: boolean;
                 id: string;
                 name: string;
-                schoolId: string;
                 code: string;
+                schoolId: string;
             };
         } & {
             isActive: boolean;
@@ -487,8 +487,8 @@ export declare class StaffService {
                     isActive: boolean;
                     id: string;
                     name: string;
-                    schoolId: string;
                     code: string;
+                    schoolId: string;
                 };
             } & {
                 isActive: boolean;

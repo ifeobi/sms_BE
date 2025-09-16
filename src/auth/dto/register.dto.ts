@@ -92,33 +92,38 @@ export class RegisterDto {
   lastName: string;
 
   @Expose()
-  @ApiProperty({ enum: Gender, example: Gender.MALE })
+  @ApiProperty({ enum: Gender, example: Gender.MALE, required: false })
+  @IsOptional()
   @IsEnum(Gender)
-  gender: Gender;
+  gender?: Gender;
 
   @Expose()
   @ApiProperty({
     example: 'principal',
     description: 'Role in school: principal, vice_principal, admin, etc.',
+    required: false,
   })
+  @IsOptional()
   @IsString()
-  role: string;
+  role?: string;
 
   @Expose()
   @ApiProperty({ enum: UserType, example: UserType.SCHOOL_ADMIN })
   @IsEnum(UserType)
   userType: UserType;
 
-  // School Information
+  // School Information (optional for non-school users)
   @Expose()
-  @ApiProperty({ example: 'Academeka International School' })
+  @ApiProperty({ example: 'Academeka International School', required: false })
+  @IsOptional()
   @IsString()
-  schoolName: string;
+  schoolName?: string;
 
   @Expose()
-  @ApiProperty({ example: '+2348012345678' })
+  @ApiProperty({ example: '+2348012345678', required: false })
+  @IsOptional()
   @IsString()
-  phone: string;
+  phone?: string;
 
   @Expose()
   @ApiProperty({ example: 'https://academeka.com', required: false })
@@ -127,29 +132,34 @@ export class RegisterDto {
   website?: string;
 
   @Expose()
-  @ApiProperty({ example: 'NG', description: 'Country code' })
+  @ApiProperty({ example: 'NG', description: 'Country code', required: false })
+  @IsOptional()
   @IsString()
-  country: string;
+  country?: string;
 
   @Expose()
   @ApiProperty({
     type: [String],
     example: ['ELEMENTARY', 'SECONDARY'],
     description: 'Array of school types',
+    required: false,
   })
+  @IsOptional()
   @IsArray()
   @IsString({ each: true })
-  schoolTypes: string[];
+  schoolTypes?: string[];
 
   @Expose()
   @ApiProperty({
     type: [AddressDto],
     description: 'Array of school addresses',
+    required: false,
   })
+  @IsOptional()
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AddressDto)
-  addresses: AddressDto[];
+  addresses?: AddressDto[];
 
   @Expose()
   @ApiProperty({ required: false })

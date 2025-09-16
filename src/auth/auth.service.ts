@@ -105,15 +105,15 @@ export class AuthService {
         return await this.registerSchoolAdmin(registerDto, hashedPassword);
       }
 
-      // Handle other user types (existing logic)
+      // Handle other user types (PARENT, STUDENT, TEACHER, CREATOR)
       const userData = {
         email: registerDto.email,
         password: hashedPassword,
         firstName: registerDto.firstName,
         lastName: registerDto.lastName,
         type: registerDto.userType,
-        phone: registerDto.phone,
-        profilePicture: registerDto.profilePicture,
+        phone: registerDto.phone || undefined,
+        profilePicture: registerDto.profilePicture || undefined,
       };
 
       console.log('User data to create:', JSON.stringify(userData, null, 2));
@@ -121,6 +121,17 @@ export class AuthService {
       // Create user
       const user = await this.usersService.create(userData);
       console.log('✅ User created successfully:', user.id);
+
+      // Create specific user type record if needed
+      if (registerDto.userType === UserType.PARENT) {
+        await this.prisma.parent.create({
+          data: {
+            userId: user.id,
+            isActive: true,
+          },
+        });
+        console.log('✅ Parent record created');
+      }
 
       const payload = {
         email: user.email,
@@ -182,18 +193,18 @@ export class AuthService {
       console.log('✅ User created:', user.id);
 
       // 2. Create the school
-      const primaryAddress = registerDto.addresses[0];
+      const primaryAddress = registerDto.addresses?.[0];
 
       const schoolData = {
-        name: registerDto.schoolName,
-        type: registerDto.schoolTypes[0], // Use the frontend value directly
-        country: registerDto.country,
-        street: primaryAddress.street,
-        city: primaryAddress.city,
-        state: primaryAddress.state,
-        postalCode: primaryAddress.postalCode,
-        landmark: primaryAddress.landmark,
-        logo: registerDto.profilePicture,
+        name: registerDto.schoolName || 'Unnamed School',
+        type: registerDto.schoolTypes?.[0] || 'ELEMENTARY', // Use the frontend value directly
+        country: registerDto.country || 'NG',
+        street: primaryAddress?.street || '',
+        city: primaryAddress?.city || '',
+        state: primaryAddress?.state || '',
+        postalCode: primaryAddress?.postalCode || undefined,
+        landmark: primaryAddress?.landmark || undefined,
+        logo: registerDto.profilePicture || undefined,
       };
 
       console.log(
@@ -209,7 +220,7 @@ export class AuthService {
       const schoolAdminData = {
         userId: user.id,
         schoolId: school.id,
-        role: registerDto.role, // principal, vice_principal, admin, etc.
+        role: registerDto.role || 'admin', // principal, vice_principal, admin, etc.
       };
 
       console.log('=== ROLE MAPPING ===');
@@ -299,6 +310,17 @@ export class AuthService {
     try {
       // Generate a 6-digit verification code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
+
+      // Store verification code in database
+      await this.prisma.verificationCode.create({
+        data: {
+          email,
+          code,
+          type: 'EMAIL_VERIFICATION',
+          expiresAt,
+        },
+      });
 
       // Send the verification email
       const emailSent = await this.emailService.sendVerificationEmail(
@@ -309,9 +331,7 @@ export class AuthService {
       );
 
       if (emailSent) {
-        // In production, store the code in database with expiration
-        console.log(`Verification code for ${email}: ${code}`);
-
+        console.log(`✅ Verification email sent to ${email}`);
         return {
           success: true,
           message: 'Verification email sent successfully',
@@ -322,22 +342,48 @@ export class AuthService {
         throw new Error('Failed to send verification email');
       }
     } catch (error) {
-      console.error('Email sending error:', error);
+      console.error('❌ Email sending error:', error);
       throw new Error('Failed to send verification email');
     }
   }
 
   async verifyEmail(email: string, code: string) {
-    // For now, accept any 6-digit code for development
-    // In production, this would validate against stored codes
-    if (code.length === 6 && /^\d+$/.test(code)) {
+    try {
+      // Find the verification code in database
+      const verificationCode = await this.prisma.verificationCode.findFirst({
+        where: {
+          email,
+          code,
+          type: 'EMAIL_VERIFICATION',
+          usedAt: null, // Not used yet
+          expiresAt: {
+            gt: new Date(), // Not expired
+          },
+        },
+      });
+
+      if (!verificationCode) {
+        throw new UnauthorizedException('Invalid or expired verification code');
+      }
+
+      // Mark the code as used
+      await this.prisma.verificationCode.update({
+        where: { id: verificationCode.id },
+        data: { usedAt: new Date() },
+      });
+
+      console.log(`✅ Email verified successfully for ${email}`);
       return {
         success: true,
         message: 'Email verified successfully',
         email,
       };
-    } else {
-      throw new UnauthorizedException('Invalid verification code');
+    } catch (error) {
+      console.error('❌ Email verification error:', error);
+      if (error instanceof UnauthorizedException) {
+        throw error;
+      }
+      throw new UnauthorizedException('Failed to verify email');
     }
   }
 

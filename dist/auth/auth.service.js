@@ -84,12 +84,21 @@ let AuthService = class AuthService {
                 firstName: registerDto.firstName,
                 lastName: registerDto.lastName,
                 type: registerDto.userType,
-                phone: registerDto.phone,
-                profilePicture: registerDto.profilePicture,
+                phone: registerDto.phone || undefined,
+                profilePicture: registerDto.profilePicture || undefined,
             };
             console.log('User data to create:', JSON.stringify(userData, null, 2));
             const user = await this.usersService.create(userData);
             console.log('✅ User created successfully:', user.id);
+            if (registerDto.userType === create_user_dto_1.UserType.PARENT) {
+                await this.prisma.parent.create({
+                    data: {
+                        userId: user.id,
+                        isActive: true,
+                    },
+                });
+                console.log('✅ Parent record created');
+            }
             const payload = {
                 email: user.email,
                 sub: user.id,
@@ -136,17 +145,17 @@ let AuthService = class AuthService {
                 data: userData,
             });
             console.log('✅ User created:', user.id);
-            const primaryAddress = registerDto.addresses[0];
+            const primaryAddress = registerDto.addresses?.[0];
             const schoolData = {
-                name: registerDto.schoolName,
-                type: registerDto.schoolTypes[0],
-                country: registerDto.country,
-                street: primaryAddress.street,
-                city: primaryAddress.city,
-                state: primaryAddress.state,
-                postalCode: primaryAddress.postalCode,
-                landmark: primaryAddress.landmark,
-                logo: registerDto.profilePicture,
+                name: registerDto.schoolName || 'Unnamed School',
+                type: registerDto.schoolTypes?.[0] || 'ELEMENTARY',
+                country: registerDto.country || 'NG',
+                street: primaryAddress?.street || '',
+                city: primaryAddress?.city || '',
+                state: primaryAddress?.state || '',
+                postalCode: primaryAddress?.postalCode || undefined,
+                landmark: primaryAddress?.landmark || undefined,
+                logo: registerDto.profilePicture || undefined,
             };
             console.log('Creating school with data:', JSON.stringify(schoolData, null, 2));
             const school = await prisma.school.create({
@@ -156,7 +165,7 @@ let AuthService = class AuthService {
             const schoolAdminData = {
                 userId: user.id,
                 schoolId: school.id,
-                role: registerDto.role,
+                role: registerDto.role || 'admin',
             };
             console.log('=== ROLE MAPPING ===');
             console.log('User Type (for database):', registerDto.userType);
@@ -227,9 +236,18 @@ let AuthService = class AuthService {
     async sendVerificationEmail(email, userType, userName) {
         try {
             const code = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+            await this.prisma.verificationCode.create({
+                data: {
+                    email,
+                    code,
+                    type: 'EMAIL_VERIFICATION',
+                    expiresAt,
+                },
+            });
             const emailSent = await this.emailService.sendVerificationEmail(email, code, userName || 'User', userType);
             if (emailSent) {
-                console.log(`Verification code for ${email}: ${code}`);
+                console.log(`✅ Verification email sent to ${email}`);
                 return {
                     success: true,
                     message: 'Verification email sent successfully',
@@ -242,20 +260,43 @@ let AuthService = class AuthService {
             }
         }
         catch (error) {
-            console.error('Email sending error:', error);
+            console.error('❌ Email sending error:', error);
             throw new Error('Failed to send verification email');
         }
     }
     async verifyEmail(email, code) {
-        if (code.length === 6 && /^\d+$/.test(code)) {
+        try {
+            const verificationCode = await this.prisma.verificationCode.findFirst({
+                where: {
+                    email,
+                    code,
+                    type: 'EMAIL_VERIFICATION',
+                    usedAt: null,
+                    expiresAt: {
+                        gt: new Date(),
+                    },
+                },
+            });
+            if (!verificationCode) {
+                throw new common_1.UnauthorizedException('Invalid or expired verification code');
+            }
+            await this.prisma.verificationCode.update({
+                where: { id: verificationCode.id },
+                data: { usedAt: new Date() },
+            });
+            console.log(`✅ Email verified successfully for ${email}`);
             return {
                 success: true,
                 message: 'Email verified successfully',
                 email,
             };
         }
-        else {
-            throw new common_1.UnauthorizedException('Invalid verification code');
+        catch (error) {
+            console.error('❌ Email verification error:', error);
+            if (error instanceof common_1.UnauthorizedException) {
+                throw error;
+            }
+            throw new common_1.UnauthorizedException('Failed to verify email');
         }
     }
     async forgotPassword(forgotPasswordDto) {
