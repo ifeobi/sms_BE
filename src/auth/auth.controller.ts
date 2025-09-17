@@ -54,7 +54,7 @@ export class AuthController {
     console.log('=== CLEANED DATA ===');
     console.log('Cleaned data:', JSON.stringify(cleanRegisterDto, null, 2));
     console.log('Cleaned data keys:', Object.keys(cleanRegisterDto));
-    console.log('================================');
+    console.log('===============================');
 
     return this.authService.register(cleanRegisterDto);
   }

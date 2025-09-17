@@ -141,4 +141,28 @@ export class SchoolController {
       );
     }
   }
+
+  @Get('parent-schools')
+  @ApiOperation({ summary: 'Get schools where parent has enrolled children' })
+  @ApiResponse({
+    status: 200,
+    description: 'Parent schools retrieved successfully',
+  })
+  async getParentSchools(@Request() req) {
+    try {
+      const userId = req.user.id;
+      const userType = req.user.type;
+
+      if (userType.toLowerCase() !== 'parent') {
+        throw new HttpException('Access denied', HttpStatus.FORBIDDEN);
+      }
+
+      return await this.schoolService.getParentSchools(userId);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to get parent schools',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

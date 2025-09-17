@@ -87,6 +87,19 @@ let SchoolController = class SchoolController {
             throw new common_1.HttpException(error.message || 'Failed to get upcoming events', error.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
         }
     }
+    async getParentSchools(req) {
+        try {
+            const userId = req.user.id;
+            const userType = req.user.type;
+            if (userType.toLowerCase() !== 'parent') {
+                throw new common_1.HttpException('Access denied', common_1.HttpStatus.FORBIDDEN);
+            }
+            return await this.schoolService.getParentSchools(userId);
+        }
+        catch (error) {
+            throw new common_1.HttpException(error.message || 'Failed to get parent schools', error.status || common_1.HttpStatus.INTERNAL_SERVER_ERROR);
+        }
+    }
 };
 exports.SchoolController = SchoolController;
 __decorate([
@@ -149,6 +162,18 @@ __decorate([
     __metadata("design:paramtypes", [Object]),
     __metadata("design:returntype", Promise)
 ], SchoolController.prototype, "getUpcomingEvents", null);
+__decorate([
+    (0, common_1.Get)('parent-schools'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get schools where parent has enrolled children' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Parent schools retrieved successfully',
+    }),
+    __param(0, (0, common_1.Request)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], SchoolController.prototype, "getParentSchools", null);
 exports.SchoolController = SchoolController = __decorate([
     (0, swagger_1.ApiTags)('School'),
     (0, common_1.Controller)('school'),

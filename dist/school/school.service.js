@@ -207,6 +207,65 @@ let SchoolService = class SchoolService {
         ];
         return events;
     }
+    async getParentSchools(parentId) {
+        const parent = await this.prisma.parent.findUnique({
+            where: { userId: parentId },
+            include: {
+                schoolRelationships: {
+                    include: {
+                        children: {
+                            where: {
+                                status: 'ACTIVE',
+                            },
+                            select: {
+                                school: {
+                                    select: {
+                                        id: true,
+                                        name: true,
+                                        type: true,
+                                        country: true,
+                                        city: true,
+                                        state: true,
+                                        logo: true,
+                                        street: true,
+                                        postalCode: true,
+                                        formattedAddress: true,
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (!parent) {
+            return [];
+        }
+        const schools = new Map();
+        parent.schoolRelationships.forEach(relationship => {
+            relationship.children.forEach(child => {
+                if (child.school) {
+                    schools.set(child.school.id, child.school);
+                }
+            });
+        });
+        return Array.from(schools.values()).map(school => ({
+            id: school.id,
+            name: school.name,
+            type: school.type,
+            country: school.country,
+            city: school.city,
+            state: school.state,
+            logo: school.logo,
+            address: {
+                street: school.street,
+                city: school.city,
+                state: school.state,
+                postalCode: school.postalCode,
+                formattedAddress: school.formattedAddress,
+            },
+        }));
+    }
 };
 exports.SchoolService = SchoolService;
 exports.SchoolService = SchoolService = __decorate([

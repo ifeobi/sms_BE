@@ -76,4 +76,20 @@ export declare class SchoolController {
         description: string;
         type: string;
     }[]>;
+    getParentSchools(req: any): Promise<{
+        id: any;
+        name: any;
+        type: any;
+        country: any;
+        city: any;
+        state: any;
+        logo: any;
+        address: {
+            street: any;
+            city: any;
+            state: any;
+            postalCode: any;
+            formattedAddress: any;
+        };
+    }[]>;
 }
