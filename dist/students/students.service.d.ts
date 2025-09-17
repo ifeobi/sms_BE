@@ -8,15 +8,18 @@ export declare class StudentsService {
             id: string;
             studentNumber: string;
             name: string;
-            email: any;
-            phone: any;
-            avatar: any;
+            email: string;
+            phone: string | null;
+            avatar: string | null;
             status: import(".prisma/client").$Enums.StudentStatus;
-            currentClass: any;
-            currentLevel: any;
+            currentClass: string;
+            currentLevel: string;
             academicYear: string;
             enrollmentDate: Date;
-            school: any;
+            school: {
+                id: string;
+                name: string;
+            };
         }[];
         total: number;
     }>;
@@ -30,23 +33,26 @@ export declare class StudentsService {
     }>;
     getStudentAcademicRecords(parentUserId: string, studentId: string, termId?: string, subjectId?: string): Promise<{
         student: {
-            id: any;
-            studentNumber: any;
+            id: string;
+            studentNumber: string;
             name: string;
-            email: any;
-            phone: any;
-            avatar: any;
-            status: any;
-            currentClass: any;
-            currentLevel: any;
-            academicYear: any;
-            enrollmentDate: any;
-            school: any;
+            email: string;
+            phone: string | null;
+            avatar: string | null;
+            status: import(".prisma/client").$Enums.StudentStatus;
+            currentClass: string;
+            currentLevel: string;
+            academicYear: string;
+            enrollmentDate: Date;
+            school: {
+                id: string;
+                name: string;
+            };
         };
         academicRecords: {
             id: string;
-            subject: any;
-            assignment: any;
+            subject: string;
+            assignment: string | undefined;
             score: number;
             maxScore: number;
             grade: string;
@@ -55,9 +61,13 @@ export declare class StudentsService {
             comments: string | null;
             feedback: string | null;
             gradedAt: Date;
-            term: any;
+            term: {
+                id: string;
+                name: string;
+                academicYear: string;
+            };
             teacher: {
-                id: any;
+                id: string;
                 name: string;
             };
         }[];
@@ -67,28 +77,34 @@ export declare class StudentsService {
     }>;
     getStudentAttendance(parentUserId: string, studentId: string, startDate?: string, endDate?: string): Promise<{
         student: {
-            id: any;
-            studentNumber: any;
+            id: string;
+            studentNumber: string;
             name: string;
-            email: any;
-            phone: any;
-            avatar: any;
-            status: any;
-            currentClass: any;
-            currentLevel: any;
-            academicYear: any;
-            enrollmentDate: any;
-            school: any;
+            email: string;
+            phone: string | null;
+            avatar: string | null;
+            status: import(".prisma/client").$Enums.StudentStatus;
+            currentClass: string;
+            currentLevel: string;
+            academicYear: string;
+            enrollmentDate: Date;
+            school: {
+                id: string;
+                name: string;
+            };
         };
         attendanceRecords: {
             id: string;
             date: Date;
             status: import(".prisma/client").$Enums.AttendanceStatus;
-            checkInTime: any;
-            checkOutTime: any;
-            notes: any;
-            class: any;
-            subject: any;
+            checkInTime: null;
+            checkOutTime: null;
+            notes: string | null;
+            class: {
+                id: string;
+                name: string;
+            };
+            subject: null;
         }[];
         total: number;
         attendancePercentage: number;

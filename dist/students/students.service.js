@@ -31,7 +31,6 @@ let StudentsService = StudentsService_1 = class StudentsService {
                         select: {
                             id: true,
                             name: true,
-                            address: true,
                         },
                     },
                 },
@@ -65,7 +64,6 @@ let StudentsService = StudentsService_1 = class StudentsService {
                         select: {
                             id: true,
                             name: true,
-                            address: true,
                         },
                     },
                     currentClass: {
@@ -153,7 +151,6 @@ let StudentsService = StudentsService_1 = class StudentsService {
                                 select: {
                                     id: true,
                                     name: true,
-                                    address: true,
                                 },
                             },
                             currentClass: {
@@ -332,7 +329,6 @@ let StudentsService = StudentsService_1 = class StudentsService {
                                 select: {
                                     id: true,
                                     name: true,
-                                    address: true,
                                 },
                             },
                             currentClass: {
@@ -350,12 +346,6 @@ let StudentsService = StudentsService_1 = class StudentsService {
                         },
                     },
                     class: {
-                        select: {
-                            id: true,
-                            name: true,
-                        },
-                    },
-                    subject: {
                         select: {
                             id: true,
                             name: true,
@@ -399,11 +389,11 @@ let StudentsService = StudentsService_1 = class StudentsService {
                     id: record.id,
                     date: record.date,
                     status: record.status,
-                    checkInTime: record.checkInTime,
-                    checkOutTime: record.checkOutTime,
-                    notes: record.notes,
+                    checkInTime: null,
+                    checkOutTime: null,
+                    notes: record.reason,
                     class: record.class,
-                    subject: record.subject,
+                    subject: null,
                 });
                 studentData.total++;
             });
@@ -464,7 +454,6 @@ let StudentsService = StudentsService_1 = class StudentsService {
                                 select: {
                                     id: true,
                                     name: true,
-                                    address: true,
                                 },
                             },
                             currentClass: {
@@ -619,7 +608,6 @@ let StudentsService = StudentsService_1 = class StudentsService {
                                 select: {
                                     id: true,
                                     name: true,
-                                    address: true,
                                 },
                             },
                             currentClass: {
@@ -637,12 +625,6 @@ let StudentsService = StudentsService_1 = class StudentsService {
                         },
                     },
                     class: {
-                        select: {
-                            id: true,
-                            name: true,
-                        },
-                    },
-                    subject: {
                         select: {
                             id: true,
                             name: true,
@@ -673,11 +655,11 @@ let StudentsService = StudentsService_1 = class StudentsService {
                 id: record.id,
                 date: record.date,
                 status: record.status,
-                checkInTime: record.checkInTime,
-                checkOutTime: record.checkOutTime,
-                notes: record.notes,
+                checkInTime: null,
+                checkOutTime: null,
+                notes: record.reason,
                 class: record.class,
-                subject: record.subject,
+                subject: null,
             }));
             const presentDays = records.filter(record => record.status === 'PRESENT').length;
             const absentDays = records.filter(record => record.status === 'ABSENT').length;

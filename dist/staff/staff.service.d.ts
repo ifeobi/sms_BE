@@ -44,8 +44,8 @@ export declare class StaffService {
         id: string;
         userId: string;
         schoolId: string;
-        department: string | null;
         employeeNumber: string;
+        department: string | null;
         hireDate: Date;
     }) | ({
         user: {
@@ -159,8 +159,8 @@ export declare class StaffService {
             id: string;
             userId: string;
             schoolId: string;
-            department: string | null;
             employeeNumber: string;
+            department: string | null;
             hireDate: Date;
         })[];
         schoolAdmins: ({
@@ -275,8 +275,8 @@ export declare class StaffService {
         id: string;
         userId: string;
         schoolId: string;
-        department: string | null;
         employeeNumber: string;
+        department: string | null;
         hireDate: Date;
     }) | ({
         user: {
@@ -389,8 +389,8 @@ export declare class StaffService {
         id: string;
         userId: string;
         schoolId: string;
-        department: string | null;
         employeeNumber: string;
+        department: string | null;
         hireDate: Date;
     }) | ({
         user: {
@@ -507,8 +507,8 @@ export declare class StaffService {
             id: string;
             userId: string;
             schoolId: string;
-            department: string | null;
             employeeNumber: string;
+            department: string | null;
             hireDate: Date;
         })[];
         schoolAdmins: ({

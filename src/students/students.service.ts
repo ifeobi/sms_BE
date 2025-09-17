@@ -20,7 +20,6 @@ export class StudentsService {
             select: {
               id: true,
               name: true,
-              address: true,
             },
           },
         },
@@ -58,7 +57,6 @@ export class StudentsService {
             select: {
               id: true,
               name: true,
-              address: true,
             },
           },
           currentClass: {
@@ -166,7 +164,6 @@ export class StudentsService {
                 select: {
                   id: true,
                   name: true,
-                  address: true,
                 },
               },
               currentClass: {
@@ -370,7 +367,6 @@ export class StudentsService {
                 select: {
                   id: true,
                   name: true,
-                  address: true,
                 },
               },
               currentClass: {
@@ -388,12 +384,6 @@ export class StudentsService {
             },
           },
           class: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          subject: {
             select: {
               id: true,
               name: true,
@@ -442,11 +432,11 @@ export class StudentsService {
           id: record.id,
           date: record.date,
           status: record.status,
-          checkInTime: record.checkInTime,
-          checkOutTime: record.checkOutTime,
-          notes: record.notes,
+          checkInTime: null, // Field doesn't exist in schema
+          checkOutTime: null, // Field doesn't exist in schema
+          notes: record.reason, // Using reason field instead of notes
           class: record.class,
-          subject: record.subject,
+          subject: null, // Field doesn't exist in schema
         });
         studentData.total++;
       });
@@ -531,7 +521,6 @@ export class StudentsService {
                 select: {
                   id: true,
                   name: true,
-                  address: true,
                 },
               },
               currentClass: {
@@ -712,7 +701,6 @@ export class StudentsService {
                 select: {
                   id: true,
                   name: true,
-                  address: true,
                 },
               },
               currentClass: {
@@ -730,12 +718,6 @@ export class StudentsService {
             },
           },
           class: {
-            select: {
-              id: true,
-              name: true,
-            },
-          },
-          subject: {
             select: {
               id: true,
               name: true,
@@ -772,11 +754,11 @@ export class StudentsService {
         id: record.id,
         date: record.date,
         status: record.status,
-        checkInTime: record.checkInTime,
-        checkOutTime: record.checkOutTime,
-        notes: record.notes,
+        checkInTime: null, // Field doesn't exist in schema
+        checkOutTime: null, // Field doesn't exist in schema
+        notes: record.reason, // Using reason field instead of notes
         class: record.class,
-        subject: record.subject,
+        subject: null, // Field doesn't exist in schema
       }));
 
       // Calculate attendance statistics
