@@ -541,10 +541,23 @@ export class AuthService {
   }
 
   async getUserProfile(user: any) {
+    // Fetch fresh user data from database instead of using JWT payload
+    const freshUser = await this.usersService.findById(user.id);
+    if (!freshUser) {
+      throw new UnauthorizedException('User not found');
+    }
+
     // Get basic user data with lowercase type for frontend consistency
     const userData = {
-      ...user,
-      type: user.type.toLowerCase(),
+      id: freshUser.id,
+      email: freshUser.email,
+      type: freshUser.type.toLowerCase(),
+      firstName: freshUser.firstName,
+      lastName: freshUser.lastName,
+      profilePicture: freshUser.profilePicture,
+      phone: freshUser.phone,
+      isActive: freshUser.isActive,
+      createdAt: freshUser.createdAt,
     };
 
     // If user is a school admin, fetch the role information
