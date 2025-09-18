@@ -15,12 +15,12 @@ export declare class SchoolService {
             id: string;
             name: string;
             country: string;
-            street: string | null;
-            city: string | null;
-            state: string | null;
-            postalCode: string | null;
-            formattedAddress: string | null;
             logo: string | null;
+            city: string | null;
+            formattedAddress: string | null;
+            postalCode: string | null;
+            state: string | null;
+            street: string | null;
         };
     }>;
     getDashboardStats(userId: string): Promise<{

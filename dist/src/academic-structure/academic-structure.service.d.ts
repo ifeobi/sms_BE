@@ -8,64 +8,18 @@ export declare class AcademicStructureService {
     private sectionManagementService;
     constructor(prisma: PrismaService, educationSystemsService: EducationSystemsService, sectionManagementService: SectionManagementService);
     getEducationSystemById(id: string): EducationSystem | null;
-    generateAcademicStructureForSchool(schoolId: string, educationSystemId: string, selectedLevels: string[], availableLevels: string[]): Promise<{
-        id: string;
-        schoolId: string;
-        educationSystemId: string;
-        selectedLevels: string[];
-        availableLevels: string[];
-        customClassNames: import("@prisma/client/runtime/library").JsonValue | null;
-        customSubjectNames: import("@prisma/client/runtime/library").JsonValue | null;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-    }>;
-    updateSchoolAcademicStructure(schoolId: string, selectedLevels: string[], customClassNames?: Record<string, string>, customSubjectNames?: Record<string, string>): Promise<import(".prisma/client").Prisma.BatchPayload>;
+    generateAcademicStructureForSchool(schoolId: string, educationSystemId: string, selectedLevels: string[], availableLevels: string[]): Promise<any>;
+    updateSchoolAcademicStructure(schoolId: string, selectedLevels: string[], customClassNames?: Record<string, string>, customSubjectNames?: Record<string, string>): Promise<any>;
     getSchoolAcademicStructure(schoolId: string): Promise<{
-        config: {
-            school: {
-                id: string;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
-                name: string;
-                country: string;
-                street: string | null;
-                city: string | null;
-                state: string | null;
-                postalCode: string | null;
-                latitude: number | null;
-                longitude: number | null;
-                formattedAddress: string | null;
-                landmark: string | null;
-                logo: string | null;
-            };
-        } & {
-            id: string;
-            schoolId: string;
-            educationSystemId: string;
-            selectedLevels: string[];
-            availableLevels: string[];
-            customClassNames: import("@prisma/client/runtime/library").JsonValue | null;
-            customSubjectNames: import("@prisma/client/runtime/library").JsonValue | null;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-        };
+        config: any;
         levels: ({
             classes: {
                 id: string;
                 schoolId: string;
                 isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
                 name: string;
                 order: number;
                 levelId: string;
-                sectionName: string | null;
-                sectionOrder: number | null;
-                capacity: number | null;
-                templateUsed: string | null;
             }[];
         } & {
             id: string;
@@ -87,30 +41,24 @@ export declare class AcademicStructureService {
                 schoolId: string;
                 isActive: boolean;
                 name: string;
-                code: string;
                 description: string | null;
+                code: string;
             }[];
         } & {
             id: string;
             schoolId: string;
             isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             name: string;
             order: number;
             levelId: string;
-            sectionName: string | null;
-            sectionOrder: number | null;
-            capacity: number | null;
-            templateUsed: string | null;
         })[];
         subjects: {
             id: string;
             schoolId: string;
             isActive: boolean;
             name: string;
-            code: string;
             description: string | null;
+            code: string;
         }[];
         academicTerms: {
             id: string;
@@ -126,29 +74,23 @@ export declare class AcademicStructureService {
                 id: string;
                 schoolId: string;
                 isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
                 name: string;
                 order: number;
                 levelId: string;
-                sectionName: string | null;
-                sectionOrder: number | null;
-                capacity: number | null;
-                templateUsed: string | null;
             };
             subject: {
                 id: string;
                 schoolId: string;
                 isActive: boolean;
                 name: string;
-                code: string;
                 description: string | null;
+                code: string;
             };
             teacher: {
                 id: string;
+                userId: string;
                 schoolId: string;
                 isActive: boolean;
-                userId: string;
                 employeeNumber: string;
                 department: string | null;
                 hireDate: Date;
@@ -165,64 +107,20 @@ export declare class AcademicStructureService {
             subjectId: string;
             isFormTeacher: boolean;
         })[];
-        educationSystemId: string;
-        selectedLevels: string[];
-        availableLevels: string[];
+        educationSystemId: any;
+        selectedLevels: any;
+        availableLevels: any;
     }>;
-    getSectionTemplates(): Promise<{
-        id: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        name: string;
-        description: string;
-        pattern: string[];
-        isDefault: boolean;
-    }[]>;
-    getCustomSectionPatterns(schoolId: string): Promise<({
-        template: {
-            id: string;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-            name: string;
-            description: string;
-            pattern: string[];
-            isDefault: boolean;
-        } | null;
-    } & {
-        id: string;
-        schoolId: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        name: string;
-        pattern: string[];
-        templateId: string | null;
-    })[]>;
-    createCustomSectionPattern(schoolId: string, name: string, pattern: string[], templateId?: string): Promise<{
-        id: string;
-        schoolId: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        name: string;
-        pattern: string[];
-        templateId: string | null;
-    }>;
+    getSectionTemplates(): Promise<any>;
+    getCustomSectionPatterns(schoolId: string): Promise<any>;
+    createCustomSectionPattern(schoolId: string, name: string, pattern: string[], templateId?: string): Promise<any>;
     getSectionsForLevel(levelId: string): Promise<{
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     }[]>;
     createSectionsFromTemplate(levelId: string, schoolId: string, templateId: string, baseClassName: string, capacity?: number): Promise<import(".prisma/client").Prisma.BatchPayload>;
     createSectionsFromPattern(levelId: string, schoolId: string, pattern: string[], baseClassName: string, capacity?: number): Promise<import(".prisma/client").Prisma.BatchPayload>;
@@ -230,15 +128,9 @@ export declare class AcademicStructureService {
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     }>;
     updateSection(sectionId: string, updates: {
         sectionName?: string;
@@ -248,50 +140,32 @@ export declare class AcademicStructureService {
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     }>;
     removeSection(sectionId: string): Promise<{
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     }>;
     reorderSections(levelId: string, sectionIds: string[]): Promise<{
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     }[]>;
     getSectionStatistics(levelId: string): Promise<{
         id: string;
         name: string;
-        sectionName: string | null;
-        capacity: number | null;
-        enrolledStudents: number;
+        sectionName: any;
+        capacity: any;
+        enrolledStudents: any;
         availableSpots: number | null;
         utilizationRate: number | null;
     }[]>;
@@ -300,15 +174,9 @@ export declare class AcademicStructureService {
             id: string;
             schoolId: string;
             isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             name: string;
             order: number;
             levelId: string;
-            sectionName: string | null;
-            sectionOrder: number | null;
-            capacity: number | null;
-            templateUsed: string | null;
         }[];
     } & {
         id: string;
@@ -330,30 +198,24 @@ export declare class AcademicStructureService {
             schoolId: string;
             isActive: boolean;
             name: string;
-            code: string;
             description: string | null;
+            code: string;
         }[];
     } & {
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     })[]>;
     getSubjects(schoolId: string): Promise<{
         id: string;
         schoolId: string;
         isActive: boolean;
         name: string;
-        code: string;
         description: string | null;
+        code: string;
     }[]>;
     getAcademicTerms(schoolId: string): Promise<{
         id: string;
@@ -369,29 +231,23 @@ export declare class AcademicStructureService {
             id: string;
             schoolId: string;
             isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             name: string;
             order: number;
             levelId: string;
-            sectionName: string | null;
-            sectionOrder: number | null;
-            capacity: number | null;
-            templateUsed: string | null;
         };
         subject: {
             id: string;
             schoolId: string;
             isActive: boolean;
             name: string;
-            code: string;
             description: string | null;
+            code: string;
         };
         teacher: {
             id: string;
+            userId: string;
             schoolId: string;
             isActive: boolean;
-            userId: string;
             employeeNumber: string;
             department: string | null;
             hireDate: Date;
@@ -419,23 +275,17 @@ export declare class AcademicStructureService {
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     }>;
     createSubject(subjectData: any): Promise<{
         id: string;
         schoolId: string;
         isActive: boolean;
         name: string;
-        code: string;
         description: string | null;
+        code: string;
     }>;
     createAcademicTerm(termData: any): Promise<{
         id: string;
@@ -469,23 +319,17 @@ export declare class AcademicStructureService {
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     }>;
     updateSubject(id: string, subjectData: any): Promise<{
         id: string;
         schoolId: string;
         isActive: boolean;
         name: string;
-        code: string;
         description: string | null;
+        code: string;
     }>;
     updateAcademicTerm(id: string, termData: any): Promise<{
         id: string;
@@ -519,23 +363,17 @@ export declare class AcademicStructureService {
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     }>;
     deleteSubject(id: string): Promise<{
         id: string;
         schoolId: string;
         isActive: boolean;
         name: string;
-        code: string;
         description: string | null;
+        code: string;
     }>;
     deleteAcademicTerm(id: string): Promise<{
         id: string;

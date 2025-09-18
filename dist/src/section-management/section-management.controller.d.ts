@@ -2,65 +2,21 @@ import { SectionManagementService } from './section-management.service';
 export declare class SectionManagementController {
     private readonly sectionManagementService;
     constructor(sectionManagementService: SectionManagementService);
-    getSectionTemplates(): Promise<{
-        id: string;
-        name: string;
-        description: string;
-        pattern: string[];
-        isDefault: boolean;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-    }[]>;
-    getCustomSectionPatterns(schoolId: string): Promise<({
-        template: {
-            id: string;
-            name: string;
-            description: string;
-            pattern: string[];
-            isDefault: boolean;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-        } | null;
-    } & {
-        id: string;
-        name: string;
-        pattern: string[];
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        schoolId: string;
-        templateId: string | null;
-    })[]>;
+    getSectionTemplates(): Promise<any>;
+    getCustomSectionPatterns(schoolId: string): Promise<any>;
     createCustomSectionPattern(body: {
         schoolId: string;
         name: string;
         pattern: string[];
         templateId?: string;
-    }): Promise<{
-        id: string;
-        name: string;
-        pattern: string[];
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
-        schoolId: string;
-        templateId: string | null;
-    }>;
+    }): Promise<any>;
     getSectionsForLevel(levelId: string): Promise<{
         id: string;
-        name: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         schoolId: string;
-        levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
+        isActive: boolean;
+        name: string;
         order: number;
+        levelId: string;
     }[]>;
     createSectionsFromTemplate(body: {
         levelId: string;
@@ -91,17 +47,11 @@ export declare class SectionManagementController {
         capacity?: number;
     }): Promise<{
         id: string;
-        name: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         schoolId: string;
-        levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
+        isActive: boolean;
+        name: string;
         order: number;
+        levelId: string;
     }>;
     updateSection(sectionId: string, body: {
         sectionName?: string;
@@ -109,54 +59,36 @@ export declare class SectionManagementController {
         baseClassName?: string;
     }): Promise<{
         id: string;
-        name: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         schoolId: string;
-        levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
+        isActive: boolean;
+        name: string;
         order: number;
+        levelId: string;
     }>;
     removeSection(sectionId: string): Promise<{
         id: string;
-        name: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         schoolId: string;
-        levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
+        isActive: boolean;
+        name: string;
         order: number;
+        levelId: string;
     }>;
     reorderSections(levelId: string, body: {
         sectionIds: string[];
     }): Promise<{
         id: string;
-        name: string;
-        isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         schoolId: string;
-        levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
+        isActive: boolean;
+        name: string;
         order: number;
+        levelId: string;
     }[]>;
     getSectionStatistics(levelId: string): Promise<{
         id: string;
         name: string;
-        sectionName: string | null;
-        capacity: number | null;
-        enrolledStudents: number;
+        sectionName: any;
+        capacity: any;
+        enrolledStudents: any;
         availableSpots: number | null;
         utilizationRate: number | null;
     }[]>;

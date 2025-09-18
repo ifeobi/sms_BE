@@ -3,50 +3,15 @@ export declare class AcademicStructureController {
     private readonly academicStructureService;
     constructor(academicStructureService: AcademicStructureService);
     getSchoolAcademicStructure(schoolId: string): Promise<{
-        config: {
-            school: {
-                id: string;
-                isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
-                name: string;
-                country: string;
-                street: string | null;
-                city: string | null;
-                state: string | null;
-                postalCode: string | null;
-                latitude: number | null;
-                longitude: number | null;
-                formattedAddress: string | null;
-                landmark: string | null;
-                logo: string | null;
-            };
-        } & {
-            id: string;
-            schoolId: string;
-            educationSystemId: string;
-            selectedLevels: string[];
-            availableLevels: string[];
-            customClassNames: import("@prisma/client/runtime/library").JsonValue | null;
-            customSubjectNames: import("@prisma/client/runtime/library").JsonValue | null;
-            isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
-        };
+        config: any;
         levels: ({
             classes: {
                 id: string;
                 schoolId: string;
                 isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
                 name: string;
                 order: number;
                 levelId: string;
-                sectionName: string | null;
-                sectionOrder: number | null;
-                capacity: number | null;
-                templateUsed: string | null;
             }[];
         } & {
             id: string;
@@ -68,30 +33,24 @@ export declare class AcademicStructureController {
                 schoolId: string;
                 isActive: boolean;
                 name: string;
-                code: string;
                 description: string | null;
+                code: string;
             }[];
         } & {
             id: string;
             schoolId: string;
             isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             name: string;
             order: number;
             levelId: string;
-            sectionName: string | null;
-            sectionOrder: number | null;
-            capacity: number | null;
-            templateUsed: string | null;
         })[];
         subjects: {
             id: string;
             schoolId: string;
             isActive: boolean;
             name: string;
-            code: string;
             description: string | null;
+            code: string;
         }[];
         academicTerms: {
             id: string;
@@ -107,29 +66,23 @@ export declare class AcademicStructureController {
                 id: string;
                 schoolId: string;
                 isActive: boolean;
-                createdAt: Date;
-                updatedAt: Date;
                 name: string;
                 order: number;
                 levelId: string;
-                sectionName: string | null;
-                sectionOrder: number | null;
-                capacity: number | null;
-                templateUsed: string | null;
             };
             subject: {
                 id: string;
                 schoolId: string;
                 isActive: boolean;
                 name: string;
-                code: string;
                 description: string | null;
+                code: string;
             };
             teacher: {
                 id: string;
+                userId: string;
                 schoolId: string;
                 isActive: boolean;
-                userId: string;
                 employeeNumber: string;
                 department: string | null;
                 hireDate: Date;
@@ -146,24 +99,18 @@ export declare class AcademicStructureController {
             subjectId: string;
             isFormTeacher: boolean;
         })[];
-        educationSystemId: string;
-        selectedLevels: string[];
-        availableLevels: string[];
+        educationSystemId: any;
+        selectedLevels: any;
+        availableLevels: any;
     }>;
     getLevels(schoolId: string): Promise<({
         classes: {
             id: string;
             schoolId: string;
             isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             name: string;
             order: number;
             levelId: string;
-            sectionName: string | null;
-            sectionOrder: number | null;
-            capacity: number | null;
-            templateUsed: string | null;
         }[];
     } & {
         id: string;
@@ -185,30 +132,24 @@ export declare class AcademicStructureController {
             schoolId: string;
             isActive: boolean;
             name: string;
-            code: string;
             description: string | null;
+            code: string;
         }[];
     } & {
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     })[]>;
     getSubjects(schoolId: string): Promise<{
         id: string;
         schoolId: string;
         isActive: boolean;
         name: string;
-        code: string;
         description: string | null;
+        code: string;
     }[]>;
     getAcademicTerms(schoolId: string): Promise<{
         id: string;
@@ -224,29 +165,23 @@ export declare class AcademicStructureController {
             id: string;
             schoolId: string;
             isActive: boolean;
-            createdAt: Date;
-            updatedAt: Date;
             name: string;
             order: number;
             levelId: string;
-            sectionName: string | null;
-            sectionOrder: number | null;
-            capacity: number | null;
-            templateUsed: string | null;
         };
         subject: {
             id: string;
             schoolId: string;
             isActive: boolean;
             name: string;
-            code: string;
             description: string | null;
+            code: string;
         };
         teacher: {
             id: string;
+            userId: string;
             schoolId: string;
             isActive: boolean;
-            userId: string;
             employeeNumber: string;
             department: string | null;
             hireDate: Date;
@@ -274,23 +209,17 @@ export declare class AcademicStructureController {
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     }>;
     createSubject(subjectData: any): Promise<{
         id: string;
         schoolId: string;
         isActive: boolean;
         name: string;
-        code: string;
         description: string | null;
+        code: string;
     }>;
     createAcademicTerm(termData: any): Promise<{
         id: string;
@@ -324,23 +253,17 @@ export declare class AcademicStructureController {
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     }>;
     updateSubject(id: string, subjectData: any): Promise<{
         id: string;
         schoolId: string;
         isActive: boolean;
         name: string;
-        code: string;
         description: string | null;
+        code: string;
     }>;
     updateAcademicTerm(id: string, termData: any): Promise<{
         id: string;
@@ -374,23 +297,17 @@ export declare class AcademicStructureController {
         id: string;
         schoolId: string;
         isActive: boolean;
-        createdAt: Date;
-        updatedAt: Date;
         name: string;
         order: number;
         levelId: string;
-        sectionName: string | null;
-        sectionOrder: number | null;
-        capacity: number | null;
-        templateUsed: string | null;
     }>;
     deleteSubject(id: string): Promise<{
         id: string;
         schoolId: string;
         isActive: boolean;
         name: string;
-        code: string;
         description: string | null;
+        code: string;
     }>;
     deleteAcademicTerm(id: string): Promise<{
         id: string;
