@@ -14,11 +14,11 @@ export declare class UsersService {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
     }>;
     findAll(): Promise<{
         type: import(".prisma/client").$Enums.UserType;
@@ -42,11 +42,11 @@ export declare class UsersService {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
     }>;
     findByEmail(email: string, type?: string): Promise<{
         type: import(".prisma/client").$Enums.UserType;
@@ -58,11 +58,11 @@ export declare class UsersService {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
     } | null>;
     update(id: string, updateUserDto: UpdateUserDto): Promise<{
         type: import(".prisma/client").$Enums.UserType;
@@ -74,11 +74,11 @@ export declare class UsersService {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
     }>;
     remove(id: string): Promise<{
         type: import(".prisma/client").$Enums.UserType;
@@ -90,11 +90,11 @@ export declare class UsersService {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
     }>;
     findByType(type: string): Promise<{
         type: import(".prisma/client").$Enums.UserType;

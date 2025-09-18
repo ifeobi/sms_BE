@@ -15,11 +15,11 @@ export declare class StaffController {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
         };
         school: {
             type: string;
@@ -58,11 +58,11 @@ export declare class StaffController {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
         };
         school: {
             type: string;
@@ -101,11 +101,11 @@ export declare class StaffController {
                 phone: string | null;
                 isActive: boolean;
                 id: string;
-                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
+                fullName: string | null;
             };
             school: {
                 type: string;
@@ -174,11 +174,11 @@ export declare class StaffController {
                 phone: string | null;
                 isActive: boolean;
                 id: string;
-                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
+                fullName: string | null;
             };
             school: {
                 type: string;
@@ -217,11 +217,11 @@ export declare class StaffController {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
         };
         school: {
             type: string;
@@ -289,11 +289,11 @@ export declare class StaffController {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
         };
         school: {
             type: string;
@@ -331,11 +331,11 @@ export declare class StaffController {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
         };
         school: {
             type: string;
@@ -403,11 +403,11 @@ export declare class StaffController {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
         };
         school: {
             type: string;
@@ -449,11 +449,11 @@ export declare class StaffController {
                 phone: string | null;
                 isActive: boolean;
                 id: string;
-                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
+                fullName: string | null;
             };
             school: {
                 type: string;
@@ -522,11 +522,11 @@ export declare class StaffController {
                 phone: string | null;
                 isActive: boolean;
                 id: string;
-                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
+                fullName: string | null;
             };
             school: {
                 type: string;
