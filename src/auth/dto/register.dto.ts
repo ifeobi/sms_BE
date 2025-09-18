@@ -157,6 +157,32 @@ export class RegisterDto {
   @IsString()
   profilePicture?: string;
 
+  @Expose()
+  @ApiProperty({ required: false })
+  @IsOptional()
+  academicStructure?: any;
+
+  // New template-based fields for enhanced registration
+  @Expose()
+  @ApiProperty({ 
+    required: false,
+    description: 'Education system template ID for template-based registration'
+  })
+  @IsOptional()
+  @IsString()
+  educationSystemTemplateId?: string;
+
+  @Expose()
+  @ApiProperty({ 
+    required: false,
+    description: 'Selected education levels for template-based registration',
+    type: [String]
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  selectedEducationLevels?: string[];
+
   // Exclude fields that shouldn't be sent to backend
   @Exclude()
   confirmPassword?: string;

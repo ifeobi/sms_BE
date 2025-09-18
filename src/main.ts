@@ -2,6 +2,7 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { EducationSystemInitService } from './education-system/education-system-init.service';
 
 async function bootstrap() {
   const logger = new Logger('Main');
@@ -12,10 +13,27 @@ async function bootstrap() {
   //     'No DATABASE_URL found in environment, using default PostgreSQL connection',
   //   );
   //   process.env.DATABASE_URL =
-  //     'postgresql://postgres:AtlasisgoingLive@localhost:5432/sms_db?schema=public';
+  //     'postgresql://postgres:CHRISTLike0043@localhost:5432/sms_db?schema=public';
   // }
 
   const app = await NestFactory.create(AppModule);
+
+  // Initialize education systems on startup
+  logger.log('='.repeat(60));
+  logger.log('🎓 EDUCATION SYSTEM INITIALIZATION');
+  logger.log('='.repeat(60));
+  try {
+    logger.log('🔄 Starting education systems initialization...');
+    const educationSystemInitService = app.get(EducationSystemInitService);
+    logger.log('✅ EducationSystemInitService retrieved successfully');
+    await educationSystemInitService.initializeEducationSystems();
+    logger.log('✅ Education systems initialization completed');
+  } catch (error) {
+    logger.error('❌ Failed to initialize education systems:', error);
+    logger.error('Error details:', error.message);
+    logger.error('Stack trace:', error.stack);
+  }
+  logger.log('='.repeat(60));
 
   // Enable CORS
   app.enableCors({

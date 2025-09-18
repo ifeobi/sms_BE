@@ -14,11 +14,11 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
     }>;
     findAll(): Promise<{
         type: import(".prisma/client").$Enums.UserType;
@@ -42,11 +42,11 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
     }>;
     findByType(type: string): Promise<{
         type: import(".prisma/client").$Enums.UserType;
@@ -68,11 +68,11 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
     }>;
     remove(id: string): Promise<{
         type: import(".prisma/client").$Enums.UserType;
@@ -84,10 +84,10 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
     }>;
 }

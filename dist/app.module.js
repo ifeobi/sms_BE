@@ -17,6 +17,8 @@ const prisma_module_1 = require("./prisma/prisma.module");
 const school_module_1 = require("./school/school.module");
 const students_module_1 = require("./students/students.module");
 const staff_module_1 = require("./staff/staff.module");
+const school_academic_structure_module_1 = require("./school/school-academic-structure.module");
+const education_system_module_1 = require("./education-system/education-system.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -32,6 +34,8 @@ exports.AppModule = AppModule = __decorate([
             school_module_1.SchoolModule,
             students_module_1.StudentsModule,
             staff_module_1.StaffModule,
+            school_academic_structure_module_1.SchoolAcademicStructureModule,
+            education_system_module_1.EducationSystemModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

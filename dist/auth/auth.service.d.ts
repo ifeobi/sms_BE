@@ -2,6 +2,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SchoolTypeMappingService } from '../education-system/school-type-mapping.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -11,7 +12,8 @@ export declare class AuthService {
     private jwtService;
     private emailService;
     private prisma;
-    constructor(usersService: UsersService, jwtService: JwtService, emailService: EmailService, prisma: PrismaService);
+    private schoolTypeMappingService;
+    constructor(usersService: UsersService, jwtService: JwtService, emailService: EmailService, prisma: PrismaService, schoolTypeMappingService: SchoolTypeMappingService);
     validateUser(email: string, password: string, userType?: string): Promise<any>;
     login(loginDto: LoginDto): Promise<{
         access_token: string;

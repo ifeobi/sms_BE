@@ -15,6 +15,7 @@ const jwt_1 = require("@nestjs/jwt");
 const users_service_1 = require("../users/users.service");
 const email_service_1 = require("../email/email.service");
 const prisma_service_1 = require("../prisma/prisma.service");
+const school_type_mapping_service_1 = require("../education-system/school-type-mapping.service");
 const bcrypt = require("bcryptjs");
 const create_user_dto_1 = require("../users/dto/create-user.dto");
 let AuthService = class AuthService {
@@ -22,11 +23,13 @@ let AuthService = class AuthService {
     jwtService;
     emailService;
     prisma;
-    constructor(usersService, jwtService, emailService, prisma) {
+    schoolTypeMappingService;
+    constructor(usersService, jwtService, emailService, prisma, schoolTypeMappingService) {
         this.usersService = usersService;
         this.jwtService = jwtService;
         this.emailService = emailService;
         this.prisma = prisma;
+        this.schoolTypeMappingService = schoolTypeMappingService;
     }
     async validateUser(email, password, userType) {
         const user = await this.usersService.findByEmail(email, userType);
@@ -167,6 +170,74 @@ let AuthService = class AuthService {
                 data: schoolAdminData,
             });
             console.log('✅ School admin created:', schoolAdmin.id);
+            if (registerDto.academicStructure || registerDto.educationSystemTemplateId || registerDto.schoolTypes) {
+                if (registerDto.educationSystemTemplateId && registerDto.selectedEducationLevels) {
+                    console.log('=== TEMPLATE-BASED ACADEMIC STRUCTURE ===');
+                    console.log('Template ID:', registerDto.educationSystemTemplateId);
+                    console.log('Selected Levels:', registerDto.selectedEducationLevels);
+                    const academicStructure = await prisma.schoolAcademicStructure.create({
+                        data: {
+                            schoolId: school.id,
+                            countryCode: registerDto.country,
+                            countryName: registerDto.country,
+                            systemName: 'Template-based System',
+                            selectedLevels: registerDto.selectedEducationLevels,
+                            commonSubjects: [],
+                            commonGradingScales: [],
+                            commonAcademicTerms: [],
+                        },
+                    });
+                    console.log('✅ Template-based academic structure created:', academicStructure.id);
+                }
+                else if (registerDto.schoolTypes && registerDto.schoolTypes.length > 0) {
+                    console.log('=== HYBRID APPROACH: STATIC TO TEMPLATE MAPPING ===');
+                    console.log('Static School Types:', registerDto.schoolTypes);
+                    console.log('Country:', registerDto.country);
+                    try {
+                        const mapping = await this.schoolTypeMappingService.mapStaticSchoolTypesToTemplate(registerDto.country, registerDto.schoolTypes);
+                        if (mapping) {
+                            console.log('✅ Mapping successful:', mapping);
+                            const academicStructure = await prisma.schoolAcademicStructure.create({
+                                data: {
+                                    schoolId: school.id,
+                                    countryCode: mapping.countryCode,
+                                    countryName: registerDto.country,
+                                    systemName: 'Template-based System',
+                                    selectedLevels: mapping.selectedLevels,
+                                    commonSubjects: [],
+                                    commonGradingScales: [],
+                                    commonAcademicTerms: [],
+                                },
+                            });
+                            console.log('✅ Hybrid academic structure created:', academicStructure.id);
+                        }
+                        else {
+                            console.log('⚠️ Mapping failed, skipping academic structure creation');
+                        }
+                    }
+                    catch (error) {
+                        console.error('❌ Error in hybrid mapping:', error);
+                    }
+                }
+                else if (registerDto.academicStructure) {
+                    console.log('=== LEGACY ACADEMIC STRUCTURE ===');
+                    const academicStructureData = {
+                        schoolId: school.id,
+                        countryCode: registerDto.academicStructure.countryCode,
+                        countryName: registerDto.academicStructure.countryName,
+                        systemName: registerDto.academicStructure.systemName,
+                        selectedLevels: registerDto.academicStructure.selectedLevels,
+                        commonSubjects: registerDto.academicStructure.commonSubjects,
+                        commonGradingScales: registerDto.academicStructure.commonGradingScales,
+                        commonAcademicTerms: registerDto.academicStructure.commonAcademicTerms,
+                    };
+                    console.log('Creating academic structure with data:', JSON.stringify(academicStructureData, null, 2));
+                    const academicStructure = await prisma.schoolAcademicStructure.create({
+                        data: academicStructureData,
+                    });
+                    console.log('✅ Legacy academic structure created:', academicStructure.id);
+                }
+            }
             const payload = {
                 email: user.email,
                 sub: user.id,
@@ -384,6 +455,7 @@ exports.AuthService = AuthService = __decorate([
     __metadata("design:paramtypes", [users_service_1.UsersService,
         jwt_1.JwtService,
         email_service_1.EmailService,
-        prisma_service_1.PrismaService])
+        prisma_service_1.PrismaService,
+        school_type_mapping_service_1.SchoolTypeMappingService])
 ], AuthService);
 //# sourceMappingURL=auth.service.js.map

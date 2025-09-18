@@ -8,6 +8,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { SchoolModule } from './school/school.module';
 import { StudentsModule } from './students/students.module';
 import { StaffModule } from './staff/staff.module';
+import { SchoolAcademicStructureModule } from './school/school-academic-structure.module';
+import { EducationSystemModule } from './education-system/education-system.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { StaffModule } from './staff/staff.module';
     SchoolModule,
     StudentsModule,
     StaffModule,
+    SchoolAcademicStructureModule,
+    EducationSystemModule,
   ],
   controllers: [AppController],
   providers: [AppService],

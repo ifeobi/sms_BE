@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { SchoolTypeMappingService } from '../education-system/school-type-mapping.service';
 import * as bcrypt from 'bcryptjs';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -21,6 +22,7 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private prisma: PrismaService,
+    private schoolTypeMappingService: SchoolTypeMappingService,
   ) {}
 
   async validateUser(
@@ -225,6 +227,87 @@ export class AuthService {
         data: schoolAdminData,
       });
       console.log('✅ School admin created:', schoolAdmin.id);
+
+      // 4. Create the school academic structure if provided
+      if (registerDto.academicStructure || registerDto.educationSystemTemplateId || registerDto.schoolTypes) {
+        if (registerDto.educationSystemTemplateId && registerDto.selectedEducationLevels) {
+          // Direct template-based approach
+          console.log('=== TEMPLATE-BASED ACADEMIC STRUCTURE ===');
+          console.log('Template ID:', registerDto.educationSystemTemplateId);
+          console.log('Selected Levels:', registerDto.selectedEducationLevels);
+          
+          const academicStructure = await prisma.schoolAcademicStructure.create({
+            data: {
+              schoolId: school.id,
+              countryCode: registerDto.country,
+              countryName: registerDto.country, // Will be updated from template
+              systemName: 'Template-based System', // Will be updated from template
+              selectedLevels: registerDto.selectedEducationLevels,
+              commonSubjects: [],
+              commonGradingScales: [],
+              commonAcademicTerms: [],
+            },
+          });
+          console.log('✅ Template-based academic structure created:', academicStructure.id);
+        } else if (registerDto.schoolTypes && registerDto.schoolTypes.length > 0) {
+          // Hybrid approach: Map static school types to template
+          console.log('=== HYBRID APPROACH: STATIC TO TEMPLATE MAPPING ===');
+          console.log('Static School Types:', registerDto.schoolTypes);
+          console.log('Country:', registerDto.country);
+          
+          try {
+            const mapping = await this.schoolTypeMappingService.mapStaticSchoolTypesToTemplate(
+              registerDto.country,
+              registerDto.schoolTypes
+            );
+            
+            if (mapping) {
+              console.log('✅ Mapping successful:', mapping);
+              
+              const academicStructure = await prisma.schoolAcademicStructure.create({
+                data: {
+                  schoolId: school.id,
+                  countryCode: mapping.countryCode,
+                  countryName: registerDto.country, // Will be updated from template
+                  systemName: 'Template-based System', // Will be updated from template
+                  selectedLevels: mapping.selectedLevels,
+                  commonSubjects: [],
+                  commonGradingScales: [],
+                  commonAcademicTerms: [],
+                },
+              });
+              console.log('✅ Hybrid academic structure created:', academicStructure.id);
+            } else {
+              console.log('⚠️ Mapping failed, skipping academic structure creation');
+            }
+          } catch (error) {
+            console.error('❌ Error in hybrid mapping:', error);
+            // Don't fail registration if mapping fails
+          }
+        } else if (registerDto.academicStructure) {
+          // Legacy full structure approach (backward compatibility)
+          console.log('=== LEGACY ACADEMIC STRUCTURE ===');
+          const academicStructureData = {
+            schoolId: school.id,
+            countryCode: registerDto.academicStructure.countryCode,
+            countryName: registerDto.academicStructure.countryName,
+            systemName: registerDto.academicStructure.systemName,
+            selectedLevels: registerDto.academicStructure.selectedLevels,
+            commonSubjects: registerDto.academicStructure.commonSubjects,
+            commonGradingScales: registerDto.academicStructure.commonGradingScales,
+            commonAcademicTerms: registerDto.academicStructure.commonAcademicTerms,
+          };
+
+          console.log(
+            'Creating academic structure with data:',
+            JSON.stringify(academicStructureData, null, 2),
+          );
+          const academicStructure = await prisma.schoolAcademicStructure.create({
+            data: academicStructureData,
+          });
+          console.log('✅ Legacy academic structure created:', academicStructure.id);
+        }
+      }
 
       const payload = {
         email: user.email,

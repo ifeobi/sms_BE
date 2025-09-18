@@ -1,0 +1,737 @@
+import {
+  EducationSystem,
+  ClassLevel,
+  SubjectDefinition,
+  GradingScale,
+  AcademicTerm,
+  EducationLevel,
+} from "./types";
+
+// USA K-12 Education System
+
+// Preschool/Early Childhood Class Levels
+const preschoolLevels: ClassLevel[] = [
+  {
+    id: "pre2",
+    displayName: "Pre-K2",
+    shortName: "Pre2",
+    numericValue: 0,
+    ageRange: [2, 3],
+    isGraduationLevel: false,
+  },
+  {
+    id: "pre3",
+    displayName: "Pre-K3",
+    shortName: "Pre3",
+    numericValue: 1,
+    ageRange: [3, 4],
+    isGraduationLevel: false,
+  },
+  {
+    id: "pre4",
+    displayName: "Pre-K4",
+    shortName: "Pre4",
+    numericValue: 2,
+    ageRange: [4, 5],
+    isGraduationLevel: true,
+  },
+];
+
+// Preschool/Early Childhood Subjects
+const preschoolSubjects: SubjectDefinition[] = [
+  {
+    id: "prel-us",
+    name: "Pre-Literacy Skills",
+    shortName: "Pre-Lit",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["pre2", "pre3", "pre4"],
+  },
+  {
+    id: "pren-us",
+    name: "Pre-Numeracy Skills",
+    shortName: "Pre-Num",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["pre2", "pre3", "pre4"],
+  },
+  {
+    id: "rhymes-us",
+    name: "Rhymes & Songs",
+    shortName: "Rhymes",
+    category: "arts",
+    isRequired: false,
+    applicableLevels: ["pre2", "pre3", "pre4"],
+  },
+  {
+    id: "play-us",
+    name: "Play & Social Skills",
+    shortName: "Play",
+    category: "social",
+    isRequired: true,
+    applicableLevels: ["pre2", "pre3", "pre4"],
+  },
+  {
+    id: "art-us",
+    name: "Art & Craft",
+    shortName: "Art",
+    category: "arts",
+    isRequired: false,
+    applicableLevels: ["pre3", "pre4"],
+  },
+  {
+    id: "phe-us",
+    name: "Physical & Health Education",
+    shortName: "PHE",
+    category: "core",
+    isRequired: false,
+    applicableLevels: ["pre2", "pre3", "pre4"],
+  },
+];
+
+// US Grading Scale (Letter/GPA system)
+const usGradingScale: GradingScale = {
+  id: "us-letter",
+  name: "US Letter Grade System",
+  type: "letter",
+  maxScore: 100,
+  passingGrade: "D",
+  ranges: [
+    { min: 97, max: 100, grade: "A+", gpa: 4.3, description: "Excellent" },
+    { min: 93, max: 96, grade: "A", gpa: 4.0, description: "Excellent" },
+    { min: 90, max: 92, grade: "A-", gpa: 3.7, description: "Excellent" },
+    { min: 87, max: 89, grade: "B+", gpa: 3.3, description: "Good" },
+    { min: 83, max: 86, grade: "B", gpa: 3.0, description: "Good" },
+    { min: 80, max: 82, grade: "B-", gpa: 2.7, description: "Good" },
+    { min: 77, max: 79, grade: "C+", gpa: 2.3, description: "Satisfactory" },
+    { min: 73, max: 76, grade: "C", gpa: 2.0, description: "Satisfactory" },
+    { min: 70, max: 72, grade: "C-", gpa: 1.7, description: "Satisfactory" },
+    { min: 67, max: 69, grade: "D+", gpa: 1.3, description: "Below Average" },
+    { min: 65, max: 66, grade: "D", gpa: 1.0, description: "Below Average" },
+    { min: 0, max: 64, grade: "F", gpa: 0.0, description: "Failing" },
+  ],
+};
+
+// US Academic Terms (Semesters)
+const usTerms: AcademicTerm[] = [
+  {
+    id: "fall",
+    name: "Fall Semester",
+    shortName: "Fall",
+    startMonth: 8,
+    endMonth: 12,
+    isExamTerm: true,
+  },
+  {
+    id: "spring",
+    name: "Spring Semester",
+    shortName: "Spring",
+    startMonth: 1,
+    endMonth: 5,
+    isExamTerm: true,
+  },
+];
+
+// Preschool/Early Childhood Level (moved here)
+const preschoolLevel: EducationLevel = {
+  id: "preschool",
+  name: "Preschool/Early Childhood",
+  description: "Early childhood education (ages 2-5)",
+  classLevels: preschoolLevels,
+  subjects: preschoolSubjects,
+  gradingScale: usGradingScale,
+  terms: usTerms,
+};
+
+// Elementary School Levels (K-5)
+const elementaryLevels: ClassLevel[] = [
+  {
+    id: "k",
+    displayName: "Kindergarten",
+    shortName: "K",
+    numericValue: 0,
+    ageRange: [5, 6],
+    isGraduationLevel: false,
+  },
+  {
+    id: "g1",
+    displayName: "1st Grade",
+    shortName: "1st",
+    numericValue: 1,
+    ageRange: [6, 7],
+    isGraduationLevel: false,
+  },
+  {
+    id: "g2",
+    displayName: "2nd Grade",
+    shortName: "2nd",
+    numericValue: 2,
+    ageRange: [7, 8],
+    isGraduationLevel: false,
+  },
+  {
+    id: "g3",
+    displayName: "3rd Grade",
+    shortName: "3rd",
+    numericValue: 3,
+    ageRange: [8, 9],
+    isGraduationLevel: false,
+  },
+  {
+    id: "g4",
+    displayName: "4th Grade",
+    shortName: "4th",
+    numericValue: 4,
+    ageRange: [9, 10],
+    isGraduationLevel: false,
+  },
+  {
+    id: "g5",
+    displayName: "5th Grade",
+    shortName: "5th",
+    numericValue: 5,
+    ageRange: [10, 11],
+    isGraduationLevel: true,
+  },
+];
+
+// Middle School Levels (6-8)
+const middleLevels: ClassLevel[] = [
+  {
+    id: "g6",
+    displayName: "6th Grade",
+    shortName: "6th",
+    numericValue: 6,
+    ageRange: [11, 12],
+    isGraduationLevel: false,
+  },
+  {
+    id: "g7",
+    displayName: "7th Grade",
+    shortName: "7th",
+    numericValue: 7,
+    ageRange: [12, 13],
+    isGraduationLevel: false,
+  },
+  {
+    id: "g8",
+    displayName: "8th Grade",
+    shortName: "8th",
+    numericValue: 8,
+    ageRange: [13, 14],
+    isGraduationLevel: true,
+  },
+];
+
+// High School Levels (9-12)
+const highLevels: ClassLevel[] = [
+  {
+    id: "g9",
+    displayName: "9th Grade (Freshman)",
+    shortName: "9th",
+    numericValue: 9,
+    ageRange: [14, 15],
+    isGraduationLevel: false,
+  },
+  {
+    id: "g10",
+    displayName: "10th Grade (Sophomore)",
+    shortName: "10th",
+    numericValue: 10,
+    ageRange: [15, 16],
+    isGraduationLevel: false,
+  },
+  {
+    id: "g11",
+    displayName: "11th Grade (Junior)",
+    shortName: "11th",
+    numericValue: 11,
+    ageRange: [16, 17],
+    isGraduationLevel: false,
+  },
+  {
+    id: "g12",
+    displayName: "12th Grade (Senior)",
+    shortName: "12th",
+    numericValue: 12,
+    ageRange: [17, 18],
+    isGraduationLevel: true,
+  },
+];
+
+// Elementary School Subjects
+const elementarySubjects: SubjectDefinition[] = [
+  {
+    id: "eng-e",
+    name: "English Language Arts",
+    shortName: "English",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["k", "g1", "g2", "g3", "g4", "g5"],
+  },
+  {
+    id: "math-e",
+    name: "Mathematics",
+    shortName: "Math",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["k", "g1", "g2", "g3", "g4", "g5"],
+  },
+  {
+    id: "sci-e",
+    name: "Science",
+    shortName: "Science",
+    category: "science",
+    isRequired: true,
+    applicableLevels: ["k", "g1", "g2", "g3", "g4", "g5"],
+  },
+  {
+    id: "soc-e",
+    name: "Social Studies",
+    shortName: "Social Studies",
+    category: "social",
+    isRequired: true,
+    applicableLevels: ["k", "g1", "g2", "g3", "g4", "g5"],
+  },
+  {
+    id: "pe-e",
+    name: "Physical Education",
+    shortName: "PE",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["k", "g1", "g2", "g3", "g4", "g5"],
+  },
+  {
+    id: "art-e",
+    name: "Art",
+    shortName: "Art",
+    category: "arts",
+    isRequired: true,
+    applicableLevels: ["k", "g1", "g2", "g3", "g4", "g5"],
+  },
+  {
+    id: "music-e",
+    name: "Music",
+    shortName: "Music",
+    category: "arts",
+    isRequired: true,
+    applicableLevels: ["k", "g1", "g2", "g3", "g4", "g5"],
+  },
+  {
+    id: "lib-e",
+    name: "Library/Media",
+    shortName: "Library",
+    category: "core",
+    isRequired: false,
+    applicableLevels: ["k", "g1", "g2", "g3", "g4", "g5"],
+  },
+];
+
+// Middle School Subjects
+const middleSubjects: SubjectDefinition[] = [
+  {
+    id: "eng-m",
+    name: "English Language Arts",
+    shortName: "English",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["g6", "g7", "g8"],
+  },
+  {
+    id: "math-m",
+    name: "Mathematics",
+    shortName: "Math",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["g6", "g7", "g8"],
+  },
+  {
+    id: "sci-m",
+    name: "Science",
+    shortName: "Science",
+    category: "science",
+    isRequired: true,
+    applicableLevels: ["g6", "g7", "g8"],
+  },
+  {
+    id: "soc-m",
+    name: "Social Studies",
+    shortName: "Social Studies",
+    category: "social",
+    isRequired: true,
+    applicableLevels: ["g6", "g7", "g8"],
+  },
+  {
+    id: "pe-m",
+    name: "Physical Education",
+    shortName: "PE",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["g6", "g7", "g8"],
+  },
+  {
+    id: "health-m",
+    name: "Health",
+    shortName: "Health",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["g6", "g7", "g8"],
+  },
+  {
+    id: "art-m",
+    name: "Art",
+    shortName: "Art",
+    category: "arts",
+    isRequired: false,
+    applicableLevels: ["g6", "g7", "g8"],
+  },
+  {
+    id: "music-m",
+    name: "Music",
+    shortName: "Music",
+    category: "arts",
+    isRequired: false,
+    applicableLevels: ["g6", "g7", "g8"],
+  },
+  {
+    id: "tech-m",
+    name: "Technology",
+    shortName: "Tech",
+    category: "vocational",
+    isRequired: false,
+    applicableLevels: ["g6", "g7", "g8"],
+  },
+  {
+    id: "lang-m",
+    name: "World Language",
+    shortName: "Language",
+    category: "language",
+    isRequired: false,
+    applicableLevels: ["g6", "g7", "g8"],
+  },
+];
+
+// High School Subjects
+const highSubjects: SubjectDefinition[] = [
+  // Core subjects
+  {
+    id: "eng-h",
+    name: "English",
+    shortName: "English",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "math-h",
+    name: "Mathematics",
+    shortName: "Math",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "sci-h",
+    name: "Science",
+    shortName: "Science",
+    category: "science",
+    isRequired: true,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "soc-h",
+    name: "Social Studies",
+    shortName: "Social Studies",
+    category: "social",
+    isRequired: true,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+
+  // Math courses
+  {
+    id: "alg1-h",
+    name: "Algebra I",
+    shortName: "Algebra I",
+    category: "core",
+    isRequired: false,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "geo-h",
+    name: "Geometry",
+    shortName: "Geometry",
+    category: "core",
+    isRequired: false,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "alg2-h",
+    name: "Algebra II",
+    shortName: "Algebra II",
+    category: "core",
+    isRequired: false,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "precalc-h",
+    name: "Pre-Calculus",
+    shortName: "Pre-Calc",
+    category: "core",
+    isRequired: false,
+    applicableLevels: ["g10", "g11", "g12"],
+  },
+  {
+    id: "calc-h",
+    name: "Calculus",
+    shortName: "Calculus",
+    category: "core",
+    isRequired: false,
+    applicableLevels: ["g11", "g12"],
+  },
+  {
+    id: "stats-h",
+    name: "Statistics",
+    shortName: "Statistics",
+    category: "core",
+    isRequired: false,
+    applicableLevels: ["g11", "g12"],
+  },
+
+  // Science courses
+  {
+    id: "bio-h",
+    name: "Biology",
+    shortName: "Biology",
+    category: "science",
+    isRequired: false,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "chem-h",
+    name: "Chemistry",
+    shortName: "Chemistry",
+    category: "science",
+    isRequired: false,
+    applicableLevels: ["g10", "g11", "g12"],
+  },
+  {
+    id: "phy-h",
+    name: "Physics",
+    shortName: "Physics",
+    category: "science",
+    isRequired: false,
+    applicableLevels: ["g11", "g12"],
+  },
+  {
+    id: "earth-h",
+    name: "Earth Science",
+    shortName: "Earth Sci",
+    category: "science",
+    isRequired: false,
+    applicableLevels: ["g9", "g10"],
+  },
+
+  // Social Studies
+  {
+    id: "wh-h",
+    name: "World History",
+    shortName: "World Hist",
+    category: "social",
+    isRequired: false,
+    applicableLevels: ["g9", "g10"],
+  },
+  {
+    id: "ush-h",
+    name: "US History",
+    shortName: "US History",
+    category: "social",
+    isRequired: false,
+    applicableLevels: ["g10", "g11"],
+  },
+  {
+    id: "gov-h",
+    name: "Government",
+    shortName: "Government",
+    category: "social",
+    isRequired: false,
+    applicableLevels: ["g11", "g12"],
+  },
+  {
+    id: "econ-h",
+    name: "Economics",
+    shortName: "Economics",
+    category: "social",
+    isRequired: false,
+    applicableLevels: ["g11", "g12"],
+  },
+
+  // Languages
+  {
+    id: "span-h",
+    name: "Spanish",
+    shortName: "Spanish",
+    category: "language",
+    isRequired: false,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "french-h",
+    name: "French",
+    shortName: "French",
+    category: "language",
+    isRequired: false,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "german-h",
+    name: "German",
+    shortName: "German",
+    category: "language",
+    isRequired: false,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+
+  // Arts
+  {
+    id: "art-h",
+    name: "Visual Arts",
+    shortName: "Art",
+    category: "arts",
+    isRequired: false,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "music-h",
+    name: "Music",
+    shortName: "Music",
+    category: "arts",
+    isRequired: false,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "drama-h",
+    name: "Drama/Theater",
+    shortName: "Drama",
+    category: "arts",
+    isRequired: false,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+
+  // Physical Education & Health
+  {
+    id: "pe-h",
+    name: "Physical Education",
+    shortName: "PE",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "health-h",
+    name: "Health",
+    shortName: "Health",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["g9", "g10"],
+  },
+
+  // Career & Technical Education
+  {
+    id: "cs-h",
+    name: "Computer Science",
+    shortName: "Comp Sci",
+    category: "vocational",
+    isRequired: false,
+    applicableLevels: ["g9", "g10", "g11", "g12"],
+  },
+  {
+    id: "bus-h",
+    name: "Business",
+    shortName: "Business",
+    category: "vocational",
+    isRequired: false,
+    applicableLevels: ["g10", "g11", "g12"],
+  },
+  {
+    id: "eng-h-v",
+    name: "Engineering",
+    shortName: "Engineering",
+    category: "vocational",
+    isRequired: false,
+    applicableLevels: ["g11", "g12"],
+  },
+];
+
+// Education Levels
+const elementaryLevel: EducationLevel = {
+  id: "elementary",
+  name: "Elementary School",
+  description: "Elementary education (K-5)",
+  classLevels: elementaryLevels,
+  subjects: elementarySubjects,
+  gradingScale: usGradingScale,
+  terms: usTerms,
+};
+
+const middleLevel: EducationLevel = {
+  id: "middle",
+  name: "Middle School",
+  description: "Middle school education (6-8)",
+  classLevels: middleLevels,
+  subjects: middleSubjects,
+  gradingScale: usGradingScale,
+  terms: usTerms,
+};
+
+const highLevel: EducationLevel = {
+  id: "high",
+  name: "High School",
+  description: "High school education (9-12)",
+  classLevels: highLevels,
+  subjects: highSubjects,
+  gradingScale: usGradingScale,
+  terms: usTerms,
+};
+
+// Complete US Education System
+export const usEducationSystem: EducationSystem = {
+  id: "usa-k12",
+  country: "United States",
+  countryCode: "US",
+  systemName: "US K-12 Education System",
+  description:
+    "The American K-12 education system with kindergarten through 12th grade, typically divided into elementary, middle, and high school levels.",
+  levels: [preschoolLevel, elementaryLevel, middleLevel, highLevel],
+  features: {
+    hasNationalExams: true,
+    nationalExamNames: ["SAT", "ACT", "AP Exams"],
+    hasGPA: true,
+    usesTerms: false, // Uses semesters
+    allowsGradeRepeat: true,
+    hasVocationalTracks: true,
+  },
+  calendar: {
+    academicYearStart: 8, // August
+    academicYearEnd: 6, // June
+    vacationPeriods: [
+      {
+        name: "Winter Break",
+        startMonth: 12,
+        endMonth: 1,
+        description: "Christmas and New Year vacation",
+      },
+      {
+        name: "Spring Break",
+        startMonth: 3,
+        endMonth: 3,
+        description: "Mid-spring semester break",
+      },
+      {
+        name: "Summer Vacation",
+        startMonth: 6,
+        endMonth: 8,
+        description: "End of academic year vacation",
+      },
+    ],
+  },
+};

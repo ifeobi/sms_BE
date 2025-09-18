@@ -40,5 +40,8 @@ export declare class RegisterDto {
     schoolTypes: string[];
     addresses: AddressDto[];
     profilePicture?: string;
+    academicStructure?: any;
+    educationSystemTemplateId?: string;
+    selectedEducationLevels?: string[];
     confirmPassword?: string;
 }

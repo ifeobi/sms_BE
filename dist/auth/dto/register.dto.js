@@ -103,6 +103,9 @@ class RegisterDto {
     schoolTypes;
     addresses;
     profilePicture;
+    academicStructure;
+    educationSystemTemplateId;
+    selectedEducationLevels;
     confirmPassword;
 }
 exports.RegisterDto = RegisterDto;
@@ -206,6 +209,34 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "profilePicture", void 0);
+__decorate([
+    (0, class_transformer_1.Expose)(),
+    (0, swagger_1.ApiProperty)({ required: false }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Object)
+], RegisterDto.prototype, "academicStructure", void 0);
+__decorate([
+    (0, class_transformer_1.Expose)(),
+    (0, swagger_1.ApiProperty)({
+        required: false,
+        description: 'Education system template ID for template-based registration'
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterDto.prototype, "educationSystemTemplateId", void 0);
+__decorate([
+    (0, class_transformer_1.Expose)(),
+    (0, swagger_1.ApiProperty)({
+        required: false,
+        description: 'Selected education levels for template-based registration',
+        type: [String]
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], RegisterDto.prototype, "selectedEducationLevels", void 0);
 __decorate([
     (0, class_transformer_1.Exclude)(),
     __metadata("design:type", String)

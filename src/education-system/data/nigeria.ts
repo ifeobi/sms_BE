@@ -1,0 +1,709 @@
+import {
+  EducationSystem,
+  ClassLevel,
+  SubjectDefinition,
+  GradingScale,
+  AcademicTerm,
+  EducationLevel,
+} from "./types";
+
+// Nigerian Education System (6-3-3-4 System)
+
+// Class Levels
+const primaryLevels: ClassLevel[] = [
+  {
+    id: "p1",
+    displayName: "Primary 1",
+    shortName: "P1",
+    numericValue: 1,
+    ageRange: [5, 6],
+    isGraduationLevel: false,
+  },
+  {
+    id: "p2",
+    displayName: "Primary 2",
+    shortName: "P2",
+    numericValue: 2,
+    ageRange: [6, 7],
+    isGraduationLevel: false,
+  },
+  {
+    id: "p3",
+    displayName: "Primary 3",
+    shortName: "P3",
+    numericValue: 3,
+    ageRange: [7, 8],
+    isGraduationLevel: false,
+  },
+  {
+    id: "p4",
+    displayName: "Primary 4",
+    shortName: "P4",
+    numericValue: 4,
+    ageRange: [8, 9],
+    isGraduationLevel: false,
+  },
+  {
+    id: "p5",
+    displayName: "Primary 5",
+    shortName: "P5",
+    numericValue: 5,
+    ageRange: [9, 10],
+    isGraduationLevel: false,
+  },
+  {
+    id: "p6",
+    displayName: "Primary 6",
+    shortName: "P6",
+    numericValue: 6,
+    ageRange: [10, 11],
+    isGraduationLevel: true,
+  },
+];
+
+const jssLevels: ClassLevel[] = [
+  {
+    id: "jss1",
+    displayName: "JSS 1",
+    shortName: "JSS1",
+    numericValue: 7,
+    ageRange: [11, 12],
+    isGraduationLevel: false,
+  },
+  {
+    id: "jss2",
+    displayName: "JSS 2",
+    shortName: "JSS2",
+    numericValue: 8,
+    ageRange: [12, 13],
+    isGraduationLevel: false,
+  },
+  {
+    id: "jss3",
+    displayName: "JSS 3",
+    shortName: "JSS3",
+    numericValue: 9,
+    ageRange: [13, 14],
+    isGraduationLevel: true,
+  },
+];
+
+const ssLevels: ClassLevel[] = [
+  {
+    id: "ss1",
+    displayName: "SS 1",
+    shortName: "SS1",
+    numericValue: 10,
+    ageRange: [14, 15],
+    isGraduationLevel: false,
+  },
+  {
+    id: "ss2",
+    displayName: "SS 2",
+    shortName: "SS2",
+    numericValue: 11,
+    ageRange: [15, 16],
+    isGraduationLevel: false,
+  },
+  {
+    id: "ss3",
+    displayName: "SS 3",
+    shortName: "SS3",
+    numericValue: 12,
+    ageRange: [16, 17],
+    isGraduationLevel: true,
+  },
+];
+
+// Nursery/Kindergarten Class Levels
+const nurseryLevels: ClassLevel[] = [
+  {
+    id: "kg1",
+    displayName: "Kindergarten 1",
+    shortName: "KG1",
+    numericValue: 0,
+    ageRange: [2, 3],
+    isGraduationLevel: false,
+  },
+  {
+    id: "kg2",
+    displayName: "Kindergarten 2",
+    shortName: "KG2",
+    numericValue: 1,
+    ageRange: [3, 4],
+    isGraduationLevel: false,
+  },
+  {
+    id: "nur1",
+    displayName: "Nursery 1",
+    shortName: "Nur1",
+    numericValue: 2,
+    ageRange: [4, 5],
+    isGraduationLevel: false,
+  },
+  {
+    id: "nur2",
+    displayName: "Nursery 2",
+    shortName: "Nur2",
+    numericValue: 3,
+    ageRange: [5, 6],
+    isGraduationLevel: true,
+  },
+];
+
+// Primary School Subjects
+const primarySubjects: SubjectDefinition[] = [
+  {
+    id: "eng-p",
+    name: "English Language",
+    shortName: "English",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["p1", "p2", "p3", "p4", "p5", "p6"],
+  },
+  {
+    id: "math-p",
+    name: "Mathematics",
+    shortName: "Mathematics",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["p1", "p2", "p3", "p4", "p5", "p6"],
+  },
+  {
+    id: "sci-p",
+    name: "Basic Science",
+    shortName: "Science",
+    category: "science",
+    isRequired: true,
+    applicableLevels: ["p1", "p2", "p3", "p4", "p5", "p6"],
+  },
+  {
+    id: "soc-p",
+    name: "Social Studies",
+    shortName: "Social Studies",
+    category: "social",
+    isRequired: true,
+    applicableLevels: ["p1", "p2", "p3", "p4", "p5", "p6"],
+  },
+  {
+    id: "relig-p",
+    name: "Religious Studies",
+    shortName: "Religion",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["p1", "p2", "p3", "p4", "p5", "p6"],
+  },
+  {
+    id: "civic-p",
+    name: "Civic Education",
+    shortName: "Civic Ed",
+    category: "social",
+    isRequired: true,
+    applicableLevels: ["p1", "p2", "p3", "p4", "p5", "p6"],
+  },
+  {
+    id: "cca-p",
+    name: "Cultural & Creative Arts",
+    shortName: "CCA",
+    category: "arts",
+    isRequired: true,
+    applicableLevels: ["p1", "p2", "p3", "p4", "p5", "p6"],
+  },
+  {
+    id: "phe-p",
+    name: "Physical & Health Education",
+    shortName: "PHE",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["p1", "p2", "p3", "p4", "p5", "p6"],
+  },
+  {
+    id: "lang-p",
+    name: "Nigerian Language",
+    shortName: "Local Lang",
+    category: "language",
+    isRequired: false,
+    applicableLevels: ["p1", "p2", "p3", "p4", "p5", "p6"],
+  },
+  {
+    id: "agric-p",
+    name: "Agricultural Science",
+    shortName: "Agriculture",
+    category: "vocational",
+    isRequired: false,
+    applicableLevels: ["p4", "p5", "p6"],
+  },
+];
+
+// Nursery/Kindergarten Subjects
+const nurserySubjects: SubjectDefinition[] = [
+  {
+    id: "prel-n",
+    name: "Pre-Literacy Skills",
+    shortName: "Pre-Lit",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["kg1", "kg2", "nur1", "nur2"],
+  },
+  {
+    id: "pren-n",
+    name: "Pre-Numeracy Skills",
+    shortName: "Pre-Num",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["kg1", "kg2", "nur1", "nur2"],
+  },
+  {
+    id: "rhymes-n",
+    name: "Rhymes & Songs",
+    shortName: "Rhymes",
+    category: "arts",
+    isRequired: false,
+    applicableLevels: ["kg1", "kg2", "nur1", "nur2"],
+  },
+  {
+    id: "play-n",
+    name: "Play & Social Skills",
+    shortName: "Play",
+    category: "social",
+    isRequired: true,
+    applicableLevels: ["kg1", "kg2", "nur1", "nur2"],
+  },
+  {
+    id: "art-n",
+    name: "Art & Craft",
+    shortName: "Art",
+    category: "arts",
+    isRequired: false,
+    applicableLevels: ["nur1", "nur2"],
+  },
+  {
+    id: "phe-n",
+    name: "Physical & Health Education",
+    shortName: "PHE",
+    category: "core",
+    isRequired: false,
+    applicableLevels: ["kg1", "kg2", "nur1", "nur2"],
+  },
+];
+
+// JSS Subjects (Junior Secondary)
+const jssSubjects: SubjectDefinition[] = [
+  {
+    id: "eng-j",
+    name: "English Language",
+    shortName: "English",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "math-j",
+    name: "Mathematics",
+    shortName: "Mathematics",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "bsc-j",
+    name: "Basic Science",
+    shortName: "Basic Science",
+    category: "science",
+    isRequired: true,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "bt-j",
+    name: "Basic Technology",
+    shortName: "Basic Tech",
+    category: "vocational",
+    isRequired: true,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "soc-j",
+    name: "Social Studies",
+    shortName: "Social Studies",
+    category: "social",
+    isRequired: true,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "relig-j",
+    name: "Religious Studies",
+    shortName: "Religion",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "civic-j",
+    name: "Civic Education",
+    shortName: "Civic Ed",
+    category: "social",
+    isRequired: true,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "cca-j",
+    name: "Cultural & Creative Arts",
+    shortName: "CCA",
+    category: "arts",
+    isRequired: true,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "phe-j",
+    name: "Physical & Health Education",
+    shortName: "PHE",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "bst-j",
+    name: "Business Studies",
+    shortName: "Business",
+    category: "social",
+    isRequired: true,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "he-j",
+    name: "Home Economics",
+    shortName: "Home Econ",
+    category: "vocational",
+    isRequired: false,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "agric-j",
+    name: "Agricultural Science",
+    shortName: "Agriculture",
+    category: "vocational",
+    isRequired: false,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+  {
+    id: "french-j",
+    name: "French Language",
+    shortName: "French",
+    category: "language",
+    isRequired: false,
+    applicableLevels: ["jss1", "jss2", "jss3"],
+  },
+];
+
+// SS Subjects (Senior Secondary) - Science Track
+const ssSubjects: SubjectDefinition[] = [
+  // Core subjects for all students
+  {
+    id: "eng-s",
+    name: "English Language",
+    shortName: "English",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "math-s",
+    name: "Mathematics",
+    shortName: "Mathematics",
+    category: "core",
+    isRequired: true,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "civic-s",
+    name: "Civic Education",
+    shortName: "Civic Ed",
+    category: "social",
+    isRequired: true,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+
+  // Science subjects
+  {
+    id: "phy-s",
+    name: "Physics",
+    shortName: "Physics",
+    category: "science",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "chem-s",
+    name: "Chemistry",
+    shortName: "Chemistry",
+    category: "science",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "bio-s",
+    name: "Biology",
+    shortName: "Biology",
+    category: "science",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "fmath-s",
+    name: "Further Mathematics",
+    shortName: "F.Math",
+    category: "science",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+
+  // Arts/Commercial subjects
+  {
+    id: "lit-s",
+    name: "Literature in English",
+    shortName: "Literature",
+    category: "arts",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "gov-s",
+    name: "Government",
+    shortName: "Government",
+    category: "social",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "econ-s",
+    name: "Economics",
+    shortName: "Economics",
+    category: "social",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "geog-s",
+    name: "Geography",
+    shortName: "Geography",
+    category: "social",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "hist-s",
+    name: "History",
+    shortName: "History",
+    category: "social",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "acc-s",
+    name: "Accounting",
+    shortName: "Accounting",
+    category: "social",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "comm-s",
+    name: "Commerce",
+    shortName: "Commerce",
+    category: "social",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+
+  // Languages
+  {
+    id: "french-s",
+    name: "French Language",
+    shortName: "French",
+    category: "language",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "hausa-s",
+    name: "Hausa Language",
+    shortName: "Hausa",
+    category: "language",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "igbo-s",
+    name: "Igbo Language",
+    shortName: "Igbo",
+    category: "language",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "yoruba-s",
+    name: "Yoruba Language",
+    shortName: "Yoruba",
+    category: "language",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+
+  // Vocational subjects
+  {
+    id: "agric-s",
+    name: "Agricultural Science",
+    shortName: "Agriculture",
+    category: "vocational",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "he-s",
+    name: "Home Economics",
+    shortName: "Home Econ",
+    category: "vocational",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+  {
+    id: "td-s",
+    name: "Technical Drawing",
+    shortName: "Tech Draw",
+    category: "vocational",
+    isRequired: false,
+    applicableLevels: ["ss1", "ss2", "ss3"],
+  },
+];
+
+// Nigerian Grading Scale (100-point system)
+const nigerianGradingScale: GradingScale = {
+  id: "ng-100",
+  name: "100-Point Nigerian System",
+  type: "percentage",
+  maxScore: 100,
+  passingGrade: 40,
+  ranges: [
+    { min: 90, max: 100, grade: "A1", gpa: 5.0, description: "Excellent" },
+    { min: 80, max: 89, grade: "B2", gpa: 4.5, description: "Very Good" },
+    { min: 75, max: 79, grade: "B3", gpa: 4.0, description: "Good" },
+    { min: 70, max: 74, grade: "C4", gpa: 3.5, description: "Credit" },
+    { min: 65, max: 69, grade: "C5", gpa: 3.0, description: "Credit" },
+    { min: 60, max: 64, grade: "C6", gpa: 2.5, description: "Credit" },
+    { min: 50, max: 59, grade: "D7", gpa: 2.0, description: "Pass" },
+    { min: 40, max: 49, grade: "E8", gpa: 1.0, description: "Pass" },
+    { min: 0, max: 39, grade: "F9", gpa: 0.0, description: "Fail" },
+  ],
+};
+
+// Nigerian Academic Terms
+const nigerianTerms: AcademicTerm[] = [
+  {
+    id: "term1",
+    name: "First Term",
+    shortName: "1st",
+    startMonth: 9,
+    endMonth: 12,
+    isExamTerm: true,
+  },
+  {
+    id: "term2",
+    name: "Second Term",
+    shortName: "2nd",
+    startMonth: 1,
+    endMonth: 4,
+    isExamTerm: true,
+  },
+  {
+    id: "term3",
+    name: "Third Term",
+    shortName: "3rd",
+    startMonth: 4,
+    endMonth: 7,
+    isExamTerm: true,
+  },
+];
+
+// Education Levels
+const primaryLevel: EducationLevel = {
+  id: "primary",
+  name: "Primary Education",
+  description: "Primary school education (6 years)",
+  classLevels: primaryLevels,
+  subjects: primarySubjects,
+  gradingScale: nigerianGradingScale,
+  terms: nigerianTerms,
+};
+
+const nurseryLevel: EducationLevel = {
+  id: "nursery",
+  name: "Nursery/Kindergarten",
+  description: "Early childhood education (ages 2-5/6)",
+  classLevels: nurseryLevels,
+  subjects: nurserySubjects,
+  gradingScale: nigerianGradingScale,
+  terms: nigerianTerms,
+};
+
+const jssLevel: EducationLevel = {
+  id: "jss",
+  name: "Junior Secondary School",
+  description: "Junior secondary education (3 years)",
+  classLevels: jssLevels,
+  subjects: jssSubjects,
+  gradingScale: nigerianGradingScale,
+  terms: nigerianTerms,
+};
+
+const ssLevel: EducationLevel = {
+  id: "ss",
+  name: "Senior Secondary School",
+  description: "Senior secondary education (3 years)",
+  classLevels: ssLevels,
+  subjects: ssSubjects,
+  gradingScale: nigerianGradingScale,
+  terms: nigerianTerms,
+};
+
+// Complete Nigerian Education System
+export const nigerianEducationSystem: EducationSystem = {
+  id: "nigeria-6334",
+  country: "Nigeria",
+  countryCode: "NG",
+  systemName: "Nigerian 6-3-3-4 Education System",
+  description:
+    "The Nigerian education system with 6 years primary, 3 years junior secondary, 3 years senior secondary, and 4 years tertiary education.",
+  levels: [nurseryLevel, primaryLevel, jssLevel, ssLevel],
+  features: {
+    hasNationalExams: true,
+    nationalExamNames: ["WAEC", "NECO", "JAMB"],
+    hasGPA: true,
+    usesTerms: true,
+    allowsGradeRepeat: true,
+    hasVocationalTracks: true,
+  },
+  calendar: {
+    academicYearStart: 9, // September
+    academicYearEnd: 7, // July
+    vacationPeriods: [
+      {
+        name: "Christmas Break",
+        startMonth: 12,
+        endMonth: 1,
+        description: "End of first term vacation",
+      },
+      {
+        name: "Easter Break",
+        startMonth: 4,
+        endMonth: 4,
+        description: "Mid-second term break",
+      },
+      {
+        name: "Long Vacation",
+        startMonth: 7,
+        endMonth: 9,
+        description: "End of academic year vacation",
+      },
+    ],
+  },
+};
