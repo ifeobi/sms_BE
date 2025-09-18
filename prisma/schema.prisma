@@ -33,6 +33,11 @@ model User {
   schoolAdmin    SchoolAdmin?
   creator        Creator?
 
+  // Communication relationships
+  sentMessages   Message[]     @relation("MessageSender")
+  receivedMessages Message[]   @relation("MessageRecipient")
+  notifications  Notification[]
+
   // Audit fields
   createdBy      String?
   lastLoginAt    DateTime?
@@ -86,6 +91,7 @@ model School {
   levels       Level[]
   teacherAssignments TeacherAssignment[]
   bulkImports  BulkImport[]
+  announcements Announcement[]
 
   @@map("schools")
 }
@@ -918,4 +924,115 @@ enum BulkImportRecordStatus {
   SUCCESS
   FAILED
   SKIPPED
+}
+
+// ==================== COMMUNICATION MODELS ====================
+
+model Message {
+  id            String      @id @default(cuid())
+  senderId      String
+  recipientId   String
+  subject       String
+  content       String
+  type          MessageType @default(MESSAGE)
+  priority      MessagePriority @default(NORMAL)
+  isRead        Boolean     @default(false)
+  readAt        DateTime?
+  parentMessageId String?   // For replies
+  attachments   String[]    @default([])
+  metadata      Json?
+  createdAt     DateTime    @default(now())
+  updatedAt     DateTime    @updatedAt
+
+  // Relationships
+  sender        User        @relation("MessageSender", fields: [senderId], references: [id])
+  recipient     User        @relation("MessageRecipient", fields: [recipientId], references: [id])
+  parentMessage Message?    @relation("MessageReplies", fields: [parentMessageId], references: [id])
+  replies       Message[]   @relation("MessageReplies")
+
+  @@map("messages")
+}
+
+model Announcement {
+  id              String            @id @default(cuid())
+  schoolId        String
+  title           String
+  content         String
+  type            AnnouncementType  @default(GENERAL)
+  priority        MessagePriority   @default(NORMAL)
+  targetAudience  AnnouncementAudience @default(ALL_PARENTS)
+  targetClassIds  String[]          @default([])
+  targetStudentIds String[]         @default([])
+  isPublished     Boolean           @default(false)
+  scheduledAt     DateTime?
+  publishedAt     DateTime?
+  expiresAt       DateTime?
+  attachments     String[]          @default([])
+  metadata        Json?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  // Relationships
+  school          School            @relation(fields: [schoolId], references: [id])
+
+  @@map("announcements")
+}
+
+model Notification {
+  id          String           @id @default(cuid())
+  userId      String
+  title       String
+  content     String
+  type        NotificationType @default(INFO)
+  priority    MessagePriority  @default(NORMAL)
+  isRead      Boolean          @default(false)
+  readAt      DateTime?
+  actionUrl   String?
+  metadata    Json?
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  // Relationships
+  user        User             @relation(fields: [userId], references: [id])
+
+  @@map("notifications")
+}
+
+// Enums
+enum MessageType {
+  MESSAGE
+  ANNOUNCEMENT
+  NOTIFICATION
+}
+
+enum MessagePriority {
+  LOW
+  NORMAL
+  HIGH
+  URGENT
+}
+
+enum AnnouncementType {
+  GENERAL
+  ACADEMIC
+  FINANCIAL
+  EMERGENCY
+  EVENT
+}
+
+enum AnnouncementAudience {
+  ALL_PARENTS
+  ALL_STUDENTS
+  ALL_TEACHERS
+  SPECIFIC_CLASS
+  SPECIFIC_STUDENTS
+  SCHOOL_WIDE
+}
+
+enum NotificationType {
+  INFO
+  WARNING
+  ERROR
+  SUCCESS
+  REMINDER
 }

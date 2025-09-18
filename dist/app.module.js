@@ -17,6 +17,7 @@ const prisma_module_1 = require("./prisma/prisma.module");
 const school_module_1 = require("./school/school.module");
 const students_module_1 = require("./students/students.module");
 const staff_module_1 = require("./staff/staff.module");
+const communications_module_1 = require("./communications/communications.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -32,6 +33,7 @@ exports.AppModule = AppModule = __decorate([
             school_module_1.SchoolModule,
             students_module_1.StudentsModule,
             staff_module_1.StaffModule,
+            communications_module_1.CommunicationsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],
