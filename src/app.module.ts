@@ -10,6 +10,9 @@ import { StudentsModule } from './students/students.module';
 import { StaffModule } from './staff/staff.module';
 import { SchoolAcademicStructureModule } from './school/school-academic-structure.module';
 import { EducationSystemModule } from './education-system/education-system.module';
+import { EducationSystemsModule } from './education-systems/education-systems.module';
+import { SectionManagementModule } from './section-management/section-management.module';
+import { AcademicStructureModule } from './academic-structure/academic-structure.module';
 
 @Module({
   imports: [
@@ -24,6 +27,9 @@ import { EducationSystemModule } from './education-system/education-system.modul
     StaffModule,
     SchoolAcademicStructureModule,
     EducationSystemModule,
+    EducationSystemsModule,
+    SectionManagementModule,
+    AcademicStructureModule,
   ],
   controllers: [AppController],
   providers: [AppService],

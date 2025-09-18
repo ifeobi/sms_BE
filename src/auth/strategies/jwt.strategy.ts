@@ -28,6 +28,7 @@ export class JwtStrategy extends PassportStrategy(Strategy) {
       type: payload.type, // JWT now contains lowercase
       firstName: payload.firstName,
       lastName: payload.lastName,
+      schoolId: payload.schoolId, // Include schoolId from JWT payload
     };
   }
 }
