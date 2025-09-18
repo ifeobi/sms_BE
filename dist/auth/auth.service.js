@@ -403,9 +403,20 @@ let AuthService = class AuthService {
         });
     }
     async getUserProfile(user) {
+        const freshUser = await this.usersService.findById(user.id);
+        if (!freshUser) {
+            throw new common_1.UnauthorizedException('User not found');
+        }
         const userData = {
-            ...user,
-            type: user.type.toLowerCase(),
+            id: freshUser.id,
+            email: freshUser.email,
+            type: freshUser.type.toLowerCase(),
+            firstName: freshUser.firstName,
+            lastName: freshUser.lastName,
+            profilePicture: freshUser.profilePicture,
+            phone: freshUser.phone,
+            isActive: freshUser.isActive,
+            createdAt: freshUser.createdAt,
         };
         if (user.type === 'school_admin') {
             const schoolAdmin = await this.getSchoolAdminProfile(user.id);

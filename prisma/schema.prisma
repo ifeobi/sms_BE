@@ -38,6 +38,9 @@ model User {
   receivedMessages Message[]   @relation("MessageRecipient")
   notifications  Notification[]
 
+  // User settings
+  settings       UserSettings?
+
   // Audit fields
   createdBy      String?
   lastLoginAt    DateTime?
@@ -45,6 +48,33 @@ model User {
   // Composite unique constraint: same email can't be used twice for same user type
   @@unique([email, type])
   @@map("users")
+}
+
+model UserSettings {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  
+  // Notification preferences
+  emailNotifications    Boolean @default(true)
+  pushNotifications     Boolean @default(false)
+  smsNotifications      Boolean @default(false)
+  
+  // Privacy settings
+  showEmail             Boolean @default(false)
+  showPhone             Boolean @default(false)
+  profileVisibility     String  @default("public") // public, private, friends
+  
+  // App preferences
+  language              String  @default("en")
+  timezone              String  @default("UTC")
+  dateFormat            String  @default("MM/DD/YYYY")
+  
+  // Timestamps
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+  
+  @@map("user_settings")
 }
 
 enum UserType {

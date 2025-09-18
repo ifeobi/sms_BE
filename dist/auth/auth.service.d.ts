@@ -91,8 +91,29 @@ export declare class AuthService {
     private generateResetToken;
     getSchoolAdminProfile(userId: string): Promise<{
         isActive: boolean;
-        role: string;
         schoolId: string;
+        role: string;
     } | null>;
-    getUserProfile(user: any): Promise<any>;
+    getUserProfile(user: any): Promise<{
+        id: string;
+        email: string;
+        type: string;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        phone: string | null;
+        isActive: boolean;
+        createdAt: Date;
+    } | {
+        role: string;
+        id: string;
+        email: string;
+        type: string;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        phone: string | null;
+        isActive: boolean;
+        createdAt: Date;
+    }>;
 }

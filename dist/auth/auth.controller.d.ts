@@ -54,7 +54,28 @@ export declare class AuthController {
             profilePicture: any;
         };
     }>;
-    getProfile(req: any): Promise<any>;
+    getProfile(req: any): Promise<{
+        id: string;
+        email: string;
+        type: string;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        phone: string | null;
+        isActive: boolean;
+        createdAt: Date;
+    } | {
+        role: string;
+        id: string;
+        email: string;
+        type: string;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        phone: string | null;
+        isActive: boolean;
+        createdAt: Date;
+    }>;
     createMasterAccount(): Promise<{
         message: string;
         credentials?: undefined;
