@@ -1,0 +1,93 @@
+import { UsersService } from './users.service';
+import { CreateUserDto } from './dto/create-user.dto';
+import { UpdateUserDto } from './dto/update-user.dto';
+export declare class UsersController {
+    private readonly usersService;
+    constructor(usersService: UsersService);
+    create(createUserDto: CreateUserDto): Promise<{
+        id: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        type: import(".prisma/client").$Enums.UserType;
+        email: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        phone: string | null;
+        fullName: string | null;
+        createdBy: string | null;
+        lastLoginAt: Date | null;
+    }>;
+    findAll(): Promise<{
+        id: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        type: import(".prisma/client").$Enums.UserType;
+        email: string;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        phone: string | null;
+    }[]>;
+    findOne(id: string): Promise<{
+        id: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        type: import(".prisma/client").$Enums.UserType;
+        email: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        phone: string | null;
+        fullName: string | null;
+        createdBy: string | null;
+        lastLoginAt: Date | null;
+    }>;
+    findByType(type: string): Promise<{
+        id: string;
+        createdAt: Date;
+        type: import(".prisma/client").$Enums.UserType;
+        email: string;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        phone: string | null;
+    }[]>;
+    update(id: string, updateUserDto: UpdateUserDto): Promise<{
+        id: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        type: import(".prisma/client").$Enums.UserType;
+        email: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        phone: string | null;
+        fullName: string | null;
+        createdBy: string | null;
+        lastLoginAt: Date | null;
+    }>;
+    remove(id: string): Promise<{
+        id: string;
+        isActive: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+        type: import(".prisma/client").$Enums.UserType;
+        email: string;
+        password: string;
+        firstName: string;
+        lastName: string;
+        profilePicture: string | null;
+        phone: string | null;
+        fullName: string | null;
+        createdBy: string | null;
+        lastLoginAt: Date | null;
+    }>;
+}
