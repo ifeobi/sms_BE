@@ -9,12 +9,14 @@ import { LocalStrategy } from './strategies/local.strategy';
 import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../email/email.module';
 import { PrismaModule } from '../prisma/prisma.module';
+import { AcademicStructureModule } from '../academic-structure/academic-structure.module';
 
 @Module({
   imports: [
     UsersModule,
     EmailModule,
     PrismaModule,
+    AcademicStructureModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],
