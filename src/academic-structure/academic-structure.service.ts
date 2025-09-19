@@ -21,6 +21,7 @@ export class AcademicStructureService {
     educationSystemId: string,
     selectedLevels: string[],
     availableLevels: string[],
+    prismaInstance?: any,
   ) {
     const educationSystem =
       this.educationSystemsService.getEducationSystemById(educationSystemId);
@@ -28,8 +29,11 @@ export class AcademicStructureService {
       throw new Error(`Education system ${educationSystemId} not found`);
     }
 
+    // Use the passed Prisma instance or fall back to this.prisma
+    const prisma = prismaInstance || this.prisma;
+
     // Create school academic config
-    const schoolConfig = await this.prisma.schoolAcademicConfig.create({
+    const schoolConfig = await prisma.schoolAcademicConfig.create({
       data: {
         schoolId,
         educationSystemId,
@@ -47,7 +51,7 @@ export class AcademicStructureService {
       if (!level) continue;
 
       // Create level
-      const levelRecord = await this.prisma.level.create({
+      const levelRecord = await prisma.level.create({
         data: {
           name: level.name,
           order: level.order,
@@ -58,7 +62,7 @@ export class AcademicStructureService {
 
       // Create classes for this level
       for (const classLevel of level.classLevels) {
-        const classRecord = await this.prisma.class.create({
+        const classRecord = await prisma.class.create({
           data: {
             name: classLevel.name,
             order: classLevel.order,
@@ -70,7 +74,7 @@ export class AcademicStructureService {
 
         // Create subjects for this class
         for (const subjectName of classLevel.subjects) {
-          await this.prisma.subject.create({
+          await prisma.subject.create({
             data: {
               name: subjectName,
               code: subjectName.toUpperCase().replace(/\s+/g, '_'),

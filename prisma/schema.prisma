@@ -91,6 +91,7 @@ enum UserType {
 model School {
   id        String   @id @default(cuid())
   name      String
+  type      String   // School type: ELEMENTARY, SECONDARY, TERTIARY
   country   String
   
   // Address fields for Google Maps integration

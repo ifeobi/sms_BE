@@ -211,6 +211,7 @@ export class AuthService {
 
       const schoolData = {
         name: registerDto.schoolName || 'Unnamed School',
+        type: registerDto.schoolTypes?.[0] || 'ELEMENTARY', // Use first school type or default to ELEMENTARY
         country: registerDto.country || 'NG',
         street: primaryAddress?.street || '',
         city: primaryAddress?.city || '',
@@ -253,17 +254,18 @@ export class AuthService {
       // 4. Generate academic structure for the school
       console.log('Generating academic structure...');
       const educationSystemId = this.getEducationSystemIdByCountry(
-        registerDto.country,
+        registerDto.country || 'NG',
       );
       const availableLevels = this.getAvailableLevelsForCountry(
-        registerDto.country,
+        registerDto.country || 'NG',
       );
 
       await this.academicStructureService.generateAcademicStructureForSchool(
         school.id,
         educationSystemId,
-        registerDto.schoolTypes, // All selected school types
+        registerDto.schoolTypes || ['ELEMENTARY'], // All selected school types
         availableLevels, // All available levels for future expansion
+        prisma, // Pass the transaction's Prisma instance
       );
       console.log('✅ Academic structure generated');
 

@@ -245,7 +245,6 @@ export class SchoolService {
                   select: {
                     id: true,
                     name: true,
-                    type: true,
                     country: true,
                     city: true,
                     state: true,
