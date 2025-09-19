@@ -7,6 +7,7 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AcademicStructureService } from '../academic-structure/academic-structure.service';
 import * as bcrypt from 'bcryptjs';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -21,6 +22,7 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private prisma: PrismaService,
+    private academicStructureService: AcademicStructureService,
   ) {}
 
   async validateUser(
@@ -46,12 +48,23 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Get schoolId for school admin users
+    let schoolId: string | null = null;
+    if (user.type === 'SCHOOL_ADMIN') {
+      const schoolAdmin = await this.prisma.schoolAdmin.findFirst({
+        where: { userId: user.id },
+        select: { schoolId: true },
+      });
+      schoolId = schoolAdmin?.schoolId || null;
+    }
+
     const payload = {
       email: user.email,
       sub: user.id,
       type: user.type.toLowerCase(), // Store lowercase in JWT for consistency
       firstName: user.firstName,
       lastName: user.lastName,
+      schoolId: schoolId,
     };
 
     return {
@@ -63,6 +76,7 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         profilePicture: user.profilePicture,
+        schoolId: schoolId,
       },
     };
   }
@@ -197,7 +211,6 @@ export class AuthService {
 
       const schoolData = {
         name: registerDto.schoolName || 'Unnamed School',
-        type: registerDto.schoolTypes?.[0] || 'ELEMENTARY', // Use the frontend value directly
         country: registerDto.country || 'NG',
         street: primaryAddress?.street || '',
         city: primaryAddress?.city || '',
@@ -237,12 +250,30 @@ export class AuthService {
       });
       console.log('✅ School admin created:', schoolAdmin.id);
 
+      // 4. Generate academic structure for the school
+      console.log('Generating academic structure...');
+      const educationSystemId = this.getEducationSystemIdByCountry(
+        registerDto.country,
+      );
+      const availableLevels = this.getAvailableLevelsForCountry(
+        registerDto.country,
+      );
+
+      await this.academicStructureService.generateAcademicStructureForSchool(
+        school.id,
+        educationSystemId,
+        registerDto.schoolTypes, // All selected school types
+        availableLevels, // All available levels for future expansion
+      );
+      console.log('✅ Academic structure generated');
+
       const payload = {
         email: user.email,
         sub: user.id,
         type: user.type.toLowerCase(), // Store lowercase in JWT for consistency
         firstName: user.firstName,
         lastName: user.lastName,
+        schoolId: school.id, // Include schoolId in JWT payload
       };
 
       console.log('✅ School admin registration completed successfully');
@@ -257,11 +288,12 @@ export class AuthService {
           firstName: user.firstName,
           lastName: user.lastName,
           profilePicture: user.profilePicture,
+          schoolId: school.id, // Include schoolId for school admin users
         },
         school: {
           id: school.id,
           name: school.name,
-          type: school.type,
+          // type field removed - using academic config instead
         },
       };
     });
@@ -568,10 +600,34 @@ export class AuthService {
         return {
           ...userData,
           role: schoolAdmin.role,
+          schoolId: schoolAdmin.schoolId,
         };
       }
     }
 
     return userData;
+  }
+
+  private getEducationSystemIdByCountry(country: string): string {
+    // Map country codes to education system IDs
+    const countryToSystemMap: Record<string, string> = {
+      NG: 'nigeria-6334',
+      GH: 'ghana-6334', // Add when available
+      KE: 'kenya-844', // Add when available
+      // Add more mappings as needed
+    };
+
+    return countryToSystemMap[country] || 'nigeria-6334'; // Default to Nigeria
+  }
+
+  private getAvailableLevelsForCountry(country: string): string[] {
+    // Get all available levels for the country's education system
+    const educationSystemId = this.getEducationSystemIdByCountry(country);
+    const system =
+      this.academicStructureService.getEducationSystemById(educationSystemId);
+
+    if (!system) return [];
+
+    return system.levels.map((level) => level.id);
   }
 }

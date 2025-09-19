@@ -91,7 +91,6 @@ enum UserType {
 model School {
   id        String   @id @default(cuid())
   name      String
-  type      String   // Flexible string instead of enum
   country   String
   
   // Address fields for Google Maps integration
@@ -122,8 +121,65 @@ model School {
   teacherAssignments TeacherAssignment[]
   bulkImports  BulkImport[]
   announcements Announcement[]
+  academicConfigs SchoolAcademicConfig[]
+  customSectionPatterns CustomSectionPattern[]
 
   @@map("schools")
+}
+
+// ==================== SCHOOL ACADEMIC CONFIGURATION ====================
+
+model SchoolAcademicConfig {
+  id                    String   @id @default(cuid())
+  schoolId              String
+  educationSystemId     String   // Reference to education system (e.g., "nigeria-6334")
+  selectedLevels        String[] // Array of selected level IDs (e.g., ["primary", "jss"])
+  availableLevels       String[] // Array of available but inactive level IDs (e.g., ["nursery", "sss"])
+  customClassNames      Json?    // Override default class names
+  customSubjectNames    Json?    // Override default subject names
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relationships
+  school                School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("school_academic_configs")
+}
+
+// ==================== SECTION MANAGEMENT ====================
+
+model SectionTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique // "Alphabetical", "Numbers", "Colors", "Animals"
+  description String   // "A, B, C, D, E, F..."
+  pattern     String[] // ["A", "B", "C", "D", "E", "F"]
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  customPatterns CustomSectionPattern[]
+
+  @@map("section_templates")
+}
+
+model CustomSectionPattern {
+  id        String   @id @default(cuid())
+  schoolId  String
+  templateId String?
+  name      String   // "Custom Pattern 1"
+  pattern   String[] // ["Alpha", "Beta", "Gamma", "Delta"]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  school   School          @relation(fields: [schoolId], references: [id])
+  template SectionTemplate? @relation(fields: [templateId], references: [id])
+
+  @@map("custom_section_patterns")
 }
 
 // ==================== STUDENT MANAGEMENT ====================
@@ -244,12 +300,18 @@ model Level {
 }
 
 model Class {
-  id        String   @id @default(cuid())
-  levelId   String
-  schoolId  String
-  name      String   // "Primary 1", "Grade 1", etc.
-  order     Int
-  isActive  Boolean  @default(true)
+  id            String   @id @default(cuid())
+  levelId       String
+  schoolId      String
+  name          String   // "Primary 1", "Grade 1", etc.
+  sectionName   String?  // "A", "Red", "Lion", "Alpha-1" - null for base class
+  sectionOrder  Int?     // Order within level for sections (1, 2, 3...)
+  capacity      Int?     // Student capacity per section
+  templateUsed  String?  // "alphabetical", "colors", "custom", etc.
+  order         Int
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 
   // Relationships
   level     Level    @relation(fields: [levelId], references: [id])

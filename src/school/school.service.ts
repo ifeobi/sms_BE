@@ -22,7 +22,7 @@ export class SchoolService {
           select: {
             id: true,
             name: true,
-            type: true,
+            // type field removed - using academic config instead
             country: true,
             street: true,
             city: true,
@@ -113,7 +113,7 @@ export class SchoolService {
           select: {
             id: true,
             name: true,
-            type: true,
+            // type field removed - using academic config instead
             country: true,
             street: true,
             city: true,
@@ -133,7 +133,7 @@ export class SchoolService {
     return {
       id: schoolAdmin.school.id,
       name: schoolAdmin.school.name,
-      type: schoolAdmin.school.type,
+      // type field removed - using academic config instead
       country: schoolAdmin.school.country,
       address: {
         street: schoolAdmin.school.street,

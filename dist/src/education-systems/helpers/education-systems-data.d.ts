@@ -1,0 +1,17 @@
+import { EducationSystem } from '../interfaces/education-system.interface';
+export declare const nigerianSystem: EducationSystem;
+export declare const ghanaianSystem: EducationSystem;
+export declare const kenyanSystem: EducationSystem;
+export declare const ugandanSystem: EducationSystem;
+export declare const tanzanianSystem: EducationSystem;
+export declare const southAfricanSystem: EducationSystem;
+export declare const zimbabweanSystem: EducationSystem;
+export declare const senegaleseSystem: EducationSystem;
+export declare const ivorianSystem: EducationSystem;
+export declare const egyptianSystem: EducationSystem;
+export declare const moroccanSystem: EducationSystem;
+export declare const americanSystem: EducationSystem;
+export declare const britishSystem: EducationSystem;
+export declare const canadianSystem: EducationSystem;
+export declare const allEducationSystems: EducationSystem[];
+export { nigerianSystem as nigeria, ghanaianSystem as ghana, kenyanSystem as kenya, ugandanSystem as uganda, tanzanianSystem as tanzania, southAfricanSystem as southAfrica, zimbabweanSystem as zimbabwe, senegaleseSystem as senegal, ivorianSystem as ivoryCoast, egyptianSystem as egypt, moroccanSystem as morocco, americanSystem as usa, britishSystem as uk, canadianSystem as canada, };
