@@ -12,6 +12,7 @@ import { CommunicationsModule } from './communications/communications.module';
 import { EducationSystemsModule } from './education-systems/education-systems.module';
 import { SectionManagementModule } from './section-management/section-management.module';
 import { AcademicStructureModule } from './academic-structure/academic-structure.module';
+import { TeacherGradesModule } from './teacher-grades/teacher-grades.module';
 
 @Module({
   imports: [
@@ -28,6 +29,7 @@ import { AcademicStructureModule } from './academic-structure/academic-structure
     EducationSystemsModule,
     SectionManagementModule,
     AcademicStructureModule,
+    TeacherGradesModule,
   ],
   controllers: [AppController],
   providers: [AppService],
