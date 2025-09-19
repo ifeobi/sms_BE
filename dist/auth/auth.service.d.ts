@@ -91,8 +91,8 @@ export declare class AuthService {
     private generateResetToken;
     getSchoolAdminProfile(userId: string): Promise<{
         isActive: boolean;
-        schoolId: string;
         role: string;
+        schoolId: string;
     } | null>;
     getUserProfile(user: any): Promise<{
         id: string;

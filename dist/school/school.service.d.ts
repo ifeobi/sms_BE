@@ -5,22 +5,22 @@ export declare class SchoolService {
     getSchoolAdminRole(userId: string): Promise<{
         role: string;
         user: {
-            id: string;
             email: string;
             firstName: string;
             lastName: string;
             profilePicture: string | null;
+            id: string;
         };
         school: {
-            id: string;
             type: string;
+            id: string;
             name: string;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
             formattedAddress: string | null;
+            country: string;
             logo: string | null;
         };
     }>;

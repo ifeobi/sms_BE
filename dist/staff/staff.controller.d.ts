@@ -6,42 +6,42 @@ export declare class StaffController {
     constructor(staffService: StaffService);
     create(createStaffDto: CreateStaffDto): Promise<({
         user: {
-            id: string;
+            type: import(".prisma/client").$Enums.UserType;
             email: string;
             password: string;
-            type: import(".prisma/client").$Enums.UserType;
             firstName: string;
             lastName: string;
-            fullName: string | null;
             profilePicture: string | null;
             phone: string | null;
             isActive: boolean;
+            id: string;
+            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
         };
         school: {
-            id: string;
             type: string;
             isActive: boolean;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             name: string;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
     } & {
-        id: string;
         isActive: boolean;
+        id: string;
         userId: string;
         schoolId: string;
         employeeNumber: string;
@@ -49,102 +49,102 @@ export declare class StaffController {
         hireDate: Date;
     }) | ({
         user: {
-            id: string;
+            type: import(".prisma/client").$Enums.UserType;
             email: string;
             password: string;
-            type: import(".prisma/client").$Enums.UserType;
             firstName: string;
             lastName: string;
-            fullName: string | null;
             profilePicture: string | null;
             phone: string | null;
             isActive: boolean;
+            id: string;
+            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
         };
         school: {
-            id: string;
             type: string;
             isActive: boolean;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             name: string;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
     } & {
-        id: string;
         isActive: boolean;
+        id: string;
+        role: string;
         userId: string;
         schoolId: string;
-        role: string;
     })>;
     findAll(schoolId: string): Promise<{
         teachers: ({
             user: {
-                id: string;
+                type: import(".prisma/client").$Enums.UserType;
                 email: string;
                 password: string;
-                type: import(".prisma/client").$Enums.UserType;
                 firstName: string;
                 lastName: string;
-                fullName: string | null;
                 profilePicture: string | null;
                 phone: string | null;
                 isActive: boolean;
+                id: string;
+                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
             };
             school: {
-                id: string;
                 type: string;
                 isActive: boolean;
+                id: string;
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
-                country: string;
                 street: string | null;
                 city: string | null;
                 state: string | null;
                 postalCode: string | null;
+                landmark: string | null;
+                formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                formattedAddress: string | null;
-                landmark: string | null;
+                country: string;
                 logo: string | null;
             };
             teacherAssignments: ({
                 class: {
-                    id: string;
                     isActive: boolean;
+                    id: string;
                     name: string;
                     schoolId: string;
                     levelId: string;
                     order: number;
                 };
                 subject: {
-                    id: string;
+                    description: string | null;
                     isActive: boolean;
+                    id: string;
                     name: string;
                     code: string;
                     schoolId: string;
-                    description: string | null;
                 };
             } & {
-                id: string;
                 isActive: boolean;
+                id: string;
                 createdAt: Date;
                 updatedAt: Date;
                 schoolId: string;
@@ -155,8 +155,8 @@ export declare class StaffController {
                 isFormTeacher: boolean;
             })[];
         } & {
-            id: string;
             isActive: boolean;
+            id: string;
             userId: string;
             schoolId: string;
             employeeNumber: string;
@@ -165,102 +165,102 @@ export declare class StaffController {
         })[];
         schoolAdmins: ({
             user: {
-                id: string;
+                type: import(".prisma/client").$Enums.UserType;
                 email: string;
                 password: string;
-                type: import(".prisma/client").$Enums.UserType;
                 firstName: string;
                 lastName: string;
-                fullName: string | null;
                 profilePicture: string | null;
                 phone: string | null;
                 isActive: boolean;
+                id: string;
+                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
             };
             school: {
-                id: string;
                 type: string;
                 isActive: boolean;
+                id: string;
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
-                country: string;
                 street: string | null;
                 city: string | null;
                 state: string | null;
                 postalCode: string | null;
+                landmark: string | null;
+                formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                formattedAddress: string | null;
-                landmark: string | null;
+                country: string;
                 logo: string | null;
             };
         } & {
-            id: string;
             isActive: boolean;
+            id: string;
+            role: string;
             userId: string;
             schoolId: string;
-            role: string;
         })[];
     }>;
     findOne(id: string): Promise<({
         user: {
-            id: string;
+            type: import(".prisma/client").$Enums.UserType;
             email: string;
             password: string;
-            type: import(".prisma/client").$Enums.UserType;
             firstName: string;
             lastName: string;
-            fullName: string | null;
             profilePicture: string | null;
             phone: string | null;
             isActive: boolean;
+            id: string;
+            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
         };
         school: {
-            id: string;
             type: string;
             isActive: boolean;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             name: string;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
         teacherAssignments: ({
             class: {
-                id: string;
                 isActive: boolean;
+                id: string;
                 name: string;
                 schoolId: string;
                 levelId: string;
                 order: number;
             };
             subject: {
-                id: string;
+                description: string | null;
                 isActive: boolean;
+                id: string;
                 name: string;
                 code: string;
                 schoolId: string;
-                description: string | null;
             };
         } & {
-            id: string;
             isActive: boolean;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             schoolId: string;
@@ -271,8 +271,8 @@ export declare class StaffController {
             isFormTeacher: boolean;
         })[];
     } & {
-        id: string;
         isActive: boolean;
+        id: string;
         userId: string;
         schoolId: string;
         employeeNumber: string;
@@ -280,101 +280,101 @@ export declare class StaffController {
         hireDate: Date;
     }) | ({
         user: {
-            id: string;
+            type: import(".prisma/client").$Enums.UserType;
             email: string;
             password: string;
-            type: import(".prisma/client").$Enums.UserType;
             firstName: string;
             lastName: string;
-            fullName: string | null;
             profilePicture: string | null;
             phone: string | null;
             isActive: boolean;
+            id: string;
+            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
         };
         school: {
-            id: string;
             type: string;
             isActive: boolean;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             name: string;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
     } & {
-        id: string;
         isActive: boolean;
+        id: string;
+        role: string;
         userId: string;
         schoolId: string;
-        role: string;
     })>;
     update(id: string, updateStaffDto: UpdateStaffDto): Promise<({
         user: {
-            id: string;
+            type: import(".prisma/client").$Enums.UserType;
             email: string;
             password: string;
-            type: import(".prisma/client").$Enums.UserType;
             firstName: string;
             lastName: string;
-            fullName: string | null;
             profilePicture: string | null;
             phone: string | null;
             isActive: boolean;
+            id: string;
+            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
         };
         school: {
-            id: string;
             type: string;
             isActive: boolean;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             name: string;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
         teacherAssignments: ({
             class: {
-                id: string;
                 isActive: boolean;
+                id: string;
                 name: string;
                 schoolId: string;
                 levelId: string;
                 order: number;
             };
             subject: {
-                id: string;
+                description: string | null;
                 isActive: boolean;
+                id: string;
                 name: string;
                 code: string;
                 schoolId: string;
-                description: string | null;
             };
         } & {
-            id: string;
             isActive: boolean;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             schoolId: string;
@@ -385,8 +385,8 @@ export declare class StaffController {
             isFormTeacher: boolean;
         })[];
     } & {
-        id: string;
         isActive: boolean;
+        id: string;
         userId: string;
         schoolId: string;
         employeeNumber: string;
@@ -394,45 +394,45 @@ export declare class StaffController {
         hireDate: Date;
     }) | ({
         user: {
-            id: string;
+            type: import(".prisma/client").$Enums.UserType;
             email: string;
             password: string;
-            type: import(".prisma/client").$Enums.UserType;
             firstName: string;
             lastName: string;
-            fullName: string | null;
             profilePicture: string | null;
             phone: string | null;
             isActive: boolean;
+            id: string;
+            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
         };
         school: {
-            id: string;
             type: string;
             isActive: boolean;
+            id: string;
             createdAt: Date;
             updatedAt: Date;
             name: string;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
     } & {
-        id: string;
         isActive: boolean;
+        id: string;
+        role: string;
         userId: string;
         schoolId: string;
-        role: string;
     })>;
     remove(id: string): Promise<{
         message: string;
@@ -440,59 +440,59 @@ export declare class StaffController {
     findBySchool(schoolId: string): Promise<{
         teachers: ({
             user: {
-                id: string;
+                type: import(".prisma/client").$Enums.UserType;
                 email: string;
                 password: string;
-                type: import(".prisma/client").$Enums.UserType;
                 firstName: string;
                 lastName: string;
-                fullName: string | null;
                 profilePicture: string | null;
                 phone: string | null;
                 isActive: boolean;
+                id: string;
+                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
             };
             school: {
-                id: string;
                 type: string;
                 isActive: boolean;
+                id: string;
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
-                country: string;
                 street: string | null;
                 city: string | null;
                 state: string | null;
                 postalCode: string | null;
+                landmark: string | null;
+                formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                formattedAddress: string | null;
-                landmark: string | null;
+                country: string;
                 logo: string | null;
             };
             teacherAssignments: ({
                 class: {
-                    id: string;
                     isActive: boolean;
+                    id: string;
                     name: string;
                     schoolId: string;
                     levelId: string;
                     order: number;
                 };
                 subject: {
-                    id: string;
+                    description: string | null;
                     isActive: boolean;
+                    id: string;
                     name: string;
                     code: string;
                     schoolId: string;
-                    description: string | null;
                 };
             } & {
-                id: string;
                 isActive: boolean;
+                id: string;
                 createdAt: Date;
                 updatedAt: Date;
                 schoolId: string;
@@ -503,8 +503,8 @@ export declare class StaffController {
                 isFormTeacher: boolean;
             })[];
         } & {
-            id: string;
             isActive: boolean;
+            id: string;
             userId: string;
             schoolId: string;
             employeeNumber: string;
@@ -513,45 +513,45 @@ export declare class StaffController {
         })[];
         schoolAdmins: ({
             user: {
-                id: string;
+                type: import(".prisma/client").$Enums.UserType;
                 email: string;
                 password: string;
-                type: import(".prisma/client").$Enums.UserType;
                 firstName: string;
                 lastName: string;
-                fullName: string | null;
                 profilePicture: string | null;
                 phone: string | null;
                 isActive: boolean;
+                id: string;
+                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
             };
             school: {
-                id: string;
                 type: string;
                 isActive: boolean;
+                id: string;
                 createdAt: Date;
                 updatedAt: Date;
                 name: string;
-                country: string;
                 street: string | null;
                 city: string | null;
                 state: string | null;
                 postalCode: string | null;
+                landmark: string | null;
+                formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                formattedAddress: string | null;
-                landmark: string | null;
+                country: string;
                 logo: string | null;
             };
         } & {
-            id: string;
             isActive: boolean;
+            id: string;
+            role: string;
             userId: string;
             schoolId: string;
-            role: string;
         })[];
     }>;
 }
