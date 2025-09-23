@@ -13,6 +13,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ChangePasswordDto } from './dto/change-password.dto';
 import { UserType } from '../users/dto/create-user.dto';
 
 @Injectable()
@@ -561,6 +562,75 @@ export class AuthService {
       result += chars.charAt(Math.floor(Math.random() * chars.length));
     }
     return result;
+  }
+
+  async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
+    try {
+      console.log('=== CHANGE PASSWORD DEBUG ===');
+      console.log('User ID:', userId);
+
+      // Validate passwords match
+      if (changePasswordDto.newPassword !== changePasswordDto.confirmPassword) {
+        throw new Error('New passwords do not match');
+      }
+
+      // Find the user
+      const user = await this.prisma.user.findUnique({
+        where: { id: userId },
+      });
+
+      if (!user) {
+        throw new Error('User not found');
+      }
+
+      console.log('✅ User found');
+
+      // Verify current password
+      const isCurrentPasswordValid = await bcrypt.compare(
+        changePasswordDto.currentPassword,
+        user.password,
+      );
+
+      if (!isCurrentPasswordValid) {
+        throw new Error('Current password is incorrect');
+      }
+
+      console.log('✅ Current password verified');
+
+      // Check if new password is different from current password
+      const isSamePassword = await bcrypt.compare(
+        changePasswordDto.newPassword,
+        user.password,
+      );
+
+      if (isSamePassword) {
+        throw new Error('New password must be different from current password');
+      }
+
+      console.log('✅ New password is different');
+
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(
+        changePasswordDto.newPassword,
+        10,
+      );
+
+      // Update user password
+      await this.prisma.user.update({
+        where: { id: userId },
+        data: { password: hashedPassword },
+      });
+
+      console.log('✅ Password updated successfully');
+
+      return {
+        success: true,
+        message: 'Password changed successfully',
+      };
+    } catch (error) {
+      console.error('❌ Change password error:', error);
+      throw new Error(error.message || 'Failed to change password');
+    }
   }
 
   async getSchoolAdminProfile(userId: string) {
