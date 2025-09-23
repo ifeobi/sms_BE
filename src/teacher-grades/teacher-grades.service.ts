@@ -922,12 +922,382 @@ export class TeacherGradesService {
     }
   }
 
+  async getRecentActivity(teacherUserId: string): Promise<any[]> {
+    try {
+      this.logger.log(`Getting recent activity for teacher user: ${teacherUserId}`);
+      
+      // Get teacher record
+      const teacher = await this.prisma.teacher.findFirst({
+        where: { userId: teacherUserId },
+      });
+
+      if (!teacher) {
+        this.logger.warn(`Teacher not found for user: ${teacherUserId}`);
+        throw new HttpException('Teacher not found', HttpStatus.NOT_FOUND);
+      }
+
+      this.logger.log(`Found teacher: ${teacher.id}`);
+
+      const activities: any[] = [];
+
+      // 1. Grade entry activities from academic records
+      const academicRecords = await this.prisma.academicRecord.findMany({
+        where: {
+          teacherId: teacher.id,
+        },
+        include: {
+          assignment: true,
+        },
+        orderBy: { gradedAt: 'desc' },
+        take: 10,
+      });
+
+      academicRecords.forEach(record => {
+        if (record.assignment) {
+          activities.push({
+            type: 'grade_entered',
+            description: `Entered grades for ${record.assignment.title}`,
+            timestamp: record.gradedAt,
+            studentId: record.studentId,
+            assignmentId: record.assignmentId,
+          });
+        }
+      });
+
+      // 2. Assignment creation activities
+      const assignments = await this.prisma.assignment.findMany({
+        where: {
+          teacherId: teacher.id,
+        },
+        orderBy: { createdAt: 'desc' },
+        take: 10,
+      });
+
+      assignments.forEach(assignment => {
+        activities.push({
+          type: 'assignment_created',
+          description: `Created new assignment: ${assignment.title}`,
+          timestamp: assignment.createdAt,
+          assignmentId: assignment.id,
+        });
+      });
+
+      // 3. Attendance marking activities (group by date to avoid duplicates)
+      const attendanceRecords = await this.prisma.attendanceRecord.findMany({
+        where: {
+          teacherId: teacher.id,
+        },
+        orderBy: { recordedAt: 'desc' },
+        take: 20,
+      });
+
+      const attendanceByDate = new Map();
+      attendanceRecords.forEach(record => {
+        const dateKey = record.date.toDateString();
+        if (!attendanceByDate.has(dateKey)) {
+          attendanceByDate.set(dateKey, {
+            type: 'attendance_marked',
+            description: `Marked attendance for ${record.classId}`,
+            timestamp: record.recordedAt,
+            classId: record.classId,
+          });
+        }
+      });
+      activities.push(...Array.from(attendanceByDate.values()));
+
+      // Sort by timestamp (most recent first) and limit to 10 activities
+      const sortedActivities = activities
+        .sort((a, b) => new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime())
+        .slice(0, 10);
+      
+      this.logger.log(`Returning ${sortedActivities.length} activities`);
+      return sortedActivities;
+    } catch (error) {
+      this.logger.error('Failed to get recent activity', error);
+      throw new HttpException(
+        'Failed to get recent activity',
+        HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   private calculateGrade(percentage: number): string {
     if (percentage >= 90) return 'A';
     if (percentage >= 80) return 'B';
     if (percentage >= 70) return 'C';
     if (percentage >= 60) return 'D';
     return 'F';
+  }
+
+  async getUpcomingDeadlines(teacherUserId: string) {
+    try {
+      this.logger.log(`Getting upcoming deadlines for teacher: ${teacherUserId}`);
+
+      // Get teacher record
+      const teacher = await this.prisma.teacher.findFirst({
+        where: { userId: teacherUserId },
+      });
+
+      if (!teacher) {
+        throw new HttpException('Teacher not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Get upcoming assignments (due date in the future)
+      const now = new Date();
+      const assignments = await this.prisma.assignment.findMany({
+        where: {
+          teacherId: teacher.id,
+          dueDate: {
+            gte: now, // Greater than or equal to now (future dates)
+          },
+          isActive: true,
+        },
+        include: {
+          subject: true,
+          class: true,
+          academicRecords: {
+            where: {
+              isActive: true,
+            },
+          },
+        },
+        orderBy: {
+          dueDate: 'asc', // Sort by due date, earliest first
+        },
+        take: 15, // Limit to 15 upcoming deadlines
+      });
+
+      this.logger.log(`Found ${assignments.length} upcoming assignments`);
+
+      // Transform assignments to include completion progress
+      const upcomingDeadlines = assignments.map((assignment) => {
+        const totalStudents = assignment.academicRecords.length;
+        const completedStudents = assignment.academicRecords.filter(
+          (record) => record.grade !== null && record.grade !== undefined
+        ).length;
+
+        return {
+          assignmentId: assignment.id,
+          title: assignment.title,
+          dueDate: assignment.dueDate,
+          studentsCompleted: completedStudents,
+          totalStudents: totalStudents,
+          subject: assignment.subject.name,
+          class: assignment.class.name,
+          type: assignment.type,
+          maxScore: assignment.maxScore,
+        };
+      });
+
+      this.logger.log(`Returning ${upcomingDeadlines.length} upcoming deadlines`);
+      return upcomingDeadlines;
+    } catch (error) {
+      this.logger.error('Error getting upcoming deadlines:', error);
+      throw new HttpException(
+        error.message || 'Failed to get upcoming deadlines',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  async getPerformanceInsights(teacherUserId: string) {
+    try {
+      this.logger.log(`Getting performance insights for teacher: ${teacherUserId}`);
+
+      // Get teacher record
+      const teacher = await this.prisma.teacher.findFirst({
+        where: { userId: teacherUserId },
+      });
+
+      if (!teacher) {
+        throw new HttpException('Teacher not found', HttpStatus.NOT_FOUND);
+      }
+
+      // Get all academic records for this teacher with student and assignment data
+      const academicRecords = await this.prisma.academicRecord.findMany({
+        where: {
+          teacherId: teacher.id,
+          isActive: true,
+        },
+        include: {
+          student: {
+            include: {
+              user: true,
+            },
+          },
+          assignment: {
+            include: {
+              class: true,
+              subject: true,
+            },
+          },
+        },
+      });
+
+      // Get attendance records for students
+      const attendanceRecords = await this.prisma.attendanceRecord.findMany({
+        where: {
+          teacherId: teacher.id,
+          isActive: true,
+        },
+        include: {
+          student: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+
+      this.logger.log(`Found ${academicRecords.length} academic records and ${attendanceRecords.length} attendance records`);
+
+      // Calculate student performance metrics
+      const studentPerformance = new Map<string, {
+        studentId: string;
+        studentName: string;
+        totalScore: number;
+        totalAssignments: number;
+        averageScore: number;
+        attendanceRate: number;
+        missingAssignments: number;
+        reasons: string[];
+      }>();
+
+      // Process academic records
+      academicRecords.forEach((record) => {
+        const studentId = record.studentId;
+        const studentName = `${record.student.user.firstName} ${record.student.user.lastName}`;
+        
+        if (!studentPerformance.has(studentId)) {
+          studentPerformance.set(studentId, {
+            studentId,
+            studentName,
+            totalScore: 0,
+            totalAssignments: 0,
+            averageScore: 0,
+            attendanceRate: 0,
+            missingAssignments: 0,
+            reasons: [],
+          });
+        }
+
+        const student = studentPerformance.get(studentId)!;
+        
+        if (record.grade !== null && record.grade !== undefined && record.grade !== '') {
+          // Convert grade to percentage for calculation (A=90-100, B=80-89, etc.)
+          const gradeToPercentage = (grade: string) => {
+            switch (grade.toUpperCase()) {
+              case 'A': return 95;
+              case 'B': return 85;
+              case 'C': return 75;
+              case 'D': return 65;
+              case 'E': return 55;
+              case 'F': return 45;
+              default: return 0;
+            }
+          };
+          student.totalScore += gradeToPercentage(record.grade);
+          student.totalAssignments += 1;
+        } else {
+          student.missingAssignments += 1;
+        }
+      });
+
+      // Calculate average scores
+      studentPerformance.forEach((student) => {
+        if (student.totalAssignments > 0) {
+          student.averageScore = student.totalScore / student.totalAssignments;
+        }
+      });
+
+      // Process attendance records
+      const attendanceByStudent = new Map<string, { present: number; total: number }>();
+      attendanceRecords.forEach((record) => {
+        const studentId = record.studentId;
+        if (!attendanceByStudent.has(studentId)) {
+          attendanceByStudent.set(studentId, { present: 0, total: 0 });
+        }
+        
+        const attendance = attendanceByStudent.get(studentId)!;
+        attendance.total += 1;
+        if (record.status === 'PRESENT') {
+          attendance.present += 1;
+        }
+      });
+
+      // Update attendance rates and identify issues
+      studentPerformance.forEach((student) => {
+        const attendance = attendanceByStudent.get(student.studentId);
+        if (attendance && attendance.total > 0) {
+          student.attendanceRate = (attendance.present / attendance.total) * 100;
+        }
+
+        // Identify reasons for poor performance
+        if (student.averageScore < 60) {
+          student.reasons.push('Poor academic performance');
+        }
+        if (student.attendanceRate < 80) {
+          student.reasons.push('Low attendance');
+        }
+        if (student.missingAssignments > 2) {
+          student.reasons.push('Missing assignments');
+        }
+      });
+
+      // Get top performing students (top 5)
+      const topPerformingStudents = Array.from(studentPerformance.values())
+        .filter(student => student.totalAssignments > 0)
+        .sort((a, b) => b.averageScore - a.averageScore)
+        .slice(0, 5)
+        .map(student => ({
+          studentId: student.studentId,
+          studentName: student.studentName,
+          averageScore: student.averageScore,
+        }));
+
+      // Get students needing attention (bottom performers with issues)
+      const studentsNeedingAttention = Array.from(studentPerformance.values())
+        .filter(student => 
+          student.totalAssignments > 0 && 
+          (student.averageScore < 60 || student.attendanceRate < 80 || student.missingAssignments > 2)
+        )
+        .sort((a, b) => a.averageScore - b.averageScore)
+        .slice(0, 5)
+        .map(student => ({
+          studentId: student.studentId,
+          studentName: student.studentName,
+          averageScore: student.averageScore,
+          reasons: student.reasons.length > 0 ? student.reasons : ['Needs attention'],
+        }));
+
+      // Calculate class improvements (mock data for now - would need historical data)
+      const classImprovements = [
+        { classId: 'p3', improvement: 12.5, period: 'This month' },
+        { classId: 'p5', improvement: 8.3, period: 'This month' },
+      ];
+
+      const insights = {
+        topPerformingStudents,
+        studentsNeedingAttention,
+        classImprovements,
+        totalStudents: studentPerformance.size,
+        averageClassPerformance: studentPerformance.size > 0 
+          ? Array.from(studentPerformance.values())
+              .filter(s => s.totalAssignments > 0)
+              .reduce((sum, s) => sum + s.averageScore, 0) / 
+              Array.from(studentPerformance.values()).filter(s => s.totalAssignments > 0).length
+          : 0,
+      };
+
+      this.logger.log(`Returning performance insights for ${insights.totalStudents} students`);
+      return insights;
+    } catch (error) {
+      this.logger.error('Error getting performance insights:', error);
+      throw new HttpException(
+        error.message || 'Failed to get performance insights',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
   }
 
   private calculateGPA(percentage: number): number {

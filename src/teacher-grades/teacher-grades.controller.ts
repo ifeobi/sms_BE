@@ -63,6 +63,78 @@ export class TeacherGradesController {
     }
   }
 
+  @Get('activity')
+  @ApiOperation({ summary: 'Get teacher recent activity' })
+  @ApiResponse({
+    status: 200,
+    description: 'Teacher recent activity retrieved successfully',
+  })
+  async getRecentActivity(@Request() req) {
+    try {
+      const userId = req.user.id;
+      const userType = req.user.type;
+
+      if (userType.toLowerCase() !== 'teacher') {
+        throw new HttpException('Access denied', HttpStatus.FORBIDDEN);
+      }
+
+      return await this.teacherGradesService.getRecentActivity(userId);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to get recent activity',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('upcoming-deadlines')
+  @ApiOperation({ summary: 'Get upcoming assignment deadlines for teacher' })
+  @ApiResponse({
+    status: 200,
+    description: 'Upcoming deadlines retrieved successfully',
+  })
+  async getUpcomingDeadlines(@Request() req) {
+    try {
+      const userId = req.user.id;
+      const userType = req.user.type;
+
+      if (userType.toLowerCase() !== 'teacher') {
+        throw new HttpException('Access denied', HttpStatus.FORBIDDEN);
+      }
+
+      return await this.teacherGradesService.getUpcomingDeadlines(userId);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to get upcoming deadlines',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
+  @Get('performance-insights')
+  @ApiOperation({ summary: 'Get performance insights and analytics for teacher' })
+  @ApiResponse({
+    status: 200,
+    description: 'Performance insights retrieved successfully',
+  })
+  async getPerformanceInsights(@Request() req) {
+    try {
+      const userId = req.user.id;
+      const userType = req.user.type;
+
+      if (userType.toLowerCase() !== 'teacher') {
+        throw new HttpException('Access denied', HttpStatus.FORBIDDEN);
+      }
+
+      return await this.teacherGradesService.getPerformanceInsights(userId);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to get performance insights',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
+
   @Get('assignments')
   @ApiOperation({ summary: 'Get teacher assignments' })
   @ApiResponse({
