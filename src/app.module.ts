@@ -13,6 +13,7 @@ import { EducationSystemsModule } from './education-systems/education-systems.mo
 import { SectionManagementModule } from './section-management/section-management.module';
 import { AcademicStructureModule } from './academic-structure/academic-structure.module';
 import { TeacherGradesModule } from './teacher-grades/teacher-grades.module';
+import { TeacherAttendanceModule } from './teacher-attendance/teacher-attendance.module';
 
 @Module({
   imports: [
@@ -30,6 +31,7 @@ import { TeacherGradesModule } from './teacher-grades/teacher-grades.module';
     SectionManagementModule,
     AcademicStructureModule,
     TeacherGradesModule,
+    TeacherAttendanceModule,
   ],
   controllers: [AppController],
   providers: [AppService],
