@@ -14,11 +14,15 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
+        bio: string | null;
+        country: string | null;
+        website: string | null;
+        isEmailVerified: boolean;
     }>;
     findAll(): Promise<{
         type: import(".prisma/client").$Enums.UserType;
@@ -42,11 +46,15 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
+        bio: string | null;
+        country: string | null;
+        website: string | null;
+        isEmailVerified: boolean;
     }>;
     findByType(type: string): Promise<{
         type: import(".prisma/client").$Enums.UserType;
@@ -68,11 +76,15 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
+        bio: string | null;
+        country: string | null;
+        website: string | null;
+        isEmailVerified: boolean;
     }>;
     remove(id: string): Promise<{
         type: import(".prisma/client").$Enums.UserType;
@@ -84,10 +96,14 @@ export declare class UsersController {
         phone: string | null;
         isActive: boolean;
         id: string;
-        fullName: string | null;
         createdAt: Date;
         updatedAt: Date;
         createdBy: string | null;
         lastLoginAt: Date | null;
+        fullName: string | null;
+        bio: string | null;
+        country: string | null;
+        website: string | null;
+        isEmailVerified: boolean;
     }>;
 }

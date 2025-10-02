@@ -8,6 +8,8 @@ import { PrismaModule } from './prisma/prisma.module';
 import { SchoolModule } from './school/school.module';
 import { StudentsModule } from './students/students.module';
 import { StaffModule } from './staff/staff.module';
+import { ContentModule } from './content/content.module';
+import { FileUploadModule } from './file-upload/file-upload.module';
 
 @Module({
   imports: [
@@ -20,6 +22,8 @@ import { StaffModule } from './staff/staff.module';
     SchoolModule,
     StudentsModule,
     StaffModule,
+    ContentModule,
+    FileUploadModule,
   ],
   controllers: [AppController],
   providers: [AppService],

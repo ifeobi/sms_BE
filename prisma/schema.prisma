@@ -1,6 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -10,36 +7,746 @@ datasource db {
   url      = env("DATABASE_URL")
 }
 
-// ==================== USER MANAGEMENT ====================
-
 model User {
-  id             String   @id @default(cuid())
-  email          String
-  password       String
-  type           UserType
-  firstName      String
-  lastName       String
-  fullName       String?  // For schools that prefer full names
-  profilePicture String?
-  phone          String?
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+  id              String       @id @default(cuid())
+  email           String
+  password        String
+  type            UserType
+  firstName       String
+  lastName        String
+  profilePicture  String?
+  phone           String?
+  isActive        Boolean      @default(true)
+  createdAt       DateTime     @default(now())
+  updatedAt       DateTime     @updatedAt
+  createdBy       String?
+  lastLoginAt     DateTime?
+  fullName        String?
+  bio             String?
+  country         String?
+  website         String?
+  isEmailVerified Boolean      @default(false)
+  creator         Creator?
+  parent          Parent?
+  schoolAdmin     SchoolAdmin?
+  student         Student?
+  teacher         Teacher?
 
-  // Relationships
-  student        Student?
-  teacher        Teacher?
-  parent         Parent?
-  schoolAdmin    SchoolAdmin?
-  creator        Creator?
-
-  // Audit fields
-  createdBy      String?
-  lastLoginAt    DateTime?
-
-  // Composite unique constraint: same email can't be used twice for same user type
   @@unique([email, type])
   @@map("users")
+}
+
+model School {
+  id                 String                     @id @default(cuid())
+  name               String
+  country            String
+  logo               String?
+  isActive           Boolean                    @default(true)
+  createdAt          DateTime                   @default(now())
+  updatedAt          DateTime                   @updatedAt
+  city               String?
+  formattedAddress   String?
+  latitude           Float?
+  longitude          Float?
+  postalCode         String?
+  state              String?
+  street             String?
+  landmark           String?
+  type               String
+  academicTerms      AcademicTerm[]
+  bulkImports        BulkImport[]
+  classes            Class[]
+  gradingScales      GradingScale[]
+  levels             Level[]
+  parents            ParentSchoolRelationship[]
+  schoolAdmins       SchoolAdmin[]
+  students           Student[]
+  subjects           Subject[]
+  teacherAssignments TeacherAssignment[]
+  teachers           Teacher[]
+
+  @@map("schools")
+}
+
+model Student {
+  id                        String                     @id @default(cuid())
+  userId                    String                     @unique
+  schoolId                  String
+  studentNumber             String                     @unique
+  currentLevelId            String
+  currentClassId            String
+  academicYear              String
+  status                    StudentStatus              @default(ACTIVE)
+  enrollmentDate            DateTime                   @default(now())
+  graduationDate            DateTime?
+  transferDate              DateTime?
+  transferSchool            String?
+  suspensionStartDate       DateTime?
+  suspensionEndDate         DateTime?
+  suspensionReason          String?
+  dateOfBirth               DateTime
+  gender                    Gender
+  nationality               String
+  religion                  String?
+  bloodGroup                String?
+  specialNeeds              String?
+  learningStyle             String?
+  extraCurricularActivities String[]
+  allergies                 String[]
+  medications               String[]
+  bloodGroupHealth          String?
+  height                    Float?
+  weight                    Float?
+  visionIssues              Boolean                    @default(false)
+  hearingIssues             Boolean                    @default(false)
+  mobilityIssues            Boolean                    @default(false)
+  dietaryRestrictions       String[]
+  fatherName                String?
+  fatherOccupation          String?
+  fatherPhone               String?
+  fatherEmail               String?
+  motherName                String?
+  motherOccupation          String?
+  motherPhone               String?
+  motherEmail               String?
+  guardianName              String?
+  guardianRelationship      String?
+  guardianPhone             String?
+  guardianEmail             String?
+  familyIncome              String?
+  familySize                Int?
+  lastModified              DateTime                   @updatedAt
+  modifiedBy                String
+  notes                     String?
+  academicRecords           AcademicRecord[]
+  attendanceRecords         AttendanceRecord[]
+  bulkImportRecords         BulkImportRecord[]
+  disciplinaryRecords       DisciplinaryRecord[]
+  emergencyContacts         EmergencyContact[]
+  financialRecords          FinancialRecord[]
+  previousSchools           PreviousSchool[]
+  promotionHistory          PromotionRecord[]
+  achievements              StudentAchievement[]
+  documents                 StudentDocument[]
+  healthRecords             StudentHealthRecord[]
+  currentClass              Class                      @relation("StudentCurrentClass", fields: [currentClassId], references: [id])
+  currentLevel              Level                      @relation("StudentCurrentLevel", fields: [currentLevelId], references: [id])
+  school                    School                     @relation(fields: [schoolId], references: [id])
+  user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  timelineEvents            TimelineEvent[]
+  parentRelationships       ParentSchoolRelationship[] @relation("ParentSchoolRelationshipToStudent")
+
+  @@map("students")
+}
+
+model Level {
+  id       String    @id @default(cuid())
+  schoolId String
+  name     String
+  order    Int
+  isActive Boolean   @default(true)
+  classes  Class[]
+  school   School    @relation(fields: [schoolId], references: [id])
+  students Student[] @relation("StudentCurrentLevel")
+
+  @@map("levels")
+}
+
+model Class {
+  id                String              @id @default(cuid())
+  levelId           String
+  schoolId          String
+  name              String
+  order             Int
+  isActive          Boolean             @default(true)
+  academicRecords   AcademicRecord[]
+  assignments       Assignment[]
+  attendanceRecords AttendanceRecord[]
+  level             Level               @relation(fields: [levelId], references: [id])
+  school            School              @relation(fields: [schoolId], references: [id])
+  students          Student[]           @relation("StudentCurrentClass")
+  teachers          TeacherAssignment[]
+  subjects          Subject[]           @relation("ClassToSubject")
+
+  @@map("classes")
+}
+
+model Subject {
+  id              String              @id @default(cuid())
+  schoolId        String
+  name            String
+  code            String
+  description     String?
+  isActive        Boolean             @default(true)
+  academicRecords AcademicRecord[]
+  assignments     Assignment[]
+  school          School              @relation(fields: [schoolId], references: [id])
+  teachers        TeacherAssignment[]
+  classes         Class[]             @relation("ClassToSubject")
+
+  @@map("subjects")
+}
+
+model Teacher {
+  id                 String              @id @default(cuid())
+  userId             String              @unique
+  schoolId           String
+  employeeNumber     String              @unique
+  department         String?
+  hireDate           DateTime            @default(now())
+  isActive           Boolean             @default(true)
+  academicRecords    AcademicRecord[]
+  assignmentsCreated Assignment[]
+  attendanceRecords  AttendanceRecord[]
+  teacherAssignments TeacherAssignment[]
+  school             School              @relation(fields: [schoolId], references: [id])
+  user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("teachers")
+}
+
+model TeacherAssignment {
+  id            String   @id @default(cuid())
+  teacherId     String
+  schoolId      String
+  classId       String
+  subjectId     String
+  academicYear  String
+  isFormTeacher Boolean  @default(false)
+  isActive      Boolean  @default(true)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  class         Class    @relation(fields: [classId], references: [id])
+  school        School   @relation(fields: [schoolId], references: [id])
+  subject       Subject  @relation(fields: [subjectId], references: [id])
+  teacher       Teacher  @relation(fields: [teacherId], references: [id])
+
+  @@map("teacher_assignments")
+}
+
+model SchoolAdmin {
+  id       String  @id @default(cuid())
+  userId   String  @unique
+  schoolId String
+  role     String
+  isActive Boolean @default(true)
+  school   School  @relation(fields: [schoolId], references: [id])
+  user     User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("school_admins")
+}
+
+model Parent {
+  id                  String                     @id @default(cuid())
+  userId              String                     @unique
+  isActive            Boolean                    @default(true)
+  schoolRelationships ParentSchoolRelationship[]
+  user                User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("parents")
+}
+
+model ParentSchoolRelationship {
+  id                    String                 @id @default(cuid())
+  parentUserId          String
+  schoolId              String
+  relationshipType      ParentRelationshipType
+  isActive              Boolean                @default(true)
+  createdAt             DateTime               @default(now())
+  isVerified            Boolean                @default(false)
+  verificationCode      String?
+  verificationExpiresAt DateTime?
+  verifiedAt            DateTime?
+  parent                Parent                 @relation(fields: [parentUserId], references: [id])
+  school                School                 @relation(fields: [schoolId], references: [id])
+  children              Student[]              @relation("ParentSchoolRelationshipToStudent")
+
+  @@map("parent_school_relationships")
+}
+
+model BulkImport {
+  id                String             @id @default(cuid())
+  schoolId          String
+  importedBy        String
+  totalRecords      Int
+  successfulRecords Int                @default(0)
+  failedRecords     Int                @default(0)
+  status            BulkImportStatus   @default(PROCESSING)
+  errorLog          Json?
+  createdAt         DateTime           @default(now())
+  completedAt       DateTime?
+  records           BulkImportRecord[]
+  school            School             @relation(fields: [schoolId], references: [id])
+
+  @@map("bulk_imports")
+}
+
+model VerificationCode {
+  id        String               @id @default(cuid())
+  email     String
+  code      String               @db.VarChar(10)
+  type      VerificationCodeType
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime             @default(now())
+
+  @@map("verification_codes")
+}
+
+model AcademicTerm {
+  id                String             @id @default(cuid())
+  schoolId          String
+  name              String
+  startDate         DateTime
+  endDate           DateTime
+  isActive          Boolean            @default(true)
+  academicYear      String
+  academicRecords   AcademicRecord[]
+  school            School             @relation(fields: [schoolId], references: [id])
+  assignments       Assignment[]
+  attendanceRecords AttendanceRecord[]
+
+  @@map("academic_terms")
+}
+
+model AcademicRecord {
+  id                 String       @id @default(cuid())
+  studentId          String
+  teacherId          String
+  subjectId          String
+  classId            String
+  termId             String
+  assignmentId       String?
+  score              Float
+  maxScore           Float
+  grade              String
+  percentage         Float
+  gpa                Float
+  comments           String?
+  feedback           String?
+  isLate             Boolean      @default(false)
+  latePenaltyApplied Float        @default(0)
+  resubmissionCount  Int          @default(0)
+  gradedAt           DateTime     @default(now())
+  recordedAt         DateTime     @default(now())
+  recordedBy         String
+  lastModified       DateTime     @updatedAt
+  modifiedBy         String
+  isActive           Boolean      @default(true)
+  isPublished        Boolean      @default(false)
+  publishedAt        DateTime?
+  assignment         Assignment?  @relation(fields: [assignmentId], references: [id])
+  class              Class        @relation(fields: [classId], references: [id])
+  student            Student      @relation(fields: [studentId], references: [id])
+  subject            Subject      @relation(fields: [subjectId], references: [id])
+  teacher            Teacher      @relation(fields: [teacherId], references: [id])
+  term               AcademicTerm @relation(fields: [termId], references: [id])
+
+  @@map("academic_records")
+}
+
+model Assignment {
+  id                  String             @id @default(cuid())
+  title               String
+  description         String
+  subjectId           String
+  classId             String
+  teacherId           String
+  termId              String
+  dueDate             DateTime
+  maxScore            Float
+  weight              Float
+  type                AssignmentType
+  category            AssignmentCategory
+  allowLateSubmission Boolean            @default(true)
+  latePenalty         Float              @default(0)
+  allowResubmission   Boolean            @default(false)
+  maxResubmissions    Int                @default(0)
+  isGroupAssignment   Boolean            @default(false)
+  groupSize           Int?
+  instructions        String
+  learningObjectives  String[]
+  tags                String[]
+  isActive            Boolean            @default(true)
+  createdAt           DateTime           @default(now())
+  createdBy           String
+  updatedAt           DateTime           @updatedAt
+  publishedAt         DateTime?
+  dueDateExtended     DateTime?
+  extensionReason     String?
+  academicRecords     AcademicRecord[]
+  class               Class              @relation(fields: [classId], references: [id])
+  subject             Subject            @relation(fields: [subjectId], references: [id])
+  teacher             Teacher            @relation(fields: [teacherId], references: [id])
+  term                AcademicTerm       @relation(fields: [termId], references: [id])
+
+  @@map("assignments")
+}
+
+model AttendanceRecord {
+  id          String           @id @default(cuid())
+  studentId   String
+  classId     String
+  teacherId   String
+  termId      String
+  date        DateTime
+  status      AttendanceStatus
+  reason      String?
+  presentDays Int              @default(0)
+  totalDays   Int              @default(0)
+  recordedAt  DateTime         @default(now())
+  recordedBy  String
+  isActive    Boolean          @default(true)
+  class       Class            @relation(fields: [classId], references: [id])
+  student     Student          @relation(fields: [studentId], references: [id])
+  teacher     Teacher          @relation(fields: [teacherId], references: [id])
+  term        AcademicTerm     @relation(fields: [termId], references: [id])
+
+  @@map("attendance_records")
+}
+
+model StudentDocument {
+  id            String       @id @default(cuid())
+  studentId     String
+  type          DocumentType
+  title         String
+  description   String?
+  url           String
+  size          Int
+  uploadedBy    String
+  uploadedAt    DateTime     @default(now())
+  isPublic      Boolean      @default(false)
+  expiryDate    DateTime?
+  version       Int          @default(1)
+  extractedText String?
+  student       Student      @relation(fields: [studentId], references: [id])
+
+  @@map("student_documents")
+}
+
+model TimelineEvent {
+  id          String            @id @default(cuid())
+  studentId   String
+  type        TimelineEventType
+  title       String
+  description String
+  date        DateTime
+  attachments String[]
+  isPublic    Boolean           @default(true)
+  metadata    Json?
+  student     Student           @relation(fields: [studentId], references: [id])
+
+  @@map("timeline_events")
+}
+
+model DisciplinaryRecord {
+  id             String               @id @default(cuid())
+  studentId      String
+  type           DisciplinaryType
+  title          String
+  description    String
+  date           DateTime
+  reportedBy     String
+  severity       DisciplinarySeverity
+  duration       Int?
+  actionsTaken   String[]
+  parentNotified Boolean              @default(false)
+  parentResponse String?
+  resolved       Boolean              @default(false)
+  resolutionDate DateTime?
+  student        Student              @relation(fields: [studentId], references: [id])
+
+  @@map("disciplinary_records")
+}
+
+model FinancialRecord {
+  id            String          @id @default(cuid())
+  studentId     String
+  type          FinancialType
+  description   String
+  amount        Float
+  currency      String          @default("NGN")
+  dueDate       DateTime
+  paidDate      DateTime?
+  status        FinancialStatus @default(PENDING)
+  paymentMethod String?
+  receiptUrl    String?
+  notes         String?
+  student       Student         @relation(fields: [studentId], references: [id])
+
+  @@map("financial_records")
+}
+
+model StudentHealthRecord {
+  id                    String           @id @default(cuid())
+  studentId             String
+  type                  HealthRecordType
+  title                 String
+  description           String
+  severity              HealthSeverity
+  startDate             DateTime
+  endDate               DateTime?
+  isActive              Boolean          @default(true)
+  doctorName            String?
+  doctorContact         String?
+  medicationDetails     String?
+  emergencyInstructions String?
+  student               Student          @relation(fields: [studentId], references: [id])
+
+  @@map("student_health_records")
+}
+
+model StudentAchievement {
+  id             String           @id @default(cuid())
+  studentId      String
+  type           AchievementType
+  title          String
+  description    String
+  date           DateTime
+  awardedBy      String
+  certificateUrl String?
+  level          AchievementLevel
+  position       Int?
+  points         Int?
+  student        Student          @relation(fields: [studentId], references: [id])
+
+  @@map("student_achievements")
+}
+
+model EmergencyContact {
+  id                 String  @id @default(cuid())
+  studentId          String
+  name               String
+  relationship       String
+  phone              String
+  isAuthorizedPickup Boolean @default(false)
+  student            Student @relation(fields: [studentId], references: [id])
+
+  @@map("emergency_contacts")
+}
+
+model PreviousSchool {
+  id            String  @id @default(cuid())
+  studentId     String
+  name          String
+  yearsAttended String
+  lastClass     String
+  reason        String
+  student       Student @relation(fields: [studentId], references: [id])
+
+  @@map("previous_schools")
+}
+
+model PromotionRecord {
+  id          String   @id @default(cuid())
+  studentId   String
+  fromLevelId String
+  fromClassId String
+  toLevelId   String
+  toClassId   String
+  year        String
+  promotedBy  String
+  date        DateTime
+  student     Student  @relation(fields: [studentId], references: [id])
+
+  @@map("promotion_records")
+}
+
+model GradingScale {
+  id        String           @id @default(cuid())
+  schoolId  String
+  name      String
+  type      GradingScaleType
+  scale     Json
+  isDefault Boolean          @default(false)
+  isActive  Boolean          @default(true)
+  school    School           @relation(fields: [schoolId], references: [id])
+
+  @@map("grading_scales")
+}
+
+model Creator {
+  id               String            @id @default(cuid())
+  userId           String            @unique
+  verified         Boolean           @default(false)
+  rating           Float             @default(0)
+  totalProducts    Int               @default(0)
+  totalSales       Int               @default(0)
+  totalRevenue     Float             @default(0)
+  joinDate         DateTime          @default(now())
+  specialties      String[]
+  isActive         Boolean           @default(true)
+  categories       String[]
+  plan             String            @default("free")
+  content          Content[]
+  user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  marketplaceItems MarketplaceItem[]
+
+  @@map("creators")
+}
+
+model MarketplaceItem {
+  id             String              @id @default(cuid())
+  title          String
+  description    String
+  price          Float
+  currency       String              @default("NGN")
+  category       MarketplaceCategory
+  creatorId      String
+  rating         Float               @default(0)
+  totalRatings   Int                 @default(0)
+  totalSales     Int                 @default(0)
+  totalRevenue   Float               @default(0)
+  thumbnailUrl   String?
+  previewUrl     String?
+  tags           String[]
+  dateCreated    DateTime            @default(now())
+  lastUpdated    DateTime            @updatedAt
+  isActive       Boolean             @default(true)
+  isFeatured     Boolean             @default(false)
+  isRecommended  Boolean             @default(false)
+  commissionRate Float               @default(0)
+  creator        Creator             @relation(fields: [creatorId], references: [id])
+
+  @@map("marketplace_items")
+}
+
+model ContentCategory {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  content     Content[]
+
+  @@map("content_categories")
+}
+
+model SubjectCategory {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  description String?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  content     Content[]
+
+  @@map("subject_categories")
+}
+
+model Content {
+  id                     String           @id @default(cuid())
+  creatorId              String
+  title                  String
+  description            String
+  contentCategoryId      String?
+  subjectCategoryId      String?
+  contentType            ContentType
+  author                 String?
+  publisher              String?
+  edition                String?
+  year                   Int?
+  isbn                   String?
+  physicalDeliveryMethod String?
+  pickupLocation         String?
+  deliveryAvailability   String?
+  deliveryFee            Float?
+  contactInfo            String?
+  deliveryNotes          String?
+  digitalDeliveryMethod  String?
+  accessInstructions     String?
+  fileSizeFormat         String?
+  supportContact         String?
+  videoDuration          String?
+  videoDeliveryMethod    String?
+  worksheetGrade         String?
+  worksheetFormat        String?
+  assignmentGrade        String?
+  assignmentFormat       String?
+  assignmentLength       String?
+  examBody               String?
+  examYears              String?
+  examLevel              String?
+  pastQuestionsFormat    String?
+  pastQuestionsPages     String?
+  audiobookAuthor        String?
+  audiobookNarrator      String?
+  audiobookDuration      String?
+  audiobookLanguage      String?
+  audiobookFormat        String?
+  interactiveFormat      String?
+  interactiveLevel       String?
+  interactiveDuration    String?
+  interactiveLink        String?
+  notesLevel             String?
+  notesFormat            String?
+  notesLength            String?
+  digitalPrice           Float?
+  physicalPrice          Float?
+  videoPrice             Float?
+  worksheetPrice         Float?
+  assignmentPrice        Float?
+  pastQuestionsPrice     Float?
+  audiobookPrice         Float?
+  interactivePrice       Float?
+  notesPrice             Float?
+  currency               String           @default("NGN")
+  licenseType            LicenseType      @default(PERSONAL)
+  visibility             Visibility       @default(PUBLIC)
+  tags                   Json?
+  status                 ContentStatus    @default(DRAFT)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  viewCount              Int              @default(0)
+  downloadCount          Int              @default(0)
+  salesCount             Int              @default(0)
+  ratingAverage          Float            @default(0.00)
+  reviewCount            Int              @default(0)
+  contentCategory        ContentCategory? @relation(fields: [contentCategoryId], references: [id])
+  creator                Creator          @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  subjectCategory        SubjectCategory? @relation(fields: [subjectCategoryId], references: [id])
+  files                  ContentFile[]
+
+  @@map("content")
+}
+
+model ContentFile {
+  id           String   @id @default(cuid())
+  contentId    String
+  fileType     FileType
+  originalName String
+  storagePath  String
+  mimeType     String?
+  sizeBytes    BigInt?
+  uploadedAt   DateTime @default(now())
+  content      Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+
+  @@map("content_files")
+}
+
+model PasswordReset {
+  id        String   @id @default(cuid())
+  email     String
+  token     String   @unique
+  userType  UserType
+  expiresAt DateTime
+  used      Boolean  @default(false)
+  createdAt DateTime @default(now())
+
+  @@map("password_resets")
+}
+
+model BulkImportRecord {
+  id           String                 @id @default(cuid())
+  bulkImportId String
+  studentId    String?
+  errorMessage String?
+  status       BulkImportRecordStatus @default(PENDING)
+  createdAt    DateTime               @default(now())
+  updatedAt    DateTime               @updatedAt
+  bulkImport   BulkImport             @relation(fields: [bulkImportId], references: [id])
+  student      Student?               @relation(fields: [studentId], references: [id])
+
+  @@map("bulk_import_records")
 }
 
 enum UserType {
@@ -48,131 +755,7 @@ enum UserType {
   SCHOOL_ADMIN
   TEACHER
   CREATOR
-  MASTER // Special master account for testing
-}
-
-// ==================== SCHOOL MANAGEMENT ====================
-
-model School {
-  id        String   @id @default(cuid())
-  name      String
-  type      String   // Flexible string instead of enum
-  country   String
-  
-  // Address fields for Google Maps integration
-  street    String?
-  city      String?
-  state     String?
-  postalCode String?
-  latitude  Float?
-  longitude Float?
-  formattedAddress String? // Full formatted address from Google Maps
-  landmark  String? // Optional landmark for easier location identification
-  
-  logo      String?
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
-  students     Student[]
-  teachers     Teacher[]
-  schoolAdmins SchoolAdmin[]
-  parents      ParentSchoolRelationship[]
-  academicTerms AcademicTerm[]
-  gradingScales GradingScale[]
-  subjects     Subject[]
-  classes      Class[]
-  levels       Level[]
-  teacherAssignments TeacherAssignment[]
-  bulkImports  BulkImport[]
-
-  @@map("schools")
-}
-
-// ==================== STUDENT MANAGEMENT ====================
-
-model Student {
-  id             String   @id @default(cuid())
-  userId         String   @unique
-  schoolId       String
-  studentNumber  String   @unique
-  currentLevelId String
-  currentClassId String
-  academicYear   String
-  status         StudentStatus @default(ACTIVE)
-  enrollmentDate DateTime @default(now())
-  graduationDate DateTime?
-  transferDate   DateTime?
-  transferSchool String?
-  suspensionStartDate DateTime?
-  suspensionEndDate   DateTime?
-  suspensionReason    String?
-
-  // Personal Information
-  dateOfBirth    DateTime
-  gender         Gender
-  nationality    String
-  religion       String?
-  bloodGroup     String?
-
-  // Academic Information
-  specialNeeds   String?
-  learningStyle  String?
-  extraCurricularActivities String[]
-
-  // Health Information
-  allergies      String[]
-  medications    String[]
-  bloodGroupHealth String?
-  height         Float?
-  weight         Float?
-  visionIssues   Boolean @default(false)
-  hearingIssues  Boolean @default(false)
-  mobilityIssues Boolean @default(false)
-  dietaryRestrictions String[]
-
-  // Family Information
-  fatherName     String?
-  fatherOccupation String?
-  fatherPhone    String?
-  fatherEmail    String?
-  motherName     String?
-  motherOccupation String?
-  motherPhone    String?
-  motherEmail    String?
-  guardianName   String?
-  guardianRelationship String?
-  guardianPhone  String?
-  guardianEmail  String?
-  familyIncome   String?
-  familySize     Int?
-
-  // Audit fields
-  lastModified   DateTime @updatedAt
-  modifiedBy     String
-  notes          String?
-
-  // Relationships
-  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  school         School   @relation(fields: [schoolId], references: [id])
-  currentLevel   Level    @relation("StudentCurrentLevel", fields: [currentLevelId], references: [id])
-  currentClass   Class    @relation("StudentCurrentClass", fields: [currentClassId], references: [id])
-  academicRecords AcademicRecord[]
-  attendanceRecords AttendanceRecord[]
-  documents      StudentDocument[]
-  timelineEvents TimelineEvent[]
-  disciplinaryRecords DisciplinaryRecord[]
-  financialRecords FinancialRecord[]
-  healthRecords  StudentHealthRecord[]
-  achievements   StudentAchievement[]
-  parentRelationships ParentSchoolRelationship[]
-  promotionHistory PromotionRecord[]
-  emergencyContacts EmergencyContact[]
-  previousSchools PreviousSchool[]
-  bulkImportRecords BulkImportRecord[]
-
-  @@map("students")
+  MASTER
 }
 
 enum StudentStatus {
@@ -190,181 +773,11 @@ enum Gender {
   OTHER
 }
 
-// ==================== ACADEMIC STRUCTURE ====================
-
-model Level {
-  id        String   @id @default(cuid())
-  schoolId  String
-  name      String   // "Primary", "Secondary", etc.
-  order     Int
-  isActive  Boolean  @default(true)
-
-  // Relationships
-  school    School   @relation(fields: [schoolId], references: [id])
-  classes   Class[]
-  students  Student[] @relation("StudentCurrentLevel")
-
-  @@map("levels")
-}
-
-model Class {
-  id        String   @id @default(cuid())
-  levelId   String
-  schoolId  String
-  name      String   // "Primary 1", "Grade 1", etc.
-  order     Int
-  isActive  Boolean  @default(true)
-
-  // Relationships
-  level     Level    @relation(fields: [levelId], references: [id])
-  school    School   @relation(fields: [schoolId], references: [id])
-  students  Student[] @relation("StudentCurrentClass")
-  teachers  TeacherAssignment[]
-  subjects  Subject[]
-  assignments Assignment[]
-  academicRecords AcademicRecord[]
-  attendanceRecords AttendanceRecord[]
-
-  @@map("classes")
-}
-
-model Subject {
-  id        String   @id @default(cuid())
-  schoolId  String
-  name      String
-  code      String
-  description String?
-  isActive  Boolean  @default(true)
-
-  // Relationships
-  school    School   @relation(fields: [schoolId], references: [id])
-  classes   Class[]
-  teachers  TeacherAssignment[]
-  academicRecords AcademicRecord[]
-  assignments Assignment[]
-
-  @@map("subjects")
-}
-
-// ==================== STAFF MANAGEMENT ====================
-
-model Teacher {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  schoolId  String
-  employeeNumber String @unique
-  department String?
-  hireDate  DateTime @default(now())
-  isActive  Boolean  @default(true)
-
-  // Relationships
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  school    School   @relation(fields: [schoolId], references: [id])
-  teacherAssignments TeacherAssignment[]
-  academicRecords AcademicRecord[]
-  attendanceRecords AttendanceRecord[]
-  assignmentsCreated Assignment[]
-
-  @@map("teachers")
-}
-
-model TeacherAssignment {
-  id          String   @id @default(cuid())
-  teacherId   String
-  schoolId    String
-  classId     String
-  subjectId   String
-  academicYear String
-  isFormTeacher Boolean @default(false)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relationships
-  teacher    Teacher  @relation(fields: [teacherId], references: [id])
-  school     School   @relation(fields: [schoolId], references: [id])
-  class      Class    @relation(fields: [classId], references: [id])
-  subject    Subject  @relation(fields: [subjectId], references: [id])
-
-  @@map("teacher_assignments")
-}
-
-model SchoolAdmin {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  schoolId  String
-  role      String   // "principal", "vice_principal", "admin"
-  isActive  Boolean  @default(true)
-
-  // Relationships
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  school    School   @relation(fields: [schoolId], references: [id])
-
-  @@map("school_admins")
-}
-
-// ==================== PARENT MANAGEMENT ====================
-
-model Parent {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  isActive  Boolean  @default(true)
-
-  // Relationships
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  schoolRelationships ParentSchoolRelationship[]
-
-  @@map("parents")
-}
-
-model ParentSchoolRelationship {
-  id             String   @id @default(cuid())
-  parentUserId   String
-  schoolId       String
-  relationshipType ParentRelationshipType
-  isActive       Boolean  @default(true)
-  createdAt      DateTime @default(now())
-  
-  // Verification fields for parent-child linking
-  verificationCode String?
-  isVerified      Boolean  @default(false)
-  verificationExpiresAt DateTime?
-  verifiedAt      DateTime?
-
-  // Relationships
-  parent         Parent   @relation(fields: [parentUserId], references: [id])
-  school         School   @relation(fields: [schoolId], references: [id])
-  children       Student[]
-
-  @@map("parent_school_relationships")
-}
-
 enum ParentRelationshipType {
   FATHER
   MOTHER
   GUARDIAN
   OTHER
-}
-
-// ==================== BULK IMPORT MANAGEMENT ====================
-
-model BulkImport {
-  id                String   @id @default(cuid())
-  schoolId          String
-  importedBy        String
-  totalRecords      Int
-  successfulRecords Int      @default(0)
-  failedRecords     Int      @default(0)
-  status            BulkImportStatus @default(PROCESSING)
-  errorLog          Json?
-  createdAt         DateTime @default(now())
-  completedAt       DateTime?
-
-  // Relationships
-  school            School   @relation(fields: [schoolId], references: [id])
-  records           BulkImportRecord[]
-
-  @@map("bulk_imports")
 }
 
 enum BulkImportStatus {
@@ -374,122 +787,10 @@ enum BulkImportStatus {
   CANCELLED
 }
 
-// ==================== VERIFICATION CODES ====================
-
-model VerificationCode {
-  id        String   @id @default(cuid())
-  email     String
-  code      String   @db.VarChar(10)
-  type      VerificationCodeType
-  expiresAt DateTime
-  usedAt    DateTime?
-  createdAt DateTime @default(now())
-
-  @@map("verification_codes")
-}
-
 enum VerificationCodeType {
   PARENT_LINKING
   PASSWORD_RESET
   EMAIL_VERIFICATION
-}
-
-// ==================== ACADEMIC RECORDS ====================
-
-model AcademicTerm {
-  id           String   @id @default(cuid())
-  schoolId     String
-  name         String   // "Term 1", "Term 2", "Term 3"
-  startDate    DateTime
-  endDate      DateTime
-  isActive     Boolean  @default(true)
-  academicYear String
-
-  // Relationships
-  school       School   @relation(fields: [schoolId], references: [id])
-  academicRecords AcademicRecord[]
-  attendanceRecords AttendanceRecord[]
-  assignments  Assignment[]
-
-  @@map("academic_terms")
-}
-
-model AcademicRecord {
-  id          String   @id @default(cuid())
-  studentId   String
-  teacherId   String
-  subjectId   String
-  classId     String
-  termId      String
-  assignmentId String?
-  score       Float
-  maxScore    Float
-  grade       String   // A, B, C, D, E, F
-  percentage  Float
-  gpa         Float
-  comments    String?
-  feedback    String?
-  isLate      Boolean  @default(false)
-  latePenaltyApplied Float @default(0)
-  resubmissionCount Int @default(0)
-  gradedAt    DateTime @default(now())
-  recordedAt  DateTime @default(now())
-  recordedBy  String
-  lastModified DateTime @updatedAt
-  modifiedBy  String
-  isActive    Boolean  @default(true)
-  isPublished Boolean  @default(false)
-  publishedAt DateTime?
-
-  // Relationships
-  student     Student  @relation(fields: [studentId], references: [id])
-  teacher     Teacher  @relation(fields: [teacherId], references: [id])
-  subject     Subject  @relation(fields: [subjectId], references: [id])
-  class       Class    @relation(fields: [classId], references: [id])
-  term        AcademicTerm @relation(fields: [termId], references: [id])
-  assignment  Assignment? @relation(fields: [assignmentId], references: [id])
-
-  @@map("academic_records")
-}
-
-model Assignment {
-  id                    String   @id @default(cuid())
-  title                 String
-  description           String
-  subjectId             String
-  classId               String
-  teacherId             String
-  termId                String
-  dueDate               DateTime
-  maxScore              Float
-  weight                Float
-  type                  AssignmentType
-  category              AssignmentCategory
-  allowLateSubmission   Boolean  @default(true)
-  latePenalty           Float    @default(0)
-  allowResubmission     Boolean  @default(false)
-  maxResubmissions      Int      @default(0)
-  isGroupAssignment     Boolean  @default(false)
-  groupSize             Int?
-  instructions          String
-  learningObjectives    String[]
-  tags                  String[]
-  isActive              Boolean  @default(true)
-  createdAt             DateTime @default(now())
-  createdBy             String
-  updatedAt             DateTime @updatedAt
-  publishedAt           DateTime?
-  dueDateExtended       DateTime?
-  extensionReason       String?
-
-  // Relationships
-  subject               Subject  @relation(fields: [subjectId], references: [id])
-  class                 Class    @relation(fields: [classId], references: [id])
-  teacher               Teacher  @relation(fields: [teacherId], references: [id])
-  term                  AcademicTerm @relation(fields: [termId], references: [id])
-  academicRecords       AcademicRecord[]
-
-  @@map("assignments")
 }
 
 enum AssignmentType {
@@ -511,59 +812,12 @@ enum AssignmentCategory {
   DIAGNOSTIC
 }
 
-model AttendanceRecord {
-  id          String   @id @default(cuid())
-  studentId   String
-  classId     String
-  teacherId   String
-  termId      String
-  date        DateTime
-  status      AttendanceStatus
-  reason      String?
-  presentDays Int      @default(0)
-  totalDays   Int      @default(0)
-  recordedAt  DateTime @default(now())
-  recordedBy  String
-  isActive    Boolean  @default(true)
-
-  // Relationships
-  student     Student  @relation(fields: [studentId], references: [id])
-  class       Class    @relation(fields: [classId], references: [id])
-  teacher     Teacher  @relation(fields: [teacherId], references: [id])
-  term        AcademicTerm @relation(fields: [termId], references: [id])
-
-  @@map("attendance_records")
-}
-
 enum AttendanceStatus {
   PRESENT
   ABSENT
   LATE
   EXCUSED
   SICK
-}
-
-// ==================== STUDENT DOCUMENTS & RECORDS ====================
-
-model StudentDocument {
-  id          String   @id @default(cuid())
-  studentId   String
-  type        DocumentType
-  title       String
-  description String?
-  url         String
-  size        Int
-  uploadedBy  String
-  uploadedAt  DateTime @default(now())
-  isPublic    Boolean  @default(false)
-  expiryDate  DateTime?
-  version     Int      @default(1)
-  extractedText String?
-
-  // Relationships
-  student     Student  @relation(fields: [studentId], references: [id])
-
-  @@map("student_documents")
 }
 
 enum DocumentType {
@@ -573,23 +827,6 @@ enum DocumentType {
   ACADEMIC_CERTIFICATE
   DISCIPLINARY_RECORD
   OTHER
-}
-
-model TimelineEvent {
-  id          String   @id @default(cuid())
-  studentId   String
-  type        TimelineEventType
-  title       String
-  description String
-  date        DateTime
-  attachments String[]
-  isPublic    Boolean  @default(true)
-  metadata    Json?
-
-  // Relationships
-  student     Student  @relation(fields: [studentId], references: [id])
-
-  @@map("timeline_events")
 }
 
 enum TimelineEventType {
@@ -604,28 +841,6 @@ enum TimelineEventType {
   GRADUATION
 }
 
-model DisciplinaryRecord {
-  id             String   @id @default(cuid())
-  studentId      String
-  type           DisciplinaryType
-  title          String
-  description    String
-  date           DateTime
-  reportedBy     String
-  severity       DisciplinarySeverity
-  duration       Int?
-  actionsTaken   String[]
-  parentNotified Boolean  @default(false)
-  parentResponse String?
-  resolved       Boolean  @default(false)
-  resolutionDate DateTime?
-
-  // Relationships
-  student        Student  @relation(fields: [studentId], references: [id])
-
-  @@map("disciplinary_records")
-}
-
 enum DisciplinaryType {
   WARNING
   SUSPENSION
@@ -638,26 +853,6 @@ enum DisciplinarySeverity {
   MEDIUM
   HIGH
   CRITICAL
-}
-
-model FinancialRecord {
-  id            String   @id @default(cuid())
-  studentId     String
-  type          FinancialType
-  description   String
-  amount        Float
-  currency      String   @default("NGN")
-  dueDate       DateTime
-  paidDate      DateTime?
-  status        FinancialStatus @default(PENDING)
-  paymentMethod String?
-  receiptUrl    String?
-  notes         String?
-
-  // Relationships
-  student       Student  @relation(fields: [studentId], references: [id])
-
-  @@map("financial_records")
 }
 
 enum FinancialType {
@@ -677,27 +872,6 @@ enum FinancialStatus {
   PARTIAL
 }
 
-model StudentHealthRecord {
-  id                    String   @id @default(cuid())
-  studentId             String
-  type                  HealthRecordType
-  title                 String
-  description           String
-  severity              HealthSeverity
-  startDate             DateTime
-  endDate               DateTime?
-  isActive              Boolean  @default(true)
-  doctorName            String?
-  doctorContact         String?
-  medicationDetails     String?
-  emergencyInstructions String?
-
-  // Relationships
-  student               Student  @relation(fields: [studentId], references: [id])
-
-  @@map("student_health_records")
-}
-
 enum HealthRecordType {
   ALLERGY
   MEDICATION
@@ -711,25 +885,6 @@ enum HealthSeverity {
   MEDIUM
   HIGH
   CRITICAL
-}
-
-model StudentAchievement {
-  id            String   @id @default(cuid())
-  studentId     String
-  type          AchievementType
-  title         String
-  description   String
-  date          DateTime
-  awardedBy     String
-  certificateUrl String?
-  level         AchievementLevel
-  position      Int?
-  points        Int?
-
-  // Relationships
-  student       Student  @relation(fields: [studentId], references: [id])
-
-  @@map("student_achievements")
 }
 
 enum AchievementType {
@@ -749,123 +904,11 @@ enum AchievementLevel {
   INTERNATIONAL
 }
 
-// ==================== SUPPORTING MODELS ====================
-
-model EmergencyContact {
-  id                String   @id @default(cuid())
-  studentId         String
-  name              String
-  relationship      String
-  phone             String
-  isAuthorizedPickup Boolean  @default(false)
-
-  // Relationships
-  student           Student  @relation(fields: [studentId], references: [id])
-
-  @@map("emergency_contacts")
-}
-
-model PreviousSchool {
-  id            String   @id @default(cuid())
-  studentId     String
-  name          String
-  yearsAttended String
-  lastClass     String
-  reason        String
-
-  // Relationships
-  student       Student  @relation(fields: [studentId], references: [id])
-
-  @@map("previous_schools")
-}
-
-model PromotionRecord {
-  id          String   @id @default(cuid())
-  studentId   String
-  fromLevelId String
-  fromClassId String
-  toLevelId   String
-  toClassId   String
-  year        String
-  promotedBy  String
-  date        DateTime
-
-  // Relationships
-  student     Student  @relation(fields: [studentId], references: [id])
-
-  @@map("promotion_records")
-}
-
-model GradingScale {
-  id        String   @id @default(cuid())
-  schoolId  String
-  name      String
-  type      GradingScaleType
-  scale     Json     // Store the grading scale as JSON
-  isDefault Boolean  @default(false)
-  isActive  Boolean  @default(true)
-
-  // Relationships
-  school    School   @relation(fields: [schoolId], references: [id])
-
-  @@map("grading_scales")
-}
-
 enum GradingScaleType {
   PERCENTAGE
   LETTER
   GPA
   CUSTOM
-}
-
-// ==================== MARKETPLACE MODELS ====================
-
-model Creator {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  bio       String?
-  verified  Boolean  @default(false)
-  rating    Float    @default(0)
-  totalProducts Int  @default(0)
-  totalSales Int     @default(0)
-  totalRevenue Float @default(0)
-  joinDate  DateTime @default(now())
-  specialties String[]
-  isActive  Boolean  @default(true)
-
-  // Relationships
-  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
-  marketplaceItems MarketplaceItem[]
-
-  @@map("creators")
-}
-
-model MarketplaceItem {
-  id          String   @id @default(cuid())
-  title       String
-  description String
-  price       Float
-  currency    String   @default("NGN")
-  category    MarketplaceCategory
-  creatorId   String
-  rating      Float    @default(0)
-  totalRatings Int     @default(0)
-  totalSales  Int      @default(0)
-  totalRevenue Float   @default(0)
-  thumbnailUrl String?
-  previewUrl  String?
-  tags        String[]
-  dateCreated DateTime @default(now())
-  lastUpdated DateTime @updatedAt
-  isActive    Boolean  @default(true)
-  isFeatured  Boolean  @default(false)
-  isRecommended Boolean @default(false)
-  commissionRate Float @default(0)
-
-  // Relationships
-  creator     Creator  @relation(fields: [creatorId], references: [id])
-
-  @@map("marketplace_items")
 }
 
 enum MarketplaceCategory {
@@ -881,36 +924,45 @@ enum MarketplaceCategory {
   AUDIO_BOOK
 }
 
-// ==================== PASSWORD RESET ====================
-
-model PasswordReset {
-  id        String   @id @default(cuid())
-  email     String
-  token     String   @unique
-  userType  UserType
-  expiresAt DateTime
-  used      Boolean  @default(false)
-  createdAt DateTime @default(now())
-
-  @@map("password_resets")
+enum ContentType {
+  DIGITAL
+  PHYSICAL
+  BOTH
+  VIDEO
+  PAST_QUESTIONS
+  AUDIO_BOOK
+  INTERACTIVE
 }
 
-// ==================== BULK IMPORT RECORDS ====================
+enum LicenseType {
+  PERSONAL
+  COMMERCIAL
+  LIFETIME
+}
 
-model BulkImportRecord {
-  id             String   @id @default(cuid())
-  bulkImportId   String
-  studentId      String?
-  errorMessage   String?
-  status         BulkImportRecordStatus @default(PENDING)
-  createdAt      DateTime @default(now())
-  updatedAt      DateTime @updatedAt
+enum Visibility {
+  PUBLIC
+  APPROVAL_REQUIRED
+}
 
-  // Relationships
-  bulkImport     BulkImport @relation(fields: [bulkImportId], references: [id])
-  student        Student?   @relation(fields: [studentId], references: [id])
+enum ContentStatus {
+  DRAFT
+  PUBLISHED
+  ARCHIVED
+}
 
-  @@map("bulk_import_records")
+enum FileType {
+  DIGITAL_FILE
+  PHYSICAL_IMAGE
+  VIDEO_FILE
+  THUMBNAIL
+  PREVIEW_IMAGE
+  AUDIO_FILE
+  INTERACTIVE_FILE
+  NOTES_FILE
+  WORKSHEET_FILE
+  ASSIGNMENT_FILE
+  PAST_QUESTIONS_FILE
 }
 
 enum BulkImportRecordStatus {

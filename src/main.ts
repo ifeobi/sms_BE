@@ -2,6 +2,8 @@ import { NestFactory } from '@nestjs/core';
 import { AppModule } from './app.module';
 import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
+import { NestExpressApplication } from '@nestjs/platform-express';
+import { join } from 'path';
 
 async function bootstrap() {
   const logger = new Logger('Main');
@@ -15,7 +17,17 @@ async function bootstrap() {
   //     'postgresql://postgres:AtlasisgoingLive@localhost:5432/sms_db?schema=public';
   // }
 
-  const app = await NestFactory.create(AppModule);
+  // Add BigInt serializer to handle JSON serialization
+  (BigInt.prototype as any).toJSON = function() {
+    return Number(this);
+  };
+
+  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+
+  // Serve static files
+  app.useStaticAssets(join(__dirname, '..', 'uploads'), {
+    prefix: '/images/',
+  });
 
   // Enable CORS
   app.enableCors({
