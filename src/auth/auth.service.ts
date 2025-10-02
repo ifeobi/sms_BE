@@ -253,6 +253,7 @@ export class AuthService {
         educationSystemId,
         registerDto.schoolTypes, // All selected school types
         availableLevels, // All available levels for future expansion
+        prisma, // Pass the transaction Prisma client
       );
       console.log('✅ Academic structure generated');
 

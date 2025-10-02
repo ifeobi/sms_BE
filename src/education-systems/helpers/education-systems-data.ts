@@ -57,7 +57,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [3, 4],
           description: 'First year of nursery',
           order: 1,
-          subjects: ['Basic Skills', 'Social Development'],
+          subjects: [],
         },
         {
           id: 'nursery2',
@@ -65,7 +65,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [4, 5],
           description: 'Second year of nursery',
           order: 2,
-          subjects: ['Basic Skills', 'Social Development'],
+          subjects: [],
         },
       ],
       subjects: ['Basic Skills', 'Social Development'],
@@ -83,12 +83,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [5, 6],
           description: 'First year of primary',
           order: 1,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Social Studies',
-            'Basic Science',
-          ],
+          subjects: [],
         },
         {
           id: 'primary2',
@@ -96,12 +91,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [6, 7],
           description: 'Second year of primary',
           order: 2,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Social Studies',
-            'Basic Science',
-          ],
+          subjects: [],
         },
         {
           id: 'primary3',
@@ -109,12 +99,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [7, 8],
           description: 'Third year of primary',
           order: 3,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Social Studies',
-            'Basic Science',
-          ],
+          subjects: [],
         },
         {
           id: 'primary4',
@@ -122,12 +107,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [8, 9],
           description: 'Fourth year of primary',
           order: 4,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Social Studies',
-            'Basic Science',
-          ],
+          subjects: [],
         },
         {
           id: 'primary5',
@@ -135,12 +115,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [9, 10],
           description: 'Fifth year of primary',
           order: 5,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Social Studies',
-            'Basic Science',
-          ],
+          subjects: [],
         },
         {
           id: 'primary6',
@@ -148,12 +123,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [10, 11],
           description: 'Sixth year of primary',
           order: 6,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Social Studies',
-            'Basic Science',
-          ],
+          subjects: [],
         },
       ],
       subjects: [
@@ -179,12 +149,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [11, 12],
           description: 'First year of JSS',
           order: 1,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Basic Science',
-            'Social Studies',
-          ],
+          subjects: [],
         },
         {
           id: 'jss2',
@@ -192,12 +157,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [12, 13],
           description: 'Second year of JSS',
           order: 2,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Basic Science',
-            'Social Studies',
-          ],
+          subjects: [],
         },
         {
           id: 'jss3',
@@ -205,12 +165,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [13, 14],
           description: 'Third year of JSS',
           order: 3,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Basic Science',
-            'Social Studies',
-          ],
+          subjects: [],
         },
       ],
       subjects: [
@@ -237,13 +192,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [14, 15],
           description: 'First year of SSS',
           order: 1,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Biology',
-            'Chemistry',
-            'Physics',
-          ],
+          subjects: [],
         },
         {
           id: 'sss2',
@@ -251,13 +200,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [15, 16],
           description: 'Second year of SSS',
           order: 2,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Biology',
-            'Chemistry',
-            'Physics',
-          ],
+          subjects: [],
         },
         {
           id: 'sss3',
@@ -265,13 +208,7 @@ export const nigerianSystem: EducationSystem = {
           ageRange: [16, 17],
           description: 'Third year of SSS',
           order: 3,
-          subjects: [
-            'English',
-            'Mathematics',
-            'Biology',
-            'Chemistry',
-            'Physics',
-          ],
+          subjects: [],
         },
       ],
       subjects: [

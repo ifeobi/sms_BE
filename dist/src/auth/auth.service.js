@@ -182,7 +182,7 @@ let AuthService = class AuthService {
             console.log('Generating academic structure...');
             const educationSystemId = this.getEducationSystemIdByCountry(registerDto.country);
             const availableLevels = this.getAvailableLevelsForCountry(registerDto.country);
-            await this.academicStructureService.generateAcademicStructureForSchool(school.id, educationSystemId, registerDto.schoolTypes, availableLevels);
+            await this.academicStructureService.generateAcademicStructureForSchool(school.id, educationSystemId, registerDto.schoolTypes, availableLevels, prisma);
             console.log('✅ Academic structure generated');
             const payload = {
                 email: user.email,

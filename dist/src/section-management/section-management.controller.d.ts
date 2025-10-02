@@ -56,10 +56,12 @@ export declare class SectionManagementController {
         updatedAt: Date;
         schoolId: string;
         levelId: string;
+        shortName: string | null;
         sectionName: string | null;
         sectionOrder: number | null;
         capacity: number | null;
         templateUsed: string | null;
+        graduation: boolean;
         order: number;
     }[]>;
     createSectionsFromTemplate(body: {
@@ -97,10 +99,12 @@ export declare class SectionManagementController {
         updatedAt: Date;
         schoolId: string;
         levelId: string;
+        shortName: string | null;
         sectionName: string | null;
         sectionOrder: number | null;
         capacity: number | null;
         templateUsed: string | null;
+        graduation: boolean;
         order: number;
     }>;
     updateSection(sectionId: string, body: {
@@ -115,10 +119,12 @@ export declare class SectionManagementController {
         updatedAt: Date;
         schoolId: string;
         levelId: string;
+        shortName: string | null;
         sectionName: string | null;
         sectionOrder: number | null;
         capacity: number | null;
         templateUsed: string | null;
+        graduation: boolean;
         order: number;
     }>;
     removeSection(sectionId: string): Promise<{
@@ -129,10 +135,12 @@ export declare class SectionManagementController {
         updatedAt: Date;
         schoolId: string;
         levelId: string;
+        shortName: string | null;
         sectionName: string | null;
         sectionOrder: number | null;
         capacity: number | null;
         templateUsed: string | null;
+        graduation: boolean;
         order: number;
     }>;
     reorderSections(levelId: string, body: {
@@ -145,10 +153,12 @@ export declare class SectionManagementController {
         updatedAt: Date;
         schoolId: string;
         levelId: string;
+        shortName: string | null;
         sectionName: string | null;
         sectionOrder: number | null;
         capacity: number | null;
         templateUsed: string | null;
+        graduation: boolean;
         order: number;
     }[]>;
     getSectionStatistics(levelId: string): Promise<{

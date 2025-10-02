@@ -27,15 +27,15 @@ export declare class StaffController {
             isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
     } & {
@@ -43,8 +43,8 @@ export declare class StaffController {
         isActive: boolean;
         schoolId: string;
         userId: string;
-        department: string | null;
         employeeNumber: string;
+        department: string | null;
         hireDate: Date;
     }) | ({
         user: {
@@ -69,23 +69,23 @@ export declare class StaffController {
             isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
     } & {
         id: string;
         isActive: boolean;
         schoolId: string;
-        role: string;
         userId: string;
+        role: string;
     })>;
     findAll(schoolId: string): Promise<{
         teachers: ({
@@ -111,15 +111,15 @@ export declare class StaffController {
                 isActive: boolean;
                 createdAt: Date;
                 updatedAt: Date;
-                country: string;
                 street: string | null;
                 city: string | null;
                 state: string | null;
                 postalCode: string | null;
+                landmark: string | null;
+                formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                formattedAddress: string | null;
-                landmark: string | null;
+                country: string;
                 logo: string | null;
             };
             teacherAssignments: ({
@@ -131,10 +131,12 @@ export declare class StaffController {
                     updatedAt: Date;
                     schoolId: string;
                     levelId: string;
+                    shortName: string | null;
                     sectionName: string | null;
                     sectionOrder: number | null;
                     capacity: number | null;
                     templateUsed: string | null;
+                    graduation: boolean;
                     order: number;
                 };
                 subject: {
@@ -144,6 +146,7 @@ export declare class StaffController {
                     isActive: boolean;
                     schoolId: string;
                     code: string;
+                    category: string | null;
                 };
             } & {
                 id: string;
@@ -152,8 +155,8 @@ export declare class StaffController {
                 updatedAt: Date;
                 schoolId: string;
                 academicYear: string;
-                classId: string;
                 teacherId: string;
+                classId: string;
                 subjectId: string;
                 isFormTeacher: boolean;
             })[];
@@ -162,8 +165,8 @@ export declare class StaffController {
             isActive: boolean;
             schoolId: string;
             userId: string;
-            department: string | null;
             employeeNumber: string;
+            department: string | null;
             hireDate: Date;
         })[];
         schoolAdmins: ({
@@ -189,23 +192,23 @@ export declare class StaffController {
                 isActive: boolean;
                 createdAt: Date;
                 updatedAt: Date;
-                country: string;
                 street: string | null;
                 city: string | null;
                 state: string | null;
                 postalCode: string | null;
+                landmark: string | null;
+                formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                formattedAddress: string | null;
-                landmark: string | null;
+                country: string;
                 logo: string | null;
             };
         } & {
             id: string;
             isActive: boolean;
             schoolId: string;
-            role: string;
             userId: string;
+            role: string;
         })[];
     }>;
     findOne(id: string): Promise<({
@@ -231,15 +234,15 @@ export declare class StaffController {
             isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
         teacherAssignments: ({
@@ -251,10 +254,12 @@ export declare class StaffController {
                 updatedAt: Date;
                 schoolId: string;
                 levelId: string;
+                shortName: string | null;
                 sectionName: string | null;
                 sectionOrder: number | null;
                 capacity: number | null;
                 templateUsed: string | null;
+                graduation: boolean;
                 order: number;
             };
             subject: {
@@ -264,6 +269,7 @@ export declare class StaffController {
                 isActive: boolean;
                 schoolId: string;
                 code: string;
+                category: string | null;
             };
         } & {
             id: string;
@@ -272,8 +278,8 @@ export declare class StaffController {
             updatedAt: Date;
             schoolId: string;
             academicYear: string;
-            classId: string;
             teacherId: string;
+            classId: string;
             subjectId: string;
             isFormTeacher: boolean;
         })[];
@@ -282,8 +288,8 @@ export declare class StaffController {
         isActive: boolean;
         schoolId: string;
         userId: string;
-        department: string | null;
         employeeNumber: string;
+        department: string | null;
         hireDate: Date;
     }) | ({
         user: {
@@ -308,23 +314,23 @@ export declare class StaffController {
             isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
     } & {
         id: string;
         isActive: boolean;
         schoolId: string;
-        role: string;
         userId: string;
+        role: string;
     })>;
     update(id: string, updateStaffDto: UpdateStaffDto): Promise<({
         user: {
@@ -349,15 +355,15 @@ export declare class StaffController {
             isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
         teacherAssignments: ({
@@ -369,10 +375,12 @@ export declare class StaffController {
                 updatedAt: Date;
                 schoolId: string;
                 levelId: string;
+                shortName: string | null;
                 sectionName: string | null;
                 sectionOrder: number | null;
                 capacity: number | null;
                 templateUsed: string | null;
+                graduation: boolean;
                 order: number;
             };
             subject: {
@@ -382,6 +390,7 @@ export declare class StaffController {
                 isActive: boolean;
                 schoolId: string;
                 code: string;
+                category: string | null;
             };
         } & {
             id: string;
@@ -390,8 +399,8 @@ export declare class StaffController {
             updatedAt: Date;
             schoolId: string;
             academicYear: string;
-            classId: string;
             teacherId: string;
+            classId: string;
             subjectId: string;
             isFormTeacher: boolean;
         })[];
@@ -400,8 +409,8 @@ export declare class StaffController {
         isActive: boolean;
         schoolId: string;
         userId: string;
-        department: string | null;
         employeeNumber: string;
+        department: string | null;
         hireDate: Date;
     }) | ({
         user: {
@@ -426,23 +435,23 @@ export declare class StaffController {
             isActive: boolean;
             createdAt: Date;
             updatedAt: Date;
-            country: string;
             street: string | null;
             city: string | null;
             state: string | null;
             postalCode: string | null;
+            landmark: string | null;
+            formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            formattedAddress: string | null;
-            landmark: string | null;
+            country: string;
             logo: string | null;
         };
     } & {
         id: string;
         isActive: boolean;
         schoolId: string;
-        role: string;
         userId: string;
+        role: string;
     })>;
     remove(id: string): Promise<{
         message: string;
@@ -471,15 +480,15 @@ export declare class StaffController {
                 isActive: boolean;
                 createdAt: Date;
                 updatedAt: Date;
-                country: string;
                 street: string | null;
                 city: string | null;
                 state: string | null;
                 postalCode: string | null;
+                landmark: string | null;
+                formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                formattedAddress: string | null;
-                landmark: string | null;
+                country: string;
                 logo: string | null;
             };
             teacherAssignments: ({
@@ -491,10 +500,12 @@ export declare class StaffController {
                     updatedAt: Date;
                     schoolId: string;
                     levelId: string;
+                    shortName: string | null;
                     sectionName: string | null;
                     sectionOrder: number | null;
                     capacity: number | null;
                     templateUsed: string | null;
+                    graduation: boolean;
                     order: number;
                 };
                 subject: {
@@ -504,6 +515,7 @@ export declare class StaffController {
                     isActive: boolean;
                     schoolId: string;
                     code: string;
+                    category: string | null;
                 };
             } & {
                 id: string;
@@ -512,8 +524,8 @@ export declare class StaffController {
                 updatedAt: Date;
                 schoolId: string;
                 academicYear: string;
-                classId: string;
                 teacherId: string;
+                classId: string;
                 subjectId: string;
                 isFormTeacher: boolean;
             })[];
@@ -522,8 +534,8 @@ export declare class StaffController {
             isActive: boolean;
             schoolId: string;
             userId: string;
-            department: string | null;
             employeeNumber: string;
+            department: string | null;
             hireDate: Date;
         })[];
         schoolAdmins: ({
@@ -549,23 +561,23 @@ export declare class StaffController {
                 isActive: boolean;
                 createdAt: Date;
                 updatedAt: Date;
-                country: string;
                 street: string | null;
                 city: string | null;
                 state: string | null;
                 postalCode: string | null;
+                landmark: string | null;
+                formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                formattedAddress: string | null;
-                landmark: string | null;
+                country: string;
                 logo: string | null;
             };
         } & {
             id: string;
             isActive: boolean;
             schoolId: string;
-            role: string;
             userId: string;
+            role: string;
         })[];
     }>;
 }

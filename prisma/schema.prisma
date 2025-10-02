@@ -82,6 +82,7 @@ model School {
   gradingScales GradingScale[]
   subjects     Subject[]
   classes      Class[]
+  sections     Section[]
   levels       Level[]
   teacherAssignments TeacherAssignment[]
   bulkImports  BulkImport[]
@@ -155,6 +156,7 @@ model Student {
   studentNumber  String   @unique
   currentLevelId String
   currentClassId String
+  currentSectionId String?
   academicYear   String
   status         StudentStatus @default(ACTIVE)
   enrollmentDate DateTime @default(now())
@@ -214,6 +216,7 @@ model Student {
   school         School   @relation(fields: [schoolId], references: [id])
   currentLevel   Level    @relation("StudentCurrentLevel", fields: [currentLevelId], references: [id])
   currentClass   Class    @relation("StudentCurrentClass", fields: [currentClassId], references: [id])
+  currentSection Section? @relation("StudentCurrentSection", fields: [currentSectionId], references: [id])
   academicRecords AcademicRecord[]
   attendanceRecords AttendanceRecord[]
   documents      StudentDocument[]
@@ -268,10 +271,12 @@ model Class {
   levelId       String
   schoolId      String
   name          String   // "Primary 1", "Grade 1", etc.
+  shortName     String?  // "P1", "G1", etc. - abbreviated name
   sectionName   String?  // "A", "Red", "Lion", "Alpha-1" - null for base class
   sectionOrder  Int?     // Order within level for sections (1, 2, 3...)
   capacity      Int?     // Student capacity per section
   templateUsed  String?  // "alphabetical", "colors", "custom", etc.
+  graduation    Boolean  @default(false) // Whether this class level graduates students
   order         Int
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -281,6 +286,7 @@ model Class {
   level     Level    @relation(fields: [levelId], references: [id])
   school    School   @relation(fields: [schoolId], references: [id])
   students  Student[] @relation("StudentCurrentClass")
+  sections  Section[]
   teachers  TeacherAssignment[]
   subjects  Subject[]
   assignments Assignment[]
@@ -290,12 +296,33 @@ model Class {
   @@map("classes")
 }
 
+model Section {
+  id          String   @id @default(cuid())
+  classId     String
+  schoolId    String
+  name        String   // "A", "B", "Red", "Alpha", etc.
+  teacherId   String?  // Assigned teacher for this section
+  capacity    Int?     // Student capacity for this section
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  school      School   @relation(fields: [schoolId], references: [id])
+  teacher     Teacher? @relation(fields: [teacherId], references: [id])
+  students    Student[] @relation("StudentCurrentSection")
+
+  @@map("sections")
+}
+
 model Subject {
   id        String   @id @default(cuid())
   schoolId  String
   name      String
   code      String
   description String?
+  category  String?  // For analytics grouping (e.g., "English", "Mathematics")
   isActive  Boolean  @default(true)
 
   // Relationships
@@ -322,6 +349,7 @@ model Teacher {
   // Relationships
   user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
   school    School   @relation(fields: [schoolId], references: [id])
+  sections  Section[]
   teacherAssignments TeacherAssignment[]
   academicRecords AcademicRecord[]
   attendanceRecords AttendanceRecord[]

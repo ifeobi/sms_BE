@@ -58,6 +58,9 @@ let AcademicStructureController = class AcademicStructureController {
     async updateLevel(id, levelData) {
         return this.academicStructureService.updateLevel(id, levelData);
     }
+    async toggleLevelStatus(id, body) {
+        return this.academicStructureService.toggleLevelStatus(id, body.isActive);
+    }
     async updateClass(id, classData) {
         return this.academicStructureService.updateClass(id, classData);
     }
@@ -93,6 +96,21 @@ let AcademicStructureController = class AcademicStructureController {
     }
     async bulkCreateTeacherAssignments(assignments) {
         return this.academicStructureService.bulkCreateTeacherAssignments(assignments);
+    }
+    async getSectionsByClass(classId) {
+        return this.academicStructureService.getSectionsByClass(classId);
+    }
+    async getAvailableTeachers(schoolId) {
+        return this.academicStructureService.getAvailableTeachers(schoolId);
+    }
+    async createSection(sectionData) {
+        return this.academicStructureService.createSection(sectionData);
+    }
+    async updateSection(id, sectionData) {
+        return this.academicStructureService.updateSectionArm(id, sectionData);
+    }
+    async deleteSection(id) {
+        return this.academicStructureService.deleteSection(id);
     }
 };
 exports.AcademicStructureController = AcademicStructureController;
@@ -242,6 +260,19 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], AcademicStructureController.prototype, "updateLevel", null);
 __decorate([
+    (0, common_1.Put)('levels/:id/toggle'),
+    (0, swagger_1.ApiOperation)({ summary: 'Toggle level active status' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Level status toggled successfully',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AcademicStructureController.prototype, "toggleLevelStatus", null);
+__decorate([
     (0, common_1.Put)('classes/:id'),
     (0, swagger_1.ApiOperation)({ summary: 'Update a class' }),
     (0, swagger_1.ApiResponse)({
@@ -389,6 +420,67 @@ __decorate([
     __metadata("design:paramtypes", [Array]),
     __metadata("design:returntype", Promise)
 ], AcademicStructureController.prototype, "bulkCreateTeacherAssignments", null);
+__decorate([
+    (0, common_1.Get)('sections/class/:classId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get all sections for a class' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Sections retrieved successfully',
+    }),
+    __param(0, (0, common_1.Param)('classId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AcademicStructureController.prototype, "getSectionsByClass", null);
+__decorate([
+    (0, common_1.Get)('teachers/:schoolId'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get available teachers for a school' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Teachers retrieved successfully',
+    }),
+    __param(0, (0, common_1.Param)('schoolId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AcademicStructureController.prototype, "getAvailableTeachers", null);
+__decorate([
+    (0, common_1.Post)('sections'),
+    (0, swagger_1.ApiOperation)({ summary: 'Create a new section/arm' }),
+    (0, swagger_1.ApiResponse)({
+        status: 201,
+        description: 'Section created successfully',
+    }),
+    __param(0, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object]),
+    __metadata("design:returntype", Promise)
+], AcademicStructureController.prototype, "createSection", null);
+__decorate([
+    (0, common_1.Put)('sections/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Update a section/arm' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Section updated successfully',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Body)()),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Object]),
+    __metadata("design:returntype", Promise)
+], AcademicStructureController.prototype, "updateSection", null);
+__decorate([
+    (0, common_1.Delete)('sections/:id'),
+    (0, swagger_1.ApiOperation)({ summary: 'Delete a section/arm' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Section deleted successfully',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], AcademicStructureController.prototype, "deleteSection", null);
 exports.AcademicStructureController = AcademicStructureController = __decorate([
     (0, swagger_1.ApiTags)('Academic Structure'),
     (0, common_1.Controller)('academic-structure'),

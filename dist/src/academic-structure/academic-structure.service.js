@@ -26,12 +26,13 @@ let AcademicStructureService = class AcademicStructureService {
     getEducationSystemById(id) {
         return this.educationSystemsService.getEducationSystemById(id);
     }
-    async generateAcademicStructureForSchool(schoolId, educationSystemId, selectedLevels, availableLevels) {
+    async generateAcademicStructureForSchool(schoolId, educationSystemId, selectedLevels, availableLevels, prismaClient) {
         const educationSystem = this.educationSystemsService.getEducationSystemById(educationSystemId);
         if (!educationSystem) {
             throw new Error(`Education system ${educationSystemId} not found`);
         }
-        const schoolConfig = await this.prisma.schoolAcademicConfig.create({
+        const prisma = prismaClient || this.prisma;
+        const schoolConfig = await prisma.schoolAcademicConfig.create({
             data: {
                 schoolId,
                 educationSystemId,
@@ -42,38 +43,55 @@ let AcademicStructureService = class AcademicStructureService {
                 isActive: true,
             },
         });
-        for (const levelId of selectedLevels) {
+        const allLevels = educationSystem.levels.map(level => level.id);
+        for (const levelId of allLevels) {
             const level = educationSystem.levels.find((l) => l.id === levelId);
             if (!level)
                 continue;
-            const levelRecord = await this.prisma.level.create({
+            const isActive = selectedLevels.includes(levelId);
+            const levelRecord = await prisma.level.create({
                 data: {
                     name: level.name,
                     order: level.order,
                     schoolId,
-                    isActive: true,
+                    isActive,
                 },
             });
-            for (const classLevel of level.classLevels) {
-                const classRecord = await this.prisma.class.create({
-                    data: {
-                        name: classLevel.name,
-                        order: classLevel.order,
-                        levelId: levelRecord.id,
-                        schoolId,
-                        isActive: true,
-                    },
-                });
-                for (const subjectName of classLevel.subjects) {
-                    await this.prisma.subject.create({
+            if (isActive) {
+                const createdClasses = [];
+                for (const classLevel of level.classLevels) {
+                    const classRecord = await prisma.class.create({
                         data: {
-                            name: subjectName,
-                            code: subjectName.toUpperCase().replace(/\s+/g, '_'),
-                            description: `${subjectName} for ${classLevel.name}`,
+                            name: classLevel.name,
+                            order: classLevel.order,
+                            levelId: levelRecord.id,
                             schoolId,
                             isActive: true,
                         },
                     });
+                    createdClasses.push(classRecord);
+                }
+                for (const subjectName of level.subjects) {
+                    const subject = await prisma.subject.create({
+                        data: {
+                            name: subjectName,
+                            code: subjectName.toUpperCase().replace(/\s+/g, '_'),
+                            description: `${subjectName} for ${level.name}`,
+                            category: subjectName,
+                            schoolId,
+                            isActive: true,
+                        },
+                    });
+                    for (const classRecord of createdClasses) {
+                        await prisma.class.update({
+                            where: { id: classRecord.id },
+                            data: {
+                                subjects: {
+                                    connect: { id: subject.id }
+                                }
+                            }
+                        });
+                    }
                 }
             }
         }
@@ -255,7 +273,7 @@ let AcademicStructureService = class AcademicStructureService {
     }
     async getLevels(schoolId) {
         return this.prisma.level.findMany({
-            where: { schoolId, isActive: true },
+            where: { schoolId },
             orderBy: { order: 'asc' },
             include: {
                 classes: {
@@ -263,6 +281,97 @@ let AcademicStructureService = class AcademicStructureService {
                     orderBy: { order: 'asc' },
                 },
             },
+        });
+    }
+    async toggleLevelStatus(levelId, isActive) {
+        const level = await this.prisma.level.findUnique({
+            where: { id: levelId },
+            include: { school: true },
+        });
+        if (!level) {
+            throw new Error('Level not found');
+        }
+        const updatedLevel = await this.prisma.level.update({
+            where: { id: levelId },
+            data: { isActive },
+        });
+        if (isActive) {
+            await this.createClassesAndSubjectsForLevel(levelId, level.schoolId);
+        }
+        else {
+            await this.removeClassesAndSubjectsForLevel(levelId);
+        }
+        return updatedLevel;
+    }
+    async createClassesAndSubjectsForLevel(levelId, schoolId) {
+        const config = await this.prisma.schoolAcademicConfig.findFirst({
+            where: { schoolId },
+        });
+        if (!config) {
+            throw new Error('School academic config not found');
+        }
+        const educationSystem = this.educationSystemsService.getEducationSystemById(config.educationSystemId);
+        if (!educationSystem) {
+            throw new Error('Education system not found');
+        }
+        const level = await this.prisma.level.findUnique({
+            where: { id: levelId },
+        });
+        if (!level) {
+            throw new Error('Level not found');
+        }
+        const systemLevel = educationSystem.levels.find((l) => l.name.toLowerCase() === level.name.toLowerCase());
+        if (!systemLevel) {
+            throw new Error('Level not found in education system');
+        }
+        const createdClasses = [];
+        for (const classLevel of systemLevel.classLevels) {
+            const classRecord = await this.prisma.class.create({
+                data: {
+                    name: classLevel.name,
+                    order: classLevel.order,
+                    levelId: levelId,
+                    schoolId,
+                    isActive: true,
+                },
+            });
+            createdClasses.push(classRecord);
+        }
+        for (const subjectName of systemLevel.subjects) {
+            const subject = await this.prisma.subject.create({
+                data: {
+                    name: subjectName,
+                    code: subjectName.toUpperCase().replace(/\s+/g, '_'),
+                    description: `${subjectName} for ${systemLevel.name}`,
+                    category: subjectName,
+                    schoolId,
+                    isActive: true,
+                },
+            });
+            for (const classRecord of createdClasses) {
+                await this.prisma.class.update({
+                    where: { id: classRecord.id },
+                    data: {
+                        subjects: {
+                            connect: { id: subject.id }
+                        }
+                    }
+                });
+            }
+        }
+    }
+    async removeClassesAndSubjectsForLevel(levelId) {
+        const level = await this.prisma.level.findUnique({
+            where: { id: levelId },
+        });
+        if (!level) {
+            throw new Error('Level not found');
+        }
+        const classes = await this.prisma.class.findMany({
+            where: { levelId },
+        });
+        await this.prisma.class.deleteMany({
+            where: { levelId },
         });
     }
     async getClasses(schoolId) {
@@ -274,12 +383,39 @@ let AcademicStructureService = class AcademicStructureService {
                 subjects: {
                     where: { isActive: true },
                 },
+                sections: {
+                    where: { isActive: true },
+                    include: {
+                        teacher: {
+                            include: {
+                                user: true,
+                            },
+                        },
+                    },
+                },
             },
         });
     }
     async getSubjects(schoolId) {
         return this.prisma.subject.findMany({
-            where: { schoolId, isActive: true },
+            where: {
+                schoolId,
+                isActive: true,
+                classes: {
+                    some: {
+                        level: {
+                            isActive: true
+                        }
+                    }
+                }
+            },
+            include: {
+                classes: {
+                    include: {
+                        level: true
+                    }
+                }
+            },
             orderBy: { name: 'asc' },
         });
     }
@@ -423,6 +559,88 @@ let AcademicStructureService = class AcademicStructureService {
     async bulkCreateTeacherAssignments(assignments) {
         return this.prisma.teacherAssignment.createMany({
             data: assignments,
+        });
+    }
+    async getSectionsByClass(classId) {
+        return this.prisma.section.findMany({
+            where: {
+                classId,
+                isActive: true,
+            },
+            include: {
+                teacher: {
+                    include: {
+                        user: true,
+                    },
+                },
+            },
+            orderBy: { name: 'asc' },
+        });
+    }
+    async createSection(sectionData) {
+        const section = await this.prisma.section.create({
+            data: {
+                ...sectionData,
+                isActive: true,
+            },
+        });
+        if (section.teacherId) {
+            return this.prisma.section.findUnique({
+                where: { id: section.id },
+                include: {
+                    teacher: {
+                        include: {
+                            user: true,
+                        },
+                    },
+                },
+            });
+        }
+        return section;
+    }
+    async updateSectionArm(id, sectionData) {
+        const cleanData = {
+            ...sectionData,
+            teacherId: sectionData.teacherId === '' ? null : sectionData.teacherId
+        };
+        const section = await this.prisma.section.update({
+            where: { id },
+            data: cleanData,
+        });
+        if (section.teacherId) {
+            return this.prisma.section.findUnique({
+                where: { id: section.id },
+                include: {
+                    teacher: {
+                        include: {
+                            user: true,
+                        },
+                    },
+                },
+            });
+        }
+        return section;
+    }
+    async deleteSection(id) {
+        return this.prisma.section.update({
+            where: { id },
+            data: { isActive: false },
+        });
+    }
+    async getAvailableTeachers(schoolId) {
+        return this.prisma.teacher.findMany({
+            where: {
+                schoolId,
+                isActive: true,
+            },
+            include: {
+                user: true,
+            },
+            orderBy: {
+                user: {
+                    firstName: 'asc',
+                },
+            },
         });
     }
 };

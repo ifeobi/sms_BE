@@ -51,10 +51,12 @@ export declare class SectionManagementService {
         updatedAt: Date;
         schoolId: string;
         levelId: string;
+        shortName: string | null;
         sectionName: string | null;
         sectionOrder: number | null;
         capacity: number | null;
         templateUsed: string | null;
+        graduation: boolean;
         order: number;
     }[]>;
     createSectionsFromTemplate(levelId: string, schoolId: string, templateId: string, baseClassName: string, capacity?: number): Promise<import(".prisma/client").Prisma.BatchPayload>;
@@ -68,10 +70,12 @@ export declare class SectionManagementService {
         updatedAt: Date;
         schoolId: string;
         levelId: string;
+        shortName: string | null;
         sectionName: string | null;
         sectionOrder: number | null;
         capacity: number | null;
         templateUsed: string | null;
+        graduation: boolean;
         order: number;
     }>;
     updateSection(sectionId: string, updates: {
@@ -86,10 +90,12 @@ export declare class SectionManagementService {
         updatedAt: Date;
         schoolId: string;
         levelId: string;
+        shortName: string | null;
         sectionName: string | null;
         sectionOrder: number | null;
         capacity: number | null;
         templateUsed: string | null;
+        graduation: boolean;
         order: number;
     }>;
     removeSection(sectionId: string): Promise<{
@@ -100,10 +106,12 @@ export declare class SectionManagementService {
         updatedAt: Date;
         schoolId: string;
         levelId: string;
+        shortName: string | null;
         sectionName: string | null;
         sectionOrder: number | null;
         capacity: number | null;
         templateUsed: string | null;
+        graduation: boolean;
         order: number;
     }>;
     reorderSections(levelId: string, sectionIds: string[]): Promise<{
@@ -114,10 +122,12 @@ export declare class SectionManagementService {
         updatedAt: Date;
         schoolId: string;
         levelId: string;
+        shortName: string | null;
         sectionName: string | null;
         sectionOrder: number | null;
         capacity: number | null;
         templateUsed: string | null;
+        graduation: boolean;
         order: number;
     }[]>;
     getSectionStatistics(levelId: string): Promise<{

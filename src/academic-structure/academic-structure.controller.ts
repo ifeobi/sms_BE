@@ -148,6 +148,16 @@ export class AcademicStructureController {
     return this.academicStructureService.updateLevel(id, levelData);
   }
 
+  @Put('levels/:id/toggle')
+  @ApiOperation({ summary: 'Toggle level active status' })
+  @ApiResponse({
+    status: 200,
+    description: 'Level status toggled successfully',
+  })
+  async toggleLevelStatus(@Param('id') id: string, @Body() body: { isActive: boolean }) {
+    return this.academicStructureService.toggleLevelStatus(id, body.isActive);
+  }
+
   @Put('classes/:id')
   @ApiOperation({ summary: 'Update a class' })
   @ApiResponse({
@@ -274,5 +284,57 @@ export class AcademicStructureController {
     return this.academicStructureService.bulkCreateTeacherAssignments(
       assignments,
     );
+  }
+
+  // ==================== SECTION/ARM ENDPOINTS ====================
+
+  @Get('sections/class/:classId')
+  @ApiOperation({ summary: 'Get all sections for a class' })
+  @ApiResponse({
+    status: 200,
+    description: 'Sections retrieved successfully',
+  })
+  async getSectionsByClass(@Param('classId') classId: string) {
+    return this.academicStructureService.getSectionsByClass(classId);
+  }
+
+  @Get('teachers/:schoolId')
+  @ApiOperation({ summary: 'Get available teachers for a school' })
+  @ApiResponse({
+    status: 200,
+    description: 'Teachers retrieved successfully',
+  })
+  async getAvailableTeachers(@Param('schoolId') schoolId: string) {
+    return this.academicStructureService.getAvailableTeachers(schoolId);
+  }
+
+  @Post('sections')
+  @ApiOperation({ summary: 'Create a new section/arm' })
+  @ApiResponse({
+    status: 201,
+    description: 'Section created successfully',
+  })
+  async createSection(@Body() sectionData: any) {
+    return this.academicStructureService.createSection(sectionData);
+  }
+
+  @Put('sections/:id')
+  @ApiOperation({ summary: 'Update a section/arm' })
+  @ApiResponse({
+    status: 200,
+    description: 'Section updated successfully',
+  })
+  async updateSection(@Param('id') id: string, @Body() sectionData: any) {
+    return this.academicStructureService.updateSectionArm(id, sectionData);
+  }
+
+  @Delete('sections/:id')
+  @ApiOperation({ summary: 'Delete a section/arm' })
+  @ApiResponse({
+    status: 200,
+    description: 'Section deleted successfully',
+  })
+  async deleteSection(@Param('id') id: string) {
+    return this.academicStructureService.deleteSection(id);
   }
 }
