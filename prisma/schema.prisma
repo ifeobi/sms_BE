@@ -31,6 +31,7 @@ model User {
   schoolAdmin     SchoolAdmin?
   student         Student?
   teacher         Teacher?
+  productRatings  ProductRating[]
 
   @@unique([email, type])
   @@map("users")
@@ -135,6 +136,7 @@ model Student {
   user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   timelineEvents            TimelineEvent[]
   parentRelationships       ParentSchoolRelationship[] @relation("ParentSchoolRelationshipToStudent")
+  digitalPurchases          DigitalPurchase[]
 
   @@map("students")
 }
@@ -581,12 +583,14 @@ model Creator {
   content          Content[]
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
   marketplaceItems MarketplaceItem[]
+  digitalPurchases DigitalPurchase[]
 
   @@map("creators")
 }
 
 model MarketplaceItem {
   id             String              @id @default(cuid())
+  contentId      String?             @unique // Link to source content (optional for now)
   title          String
   description    String
   price          Float
@@ -606,7 +610,10 @@ model MarketplaceItem {
   isFeatured     Boolean             @default(false)
   isRecommended  Boolean             @default(false)
   commissionRate Float               @default(0)
+  content        Content?            @relation(fields: [contentId], references: [id])
   creator        Creator             @relation(fields: [creatorId], references: [id])
+  digitalPurchases DigitalPurchase[]
+  productRatings   ProductRating[]
 
   @@map("marketplace_items")
 }
@@ -641,17 +648,12 @@ model Content {
   contentCategoryId      String?
   subjectCategoryId      String?
   contentType            ContentType
-  author                 String?
-  publisher              String?
-  edition                String?
-  year                   Int?
-  isbn                   String?
-  physicalDeliveryMethod String?
-  pickupLocation         String?
-  deliveryAvailability   String?
-  deliveryFee            Float?
+  textbookAuthor         String?
+  textbookPublisher      String?
+  textbookEdition        String?
+  textbookYear           Int?
+  textbookIsbn           String?
   contactInfo            String?
-  deliveryNotes          String?
   digitalDeliveryMethod  String?
   accessInstructions     String?
   fileSizeFormat         String?
@@ -680,8 +682,14 @@ model Content {
   notesLevel             String?
   notesFormat            String?
   notesLength            String?
+  ebookAuthor            String?
+  ebookFileFormat        String?
+  ebookLicenseType       String?
+  ebookAccessType        String?
+  ebookLanguage          String?
+  ebookPages             String?
   digitalPrice           Float?
-  physicalPrice          Float?
+  textbookPrice          Float?
   videoPrice             Float?
   worksheetPrice         Float?
   assignmentPrice        Float?
@@ -689,6 +697,7 @@ model Content {
   audiobookPrice         Float?
   interactivePrice       Float?
   notesPrice             Float?
+  ebookPrice             Float?
   currency               String           @default("NGN")
   licenseType            LicenseType      @default(PERSONAL)
   visibility             Visibility       @default(PUBLIC)
@@ -705,6 +714,8 @@ model Content {
   creator                Creator          @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   subjectCategory        SubjectCategory? @relation(fields: [subjectCategoryId], references: [id])
   files                  ContentFile[]
+  marketplaceItem        MarketplaceItem?
+  digitalPurchases       DigitalPurchase[]
 
   @@map("content")
 }
@@ -927,11 +938,6 @@ enum MarketplaceCategory {
 enum ContentType {
   DIGITAL
   PHYSICAL
-  BOTH
-  VIDEO
-  PAST_QUESTIONS
-  AUDIO_BOOK
-  INTERACTIVE
 }
 
 enum LicenseType {
@@ -970,4 +976,70 @@ enum BulkImportRecordStatus {
   SUCCESS
   FAILED
   SKIPPED
+}
+
+enum PurchaseStatus {
+  PENDING
+  COMPLETED
+  FAILED
+  REFUNDED
+}
+
+model DigitalPurchase {
+  id                String         @id @default(cuid())
+  studentId         String
+  contentId         String
+  marketplaceItemId String
+  creatorId         String
+  
+  // Payment details
+  amount            Float
+  currency          String         @default("NGN")
+  paymentReference  String?        @unique
+  paymentMethod     String?
+  
+  // Status
+  status            PurchaseStatus @default(PENDING)
+  
+  // Access
+  downloadCount     Int            @default(0)
+  lastDownloadedAt  DateTime?
+  
+  // Timestamps
+  purchasedAt       DateTime       @default(now())
+  completedAt       DateTime?
+  
+  // Relations
+  student           Student        @relation(fields: [studentId], references: [id])
+  content           Content        @relation(fields: [contentId], references: [id])
+  creator           Creator        @relation(fields: [creatorId], references: [id])
+  marketplaceItem   MarketplaceItem @relation(fields: [marketplaceItemId], references: [id])
+  
+  @@map("digital_purchases")
+}
+
+// Rating and Review System
+model ProductRating {
+  id            String   @id @default(cuid())
+  
+  // Foreign keys
+  userId        String
+  marketplaceItemId String
+  
+  // Rating details
+  rating        Float    // 1.0 to 5.0 (0.5 increments)
+  review        String?  // Optional text review
+  isVerified    Boolean  @default(false) // Whether the user actually purchased
+  
+  // Timestamps
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  
+  // Relations
+  user          User             @relation(fields: [userId], references: [id])
+  marketplaceItem MarketplaceItem @relation(fields: [marketplaceItemId], references: [id])
+  
+  // Composite unique constraint - one rating per user per product
+  @@unique([userId, marketplaceItemId])
+  @@map("product_ratings")
 }

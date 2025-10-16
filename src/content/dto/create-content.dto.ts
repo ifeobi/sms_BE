@@ -1,5 +1,17 @@
-import { IsString, IsOptional, IsNumber, IsEnum, IsArray, IsBoolean } from 'class-validator';
-import { ContentType, LicenseType, Visibility, ContentStatus } from '@prisma/client';
+import {
+  IsString,
+  IsOptional,
+  IsNumber,
+  IsEnum,
+  IsArray,
+  IsBoolean,
+} from 'class-validator';
+import {
+  ContentType,
+  LicenseType,
+  Visibility,
+  ContentStatus,
+} from '@prisma/client';
 
 export class CreateContentDto {
   @IsString()
@@ -14,29 +26,30 @@ export class CreateContentDto {
   @IsString()
   subjectCategoryId: string;
 
+  @IsOptional()
   @IsEnum(ContentType)
-  contentType: ContentType;
+  contentType?: ContentType; // Optional - will be auto-determined from content category
 
   // Textbook specific fields
   @IsOptional()
   @IsString()
-  author?: string;
+  textbookAuthor?: string;
 
   @IsOptional()
   @IsString()
-  publisher?: string;
+  textbookPublisher?: string;
 
   @IsOptional()
   @IsString()
-  edition?: string;
+  textbookEdition?: string;
 
   @IsOptional()
   @IsNumber()
-  year?: number;
+  textbookYear?: number;
 
   @IsOptional()
   @IsString()
-  isbn?: string;
+  textbookIsbn?: string;
 
   // Textbook Physical Delivery fields
   @IsOptional()
@@ -62,6 +75,14 @@ export class CreateContentDto {
   @IsOptional()
   @IsString()
   deliveryNotes?: string;
+
+  @IsOptional()
+  @IsString()
+  physicalCondition?: string; // new, like_new, good, fair
+
+  @IsOptional()
+  @IsArray()
+  deliveryMethods?: string[]; // Array of delivery method strings
 
   // Textbook Digital Delivery fields
   @IsOptional()
@@ -183,6 +204,31 @@ export class CreateContentDto {
   @IsString()
   notesLength?: string;
 
+  // Ebook Content specific fields
+  @IsOptional()
+  @IsString()
+  ebookAuthor?: string;
+
+  @IsOptional()
+  @IsString()
+  ebookFileFormat?: string;
+
+  @IsOptional()
+  @IsString()
+  ebookLicenseType?: string;
+
+  @IsOptional()
+  @IsString()
+  ebookAccessType?: string;
+
+  @IsOptional()
+  @IsString()
+  ebookLanguage?: string;
+
+  @IsOptional()
+  @IsString()
+  ebookPages?: string;
+
   // Pricing
   @IsOptional()
   @IsNumber()
@@ -190,7 +236,7 @@ export class CreateContentDto {
 
   @IsOptional()
   @IsNumber()
-  physicalPrice?: number;
+  textbookPrice?: number;
 
   @IsOptional()
   @IsNumber()
@@ -221,6 +267,10 @@ export class CreateContentDto {
   notesPrice?: number;
 
   @IsOptional()
+  @IsNumber()
+  ebookPrice?: number;
+
+  @IsOptional()
   @IsString()
   currency?: string;
 
@@ -242,4 +292,3 @@ export class CreateContentDto {
   @IsEnum(ContentStatus)
   status?: ContentStatus;
 }
-

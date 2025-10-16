@@ -27,13 +27,18 @@ export class ContentController {
   @Post()
   async create(@Body() createContentDto: CreateContentDto, @Request() req) {
     console.log('Content Controller - User from JWT:', req.user);
-    
+
     let creatorId = req.user.creatorId;
-    
+
     // If creatorId is not in JWT, look it up from the user ID
     if (!creatorId) {
-      console.log('Content Controller - No creatorId in JWT, looking up from userId:', req.user.id);
-      const creator = await this.contentService.findCreatorByUserId(req.user.id);
+      console.log(
+        'Content Controller - No creatorId in JWT, looking up from userId:',
+        req.user.id,
+      );
+      const creator = await this.contentService.findCreatorByUserId(
+        req.user.id,
+      );
       if (creator) {
         creatorId = creator.id;
         console.log('Content Controller - Found creatorId:', creatorId);
@@ -41,7 +46,7 @@ export class ContentController {
         throw new Error('Creator account not found for this user');
       }
     }
-    
+
     console.log('Content Controller - CreatorId being used:', creatorId);
     return this.contentService.create(createContentDto, creatorId);
   }
@@ -55,7 +60,7 @@ export class ContentController {
     @Query('subjectCategoryId') subjectCategoryId?: string,
   ) {
     const where: any = {};
-    
+
     // Convert string status to ContentStatus enum
     if (status) {
       const upperStatus = status.toUpperCase();
@@ -63,7 +68,7 @@ export class ContentController {
         where.status = upperStatus as ContentStatus;
       }
     }
-    
+
     if (contentCategoryId) where.contentCategoryId = contentCategoryId;
     if (subjectCategoryId) where.subjectCategoryId = subjectCategoryId;
 
@@ -83,17 +88,19 @@ export class ContentController {
     @Query('status') status?: string,
   ) {
     let creatorId = req.user.creatorId;
-    
+
     // If creatorId is not in JWT, look it up from the user ID
     if (!creatorId) {
-      const creator = await this.contentService.findCreatorByUserId(req.user.id);
+      const creator = await this.contentService.findCreatorByUserId(
+        req.user.id,
+      );
       if (creator) {
         creatorId = creator.id;
       } else {
         throw new Error('Creator account not found for this user');
       }
     }
-    
+
     // Convert string status to ContentStatus enum
     let contentStatus: ContentStatus | undefined;
     if (status) {
@@ -102,8 +109,12 @@ export class ContentController {
         contentStatus = upperStatus as ContentStatus;
       }
     }
-    
-    return this.contentService.findByCreator(creatorId, { skip, take, status: contentStatus });
+
+    return this.contentService.findByCreator(creatorId, {
+      skip,
+      take,
+      status: contentStatus,
+    });
   }
 
   @Get('categories')
@@ -122,34 +133,50 @@ export class ContentController {
   }
 
   @Patch(':id')
-  async update(@Param('id') id: string, @Body() updateContentDto: UpdateContentDto, @Request() req) {
+  async update(
+    @Param('id') id: string,
+    @Body() updateContentDto: UpdateContentDto,
+    @Request() req,
+  ) {
     console.log('Update Controller - Content ID:', id);
     console.log('Update Controller - Update data:', updateContentDto);
     console.log('Update Controller - User from JWT:', req.user);
-    
+
     // Debug specific fields
     console.log('=== CONTROLLER FIELD DEBUG ===');
-    console.log('Author in DTO:', updateContentDto.author);
-    console.log('Publisher in DTO:', updateContentDto.publisher);
-    console.log('Year in DTO:', updateContentDto.year);
-    console.log('Physical delivery method in DTO:', updateContentDto.physicalDeliveryMethod);
+    console.log('Textbook Author in DTO:', updateContentDto.textbookAuthor);
+    console.log(
+      'Textbook Publisher in DTO:',
+      updateContentDto.textbookPublisher,
+    );
+    console.log('Textbook Year in DTO:', updateContentDto.textbookYear);
+    console.log(
+      'Physical delivery method in DTO:',
+      updateContentDto.physicalDeliveryMethod,
+    );
     console.log('Pickup location in DTO:', updateContentDto.pickupLocation);
     console.log('==============================');
-    
+
     let creatorId = req.user.creatorId;
-    
+
     // If creatorId is not in JWT, look it up from the user ID
     if (!creatorId) {
-      const creator = await this.contentService.findCreatorByUserId(req.user.id);
+      const creator = await this.contentService.findCreatorByUserId(
+        req.user.id,
+      );
       if (creator) {
         creatorId = creator.id;
       } else {
         throw new Error('Creator account not found for this user');
       }
     }
-    
+
     console.log('Update Controller - Creator ID:', creatorId);
-    const result = await this.contentService.update(id, updateContentDto, creatorId);
+    const result = await this.contentService.update(
+      id,
+      updateContentDto,
+      creatorId,
+    );
     console.log('Update Controller - Update result:', result);
     return result;
   }
@@ -158,13 +185,18 @@ export class ContentController {
   async remove(@Param('id') id: string, @Request() req) {
     console.log('Delete Controller - User from JWT:', req.user);
     console.log('Delete Controller - Content ID:', id);
-    
+
     let creatorId = req.user.creatorId;
-    
+
     // If creatorId is not in JWT, look it up from the user ID
     if (!creatorId) {
-      console.log('Delete Controller - No creatorId in JWT, looking up from userId:', req.user.id);
-      const creator = await this.contentService.findCreatorByUserId(req.user.id);
+      console.log(
+        'Delete Controller - No creatorId in JWT, looking up from userId:',
+        req.user.id,
+      );
+      const creator = await this.contentService.findCreatorByUserId(
+        req.user.id,
+      );
       if (creator) {
         creatorId = creator.id;
         console.log('Delete Controller - Found creatorId:', creatorId);
@@ -172,7 +204,7 @@ export class ContentController {
         throw new Error('Creator account not found for this user');
       }
     }
-    
+
     console.log('Delete Controller - CreatorId being used:', creatorId);
     return this.contentService.remove(id, creatorId);
   }

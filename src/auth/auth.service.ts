@@ -85,7 +85,7 @@ export class AuthService {
         registerDto.email,
         registerDto.userType,
       );
-      
+
       if (existingUser) {
         throw new ConflictException(
           'User with this email already exists for this account type',
@@ -100,7 +100,10 @@ export class AuthService {
 
       // Handle school registration
       if (registerDto.userType === UserType.SCHOOL_ADMIN) {
-        return await this.registerSchoolAdmin(registerDto as SchoolAdminRegisterDto, hashedPassword);
+        return await this.registerSchoolAdmin(
+          registerDto as SchoolAdminRegisterDto,
+          hashedPassword,
+        );
       }
 
       // Handle creator registration
@@ -148,10 +151,6 @@ export class AuthService {
         },
       };
     } catch (error) {
-      console.error('❌ Registration failed:', error);
-      console.error('Error message:', error.message);
-      console.error('Error stack:', error.stack);
-      console.log('================================');
       throw error;
     }
   }
@@ -283,7 +282,10 @@ export class AuthService {
         isEmailVerified: false,
       };
 
-      console.log('Creating creator user with data:', JSON.stringify(userData, null, 2));
+      console.log(
+        'Creating creator user with data:',
+        JSON.stringify(userData, null, 2),
+      );
       const user = await prisma.user.create({
         data: userData,
       });
@@ -296,14 +298,19 @@ export class AuthService {
         plan: registerDto.plan || 'free',
       };
 
-      console.log('Creating creator profile with data:', JSON.stringify(creatorData, null, 2));
+      console.log(
+        'Creating creator profile with data:',
+        JSON.stringify(creatorData, null, 2),
+      );
       const creator = await prisma.creator.create({
         data: creatorData,
       });
       console.log('✅ Creator profile created:', creator.id);
 
       // Generate verification code
-      const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+      const verificationCode = Math.floor(
+        100000 + Math.random() * 900000,
+      ).toString();
       const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
       // Store verification code
@@ -328,12 +335,15 @@ export class AuthService {
         throw new Error('Failed to send verification email');
       }
 
-      console.log('✅ Creator registration completed - verification email sent');
+      console.log(
+        '✅ Creator registration completed - verification email sent',
+      );
       console.log('================================');
 
       return {
         success: true,
-        message: 'Creator account created successfully. Please check your email to verify your account.',
+        message:
+          'Creator account created successfully. Please check your email to verify your account.',
         user: {
           id: user.id,
           email: user.email,
@@ -537,7 +547,8 @@ export class AuthService {
 
       return {
         success: true,
-        message: 'Email verified successfully. Your creator account is now active.',
+        message:
+          'Email verified successfully. Your creator account is now active.',
         access_token: this.jwtService.sign(payload),
         user: {
           id: user.id,
@@ -779,15 +790,20 @@ export class AuthService {
     return await this.prisma.$transaction(async (prisma) => {
       // Prepare user data for update
       const userUpdateData: any = {};
-      
-      if (updateDto.firstName !== undefined) userUpdateData.firstName = updateDto.firstName;
-      if (updateDto.lastName !== undefined) userUpdateData.lastName = updateDto.lastName;
+
+      if (updateDto.firstName !== undefined)
+        userUpdateData.firstName = updateDto.firstName;
+      if (updateDto.lastName !== undefined)
+        userUpdateData.lastName = updateDto.lastName;
       if (updateDto.email !== undefined) userUpdateData.email = updateDto.email;
       if (updateDto.phone !== undefined) userUpdateData.phone = updateDto.phone;
-      if (updateDto.website !== undefined) userUpdateData.website = updateDto.website;
-      if (updateDto.country !== undefined) userUpdateData.country = updateDto.country;
+      if (updateDto.website !== undefined)
+        userUpdateData.website = updateDto.website;
+      if (updateDto.country !== undefined)
+        userUpdateData.country = updateDto.country;
       if (updateDto.bio !== undefined) userUpdateData.bio = updateDto.bio;
-      if (updateDto.profilePicture !== undefined) userUpdateData.profilePicture = updateDto.profilePicture;
+      if (updateDto.profilePicture !== undefined)
+        userUpdateData.profilePicture = updateDto.profilePicture;
 
       // Update user data if there are changes
       if (Object.keys(userUpdateData).length > 0) {
@@ -800,9 +816,11 @@ export class AuthService {
       // Handle creator-specific updates
       if (user.type === 'CREATOR') {
         const creatorUpdateData: any = {};
-        
-        if (updateDto.categories !== undefined) creatorUpdateData.categories = updateDto.categories;
-        if (updateDto.plan !== undefined) creatorUpdateData.plan = updateDto.plan;
+
+        if (updateDto.categories !== undefined)
+          creatorUpdateData.categories = updateDto.categories;
+        if (updateDto.plan !== undefined)
+          creatorUpdateData.plan = updateDto.plan;
 
         // Update creator data if there are changes
         if (Object.keys(creatorUpdateData).length > 0) {

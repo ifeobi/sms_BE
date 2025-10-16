@@ -18,17 +18,19 @@ class CreateContentDto {
     contentCategoryId;
     subjectCategoryId;
     contentType;
-    author;
-    publisher;
-    edition;
-    year;
-    isbn;
+    textbookAuthor;
+    textbookPublisher;
+    textbookEdition;
+    textbookYear;
+    textbookIsbn;
     physicalDeliveryMethod;
     pickupLocation;
     deliveryAvailability;
     deliveryFee;
     contactInfo;
     deliveryNotes;
+    physicalCondition;
+    deliveryMethods;
     digitalDeliveryMethod;
     accessInstructions;
     fileSizeFormat;
@@ -57,8 +59,14 @@ class CreateContentDto {
     notesLevel;
     notesFormat;
     notesLength;
+    ebookAuthor;
+    ebookFileFormat;
+    ebookLicenseType;
+    ebookAccessType;
+    ebookLanguage;
+    ebookPages;
     digitalPrice;
-    physicalPrice;
+    textbookPrice;
     videoPrice;
     worksheetPrice;
     assignmentPrice;
@@ -66,6 +74,7 @@ class CreateContentDto {
     audiobookPrice;
     interactivePrice;
     notesPrice;
+    ebookPrice;
     currency;
     licenseType;
     visibility;
@@ -90,6 +99,7 @@ __decorate([
     __metadata("design:type", String)
 ], CreateContentDto.prototype, "subjectCategoryId", void 0);
 __decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsEnum)(client_1.ContentType),
     __metadata("design:type", String)
 ], CreateContentDto.prototype, "contentType", void 0);
@@ -97,27 +107,27 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateContentDto.prototype, "author", void 0);
+], CreateContentDto.prototype, "textbookAuthor", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateContentDto.prototype, "publisher", void 0);
+], CreateContentDto.prototype, "textbookPublisher", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateContentDto.prototype, "edition", void 0);
+], CreateContentDto.prototype, "textbookEdition", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
-], CreateContentDto.prototype, "year", void 0);
+], CreateContentDto.prototype, "textbookYear", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
-], CreateContentDto.prototype, "isbn", void 0);
+], CreateContentDto.prototype, "textbookIsbn", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -148,6 +158,16 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateContentDto.prototype, "deliveryNotes", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateContentDto.prototype, "physicalCondition", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    __metadata("design:type", Array)
+], CreateContentDto.prototype, "deliveryMethods", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
@@ -290,6 +310,36 @@ __decorate([
 ], CreateContentDto.prototype, "notesLength", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateContentDto.prototype, "ebookAuthor", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateContentDto.prototype, "ebookFileFormat", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateContentDto.prototype, "ebookLicenseType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateContentDto.prototype, "ebookAccessType", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateContentDto.prototype, "ebookLanguage", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], CreateContentDto.prototype, "ebookPages", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateContentDto.prototype, "digitalPrice", void 0);
@@ -297,7 +347,7 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
-], CreateContentDto.prototype, "physicalPrice", void 0);
+], CreateContentDto.prototype, "textbookPrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsNumber)(),
@@ -333,6 +383,11 @@ __decorate([
     (0, class_validator_1.IsNumber)(),
     __metadata("design:type", Number)
 ], CreateContentDto.prototype, "notesPrice", void 0);
+__decorate([
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsNumber)(),
+    __metadata("design:type", Number)
+], CreateContentDto.prototype, "ebookPrice", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

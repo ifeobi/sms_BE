@@ -21,6 +21,7 @@ let FileUploadService = class FileUploadService {
         if (!file) {
             throw new common_1.BadRequestException('No file provided');
         }
+        await this.deleteExistingFilesByType(contentId, fileType);
         const fileRecord = await this.prisma.contentFile.create({
             data: {
                 contentId,
@@ -44,8 +45,24 @@ let FileUploadService = class FileUploadService {
         if (!files || files.length === 0) {
             throw new common_1.BadRequestException('No files provided');
         }
-        const uploadPromises = files.map(file => this.uploadFile(file, contentId, fileType));
+        const uploadPromises = files.map((file) => this.uploadFile(file, contentId, fileType));
         return Promise.all(uploadPromises);
+    }
+    async deleteExistingFilesByType(contentId, fileType) {
+        const existingFiles = await this.prisma.contentFile.findMany({
+            where: {
+                contentId,
+                fileType,
+            },
+        });
+        for (const file of existingFiles) {
+            await this.prisma.contentFile.delete({
+                where: { id: file.id },
+            });
+        }
+        if (existingFiles.length > 0) {
+            console.log(`Deleted ${existingFiles.length} existing ${fileType} file(s) for content ${contentId}`);
+        }
     }
     async deleteFile(fileId, creatorId) {
         const file = await this.prisma.contentFile.findUnique({

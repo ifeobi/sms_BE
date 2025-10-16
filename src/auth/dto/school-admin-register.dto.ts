@@ -160,4 +160,3 @@ export class SchoolAdminRegisterDto {
   @Exclude()
   confirmPassword?: string;
 }
-

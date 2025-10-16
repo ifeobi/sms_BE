@@ -21,10 +21,22 @@ async function seedCategories() {
 
   // Subject Categories
   const subjectCategories = [
-    { name: 'mathematics', description: 'Study of numbers, quantity, and space' },
-    { name: 'computer_science', description: 'Study of computation and information' },
-    { name: 'business', description: 'Study of commerce, trade, and management' },
-    { name: 'engineering', description: 'Application of science and math to design and build' },
+    {
+      name: 'mathematics',
+      description: 'Study of numbers, quantity, and space',
+    },
+    {
+      name: 'computer_science',
+      description: 'Study of computation and information',
+    },
+    {
+      name: 'business',
+      description: 'Study of commerce, trade, and management',
+    },
+    {
+      name: 'engineering',
+      description: 'Application of science and math to design and build',
+    },
     { name: 'medicine', description: 'Science of healing' },
     { name: 'law', description: 'System of rules regulating society' },
     { name: 'arts', description: 'Arts & Humanities' },
@@ -62,4 +74,3 @@ seedCategories()
   .finally(async () => {
     await prisma.$disconnect();
   });
-

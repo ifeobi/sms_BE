@@ -15,7 +15,10 @@ export class FileUploadService {
       throw new BadRequestException('No file provided');
     }
 
-    // Create file record in database
+    // Step 1: Delete existing files of the same type for this content
+    await this.deleteExistingFilesByType(contentId, fileType);
+
+    // Step 2: Create new file record in database
     const fileRecord = await this.prisma.contentFile.create({
       data: {
         contentId,
@@ -46,11 +49,40 @@ export class FileUploadService {
       throw new BadRequestException('No files provided');
     }
 
-    const uploadPromises = files.map(file => 
-      this.uploadFile(file, contentId, fileType)
+    const uploadPromises = files.map((file) =>
+      this.uploadFile(file, contentId, fileType),
     );
 
     return Promise.all(uploadPromises);
+  }
+
+  async deleteExistingFilesByType(
+    contentId: string,
+    fileType: FileType,
+  ): Promise<void> {
+    // Find all existing files of the same type for this content
+    const existingFiles = await this.prisma.contentFile.findMany({
+      where: {
+        contentId,
+        fileType,
+      },
+    });
+
+    // Delete each existing file record
+    for (const file of existingFiles) {
+      await this.prisma.contentFile.delete({
+        where: { id: file.id },
+      });
+
+      // In production, you would also delete the actual file from storage here
+      // Example: fs.unlinkSync(file.storagePath);
+    }
+
+    if (existingFiles.length > 0) {
+      console.log(
+        `Deleted ${existingFiles.length} existing ${fileType} file(s) for content ${contentId}`,
+      );
+    }
   }
 
   async deleteFile(fileId: string, creatorId: string): Promise<void> {
@@ -67,7 +99,9 @@ export class FileUploadService {
     }
 
     if (file.content.creatorId !== creatorId) {
-      throw new BadRequestException('You can only delete files from your own content');
+      throw new BadRequestException(
+        'You can only delete files from your own content',
+      );
     }
 
     // Delete file record from database

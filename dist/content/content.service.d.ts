@@ -6,6 +6,7 @@ import { Content, ContentStatus, Prisma } from '@prisma/client';
 export declare class ContentService {
     private prisma;
     constructor(prisma: PrismaService);
+    private determineContentType;
     findCreatorByUserId(userId: string): Promise<({
         user: {
             type: import(".prisma/client").$Enums.UserType;
@@ -55,6 +56,8 @@ export declare class ContentService {
         take?: number;
         status?: ContentStatus;
     }): Promise<Content[]>;
+    private getBestThumbnailUrl;
+    private constructFileUrl;
     update(id: string, updateContentDto: UpdateContentDto, creatorId: string): Promise<Content>;
     remove(id: string, creatorId: string): Promise<Content>;
     uploadFile(uploadFileDto: UploadFileDto): Promise<any>;

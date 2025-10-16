@@ -21,4 +21,3 @@ export class UploadFileDto {
   @IsOptional()
   sizeBytes?: bigint;
 }
-

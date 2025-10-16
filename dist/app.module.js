@@ -19,6 +19,9 @@ const students_module_1 = require("./students/students.module");
 const staff_module_1 = require("./staff/staff.module");
 const content_module_1 = require("./content/content.module");
 const file_upload_module_1 = require("./file-upload/file-upload.module");
+const marketplace_module_1 = require("./marketplace/marketplace.module");
+const digital_purchases_module_1 = require("./digital-purchases/digital-purchases.module");
+const ratings_module_1 = require("./ratings/ratings.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -36,6 +39,9 @@ exports.AppModule = AppModule = __decorate([
             staff_module_1.StaffModule,
             content_module_1.ContentModule,
             file_upload_module_1.FileUploadModule,
+            marketplace_module_1.MarketplaceModule,
+            digital_purchases_module_1.DigitalPurchasesModule,
+            ratings_module_1.RatingsModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

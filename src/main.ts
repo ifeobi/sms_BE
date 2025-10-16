@@ -18,7 +18,7 @@ async function bootstrap() {
   // }
 
   // Add BigInt serializer to handle JSON serialization
-  (BigInt.prototype as any).toJSON = function() {
+  (BigInt.prototype as any).toJSON = function () {
     return Number(this);
   };
 

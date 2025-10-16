@@ -153,7 +153,10 @@ export class AuthController {
   @Post('verify-creator-email')
   @ApiOperation({ summary: 'Verify creator email with code' })
   @ApiResponse({ status: 200, description: 'Email verified successfully' })
-  @ApiResponse({ status: 401, description: 'Invalid or expired verification code' })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid or expired verification code',
+  })
   async verifyCreatorEmail(@Body() data: { email: string; code: string }) {
     return this.authService.verifyCreatorEmail(data.email, data.code);
   }

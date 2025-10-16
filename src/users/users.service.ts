@@ -67,22 +67,22 @@ export class UsersService {
     if (type) {
       // Use exact match with case insensitive search
       return await this.prisma.user.findFirst({
-        where: { 
+        where: {
           email: {
             equals: email,
-            mode: 'insensitive'
+            mode: 'insensitive',
           },
-          type: type as any
+          type: type as any,
         },
       });
     } else {
       // Find by email only (returns first match)
       return await this.prisma.user.findFirst({
-        where: { 
+        where: {
           email: {
             equals: email,
-            mode: 'insensitive'
-          }
+            mode: 'insensitive',
+          },
         },
       });
     }

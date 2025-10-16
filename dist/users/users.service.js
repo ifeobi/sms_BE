@@ -71,9 +71,9 @@ let UsersService = class UsersService {
                 where: {
                     email: {
                         equals: email,
-                        mode: 'insensitive'
+                        mode: 'insensitive',
                     },
-                    type: type
+                    type: type,
                 },
             });
         }
@@ -82,8 +82,8 @@ let UsersService = class UsersService {
                 where: {
                     email: {
                         equals: email,
-                        mode: 'insensitive'
-                    }
+                        mode: 'insensitive',
+                    },
                 },
             });
         }

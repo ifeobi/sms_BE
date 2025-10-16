@@ -78,7 +78,11 @@ let ContentController = class ContentController {
                 contentStatus = upperStatus;
             }
         }
-        return this.contentService.findByCreator(creatorId, { skip, take, status: contentStatus });
+        return this.contentService.findByCreator(creatorId, {
+            skip,
+            take,
+            status: contentStatus,
+        });
     }
     getContentCategories() {
         return this.contentService.getContentCategories();
@@ -94,9 +98,9 @@ let ContentController = class ContentController {
         console.log('Update Controller - Update data:', updateContentDto);
         console.log('Update Controller - User from JWT:', req.user);
         console.log('=== CONTROLLER FIELD DEBUG ===');
-        console.log('Author in DTO:', updateContentDto.author);
-        console.log('Publisher in DTO:', updateContentDto.publisher);
-        console.log('Year in DTO:', updateContentDto.year);
+        console.log('Textbook Author in DTO:', updateContentDto.textbookAuthor);
+        console.log('Textbook Publisher in DTO:', updateContentDto.textbookPublisher);
+        console.log('Textbook Year in DTO:', updateContentDto.textbookYear);
         console.log('Physical delivery method in DTO:', updateContentDto.physicalDeliveryMethod);
         console.log('Pickup location in DTO:', updateContentDto.pickupLocation);
         console.log('==============================');

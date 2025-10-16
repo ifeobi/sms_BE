@@ -17,10 +17,23 @@ let ContentService = class ContentService {
     constructor(prisma) {
         this.prisma = prisma;
     }
+    determineContentType(contentCategoryName) {
+        const digitalCategories = [
+            'video_course',
+            'ebook',
+            'audio_book',
+            'interactive',
+        ];
+        const normalizedCategory = contentCategoryName.toLowerCase().trim();
+        if (digitalCategories.includes(normalizedCategory)) {
+            return 'DIGITAL';
+        }
+        return 'PHYSICAL';
+    }
     async findCreatorByUserId(userId) {
         return this.prisma.creator.findUnique({
             where: { userId },
-            include: { user: true }
+            include: { user: true },
         });
     }
     async create(createContentDto, creatorId) {
@@ -28,20 +41,29 @@ let ContentService = class ContentService {
         console.log('Content Service - CreateContentDto:', createContentDto);
         const creator = await this.prisma.creator.findUnique({
             where: { id: creatorId },
-            include: { user: true }
+            include: { user: true },
         });
         console.log('Content Service - Found creator:', creator);
         if (!creator) {
             const allCreators = await this.prisma.creator.findMany({
-                include: { user: true }
+                include: { user: true },
             });
             console.log('Content Service - All creators in database:', allCreators);
             throw new Error(`Creator with ID ${creatorId} not found. Please ensure you have a valid creator account.`);
         }
         console.log(`Creating content for creator: ${creator.user.email} (${creatorId})`);
+        const contentCategory = await this.prisma.contentCategory.findUnique({
+            where: { id: createContentDto.contentCategoryId },
+        });
+        if (!contentCategory) {
+            throw new Error(`Content category with ID ${createContentDto.contentCategoryId} not found`);
+        }
+        const contentType = this.determineContentType(contentCategory.name);
+        console.log(`Auto-determined contentType: ${contentType} for category: ${contentCategory.name}`);
         return this.prisma.content.create({
             data: {
                 ...createContentDto,
+                contentType,
                 creatorId,
             },
             include: {
@@ -58,7 +80,7 @@ let ContentService = class ContentService {
     }
     async findAll(params) {
         const { skip, take, cursor, where, orderBy } = params;
-        return this.prisma.content.findMany({
+        const content = await this.prisma.content.findMany({
             skip,
             take,
             cursor,
@@ -72,9 +94,54 @@ let ContentService = class ContentService {
                 },
                 contentCategory: true,
                 subjectCategory: true,
-                files: true,
+                files: {
+                    orderBy: {
+                        uploadedAt: 'desc',
+                    },
+                },
             },
         });
+        const contentWithThumbnails = await Promise.all(content.map(async (item) => {
+            console.log('=== PROCESSING CONTENT FOR THUMBNAIL (findAll) ===');
+            console.log('Content ID:', item.id);
+            console.log('Content Title:', item.title);
+            console.log('Total files attached:', item.files.length);
+            const thumbnailUrl = await this.getBestThumbnailUrl(item.id, item.files);
+            const videoFile = item.files.find((f) => f.fileType === 'VIDEO_FILE');
+            const audioFile = item.files.find((f) => f.fileType === 'AUDIO_FILE');
+            console.log('Selected thumbnail URL:', thumbnailUrl);
+            console.log('Video file:', videoFile
+                ? `${videoFile.originalName} (${videoFile.storagePath})`
+                : 'None');
+            console.log('Audio file:', audioFile
+                ? `${audioFile.originalName} (${audioFile.storagePath})`
+                : 'None');
+            console.log('===================================================');
+            const getFileNameFromPath = (storagePath) => {
+                return (storagePath.split('\\').pop() ||
+                    storagePath.split('/').pop() ||
+                    storagePath);
+            };
+            return {
+                ...item,
+                thumbnail_url: thumbnailUrl,
+                video_url: videoFile
+                    ? `/images/marketplace/${getFileNameFromPath(videoFile.storagePath)}`
+                    : null,
+                audio_url: audioFile
+                    ? `/images/marketplace/${getFileNameFromPath(audioFile.storagePath)}`
+                    : null,
+                video_filename: videoFile ? videoFile.originalName : null,
+                audio_filename: audioFile ? audioFile.originalName : null,
+                files: undefined,
+            };
+        }));
+        console.log('=== FIND ALL CONTENT RESPONSE SUMMARY ===');
+        console.log('Total content items processed:', contentWithThumbnails.length);
+        console.log('Content items with thumbnails:', contentWithThumbnails.filter((c) => c.thumbnail_url !== null).length);
+        console.log('Content items without thumbnails:', contentWithThumbnails.filter((c) => c.thumbnail_url === null).length);
+        console.log('==========================================');
+        return contentWithThumbnails;
     }
     async findOne(id) {
         const content = await this.prisma.content.findUnique({
@@ -116,46 +183,121 @@ let ContentService = class ContentService {
                 contentCategory: true,
                 subjectCategory: true,
                 files: {
-                    take: 1,
                     orderBy: {
-                        uploadedAt: 'desc'
-                    }
+                        uploadedAt: 'desc',
+                    },
                 },
             },
         });
-        const contentWithThumbnails = content.map(item => {
-            let thumbnailUrl = null;
-            if (item.files.length > 0) {
-                thumbnailUrl = `/images/marketplace/${item.files[0].storagePath.split('\\').pop()}`;
-            }
-            else {
-                console.log(`No files found for content ${item.id}, checking for fallback images...`);
-            }
-            console.log('=== BACKEND THUMBNAIL DEBUG ===');
+        const contentWithThumbnails = await Promise.all(content.map(async (item) => {
+            console.log('=== PROCESSING CONTENT FOR THUMBNAIL ===');
             console.log('Content ID:', item.id);
             console.log('Content Title:', item.title);
-            console.log('Files count:', item.files.length);
-            console.log('All files:', item.files);
-            console.log('First file:', item.files[0]);
-            if (item.files[0]) {
-                console.log('First file storagePath:', item.files[0].storagePath);
-                console.log('First file originalName:', item.files[0].originalName);
-                console.log('First file fileType:', item.files[0].fileType);
-            }
-            console.log('Generated thumbnail URL:', thumbnailUrl);
-            console.log('================================');
+            console.log('Content Category:', item.contentCategoryId);
+            console.log('Total files attached:', item.files.length);
+            const thumbnailUrl = await this.getBestThumbnailUrl(item.id, item.files);
+            const videoFile = item.files.find((f) => f.fileType === 'VIDEO_FILE');
+            const audioFile = item.files.find((f) => f.fileType === 'AUDIO_FILE');
+            console.log('Selected thumbnail URL:', thumbnailUrl);
+            console.log('Video file:', videoFile
+                ? `${videoFile.originalName} (${videoFile.storagePath})`
+                : 'None');
+            console.log('Audio file:', audioFile
+                ? `${audioFile.originalName} (${audioFile.storagePath})`
+                : 'None');
+            console.log('========================================');
+            const getFileNameFromPath = (storagePath) => {
+                return (storagePath.split('\\').pop() ||
+                    storagePath.split('/').pop() ||
+                    storagePath);
+            };
             return {
                 ...item,
                 thumbnail_url: thumbnailUrl,
-                files: undefined
+                video_url: videoFile
+                    ? `/images/marketplace/${getFileNameFromPath(videoFile.storagePath)}`
+                    : null,
+                audio_url: audioFile
+                    ? `/images/marketplace/${getFileNameFromPath(audioFile.storagePath)}`
+                    : null,
+                video_filename: videoFile ? videoFile.originalName : null,
+                audio_filename: audioFile ? audioFile.originalName : null,
+                files: undefined,
             };
-        });
-        console.log('=== BACKEND RESPONSE DEBUG ===');
-        console.log('Content with thumbnails:', contentWithThumbnails);
-        console.log('First item thumbnail_url:', contentWithThumbnails[0]?.thumbnail_url);
-        console.log('First item keys:', contentWithThumbnails[0] ? Object.keys(contentWithThumbnails[0]) : 'No items');
-        console.log('================================');
+        }));
+        console.log('=== BACKEND CONTENT RESPONSE SUMMARY ===');
+        console.log('Total content items processed:', contentWithThumbnails.length);
+        console.log('Content items with thumbnails:', contentWithThumbnails.filter((c) => c.thumbnail_url !== null).length);
+        console.log('Content items without thumbnails:', contentWithThumbnails.filter((c) => c.thumbnail_url === null).length);
+        console.log('=========================================');
         return contentWithThumbnails;
+    }
+    async getBestThumbnailUrl(contentId, files) {
+        let allFiles = files;
+        if (!allFiles) {
+            const contentFiles = await this.prisma.contentFile.findMany({
+                where: { contentId },
+                orderBy: { uploadedAt: 'desc' },
+            });
+            allFiles = contentFiles;
+        }
+        console.log('--- Finding Best Thumbnail ---');
+        console.log('Content ID:', contentId);
+        console.log('Total files to check:', allFiles?.length || 0);
+        if (!allFiles || allFiles.length === 0) {
+            console.log('No files found for this content');
+            return null;
+        }
+        console.log('Available files:');
+        allFiles.forEach((file, index) => {
+            console.log(`  File ${index + 1}:`, {
+                id: file.id,
+                type: file.fileType,
+                name: file.originalName,
+                mimeType: file.mimeType,
+                uploadedAt: file.uploadedAt,
+            });
+        });
+        const thumbnailFile = allFiles.find((file) => file.fileType === 'THUMBNAIL');
+        if (thumbnailFile) {
+            console.log('✓ Found THUMBNAIL file:', thumbnailFile.originalName);
+            return this.constructFileUrl(thumbnailFile.storagePath);
+        }
+        console.log('✗ No THUMBNAIL file found');
+        const previewImageFile = allFiles.find((file) => file.fileType === 'PREVIEW_IMAGE');
+        if (previewImageFile) {
+            console.log('✓ Found PREVIEW_IMAGE file:', previewImageFile.originalName);
+            return this.constructFileUrl(previewImageFile.storagePath);
+        }
+        console.log('✗ No PREVIEW_IMAGE file found');
+        const physicalImageFile = allFiles.find((file) => file.fileType === 'PHYSICAL_IMAGE');
+        if (physicalImageFile) {
+            console.log('✓ Found PHYSICAL_IMAGE file:', physicalImageFile.originalName);
+            return this.constructFileUrl(physicalImageFile.storagePath);
+        }
+        console.log('✗ No PHYSICAL_IMAGE file found');
+        const anyImageFile = allFiles.find((file) => file.mimeType && file.mimeType.startsWith('image/'));
+        if (anyImageFile) {
+            console.log('✓ Found generic image file:', anyImageFile.originalName, '(type:', anyImageFile.fileType + ')');
+            return this.constructFileUrl(anyImageFile.storagePath);
+        }
+        console.log('✗ No image files found at all');
+        console.log('⚠ No suitable thumbnail found for content:', contentId);
+        return null;
+    }
+    constructFileUrl(storagePath) {
+        if (!storagePath) {
+            console.warn('Empty storage path provided to constructFileUrl');
+            return null;
+        }
+        const filename = storagePath.split(/[/\\]/).pop();
+        if (!filename) {
+            console.warn('Could not extract filename from storage path:', storagePath);
+            return null;
+        }
+        const fileUrl = `/images/marketplace/${filename}`;
+        console.log('Constructed file URL:', fileUrl, 'from storage path:', storagePath);
+        return fileUrl;
     }
     async update(id, updateContentDto, creatorId) {
         console.log('Update Service - Content ID:', id);
@@ -172,9 +314,9 @@ let ContentService = class ContentService {
         console.log('=== PRISMA UPDATE OPERATION DEBUG ===');
         console.log('Where clause:', { id });
         console.log('Data being updated:', updateContentDto);
-        console.log('Author field in data:', updateContentDto.author);
-        console.log('Publisher field in data:', updateContentDto.publisher);
-        console.log('Year field in data:', updateContentDto.year);
+        console.log('Textbook Author field in data:', updateContentDto.textbookAuthor);
+        console.log('Textbook Publisher field in data:', updateContentDto.textbookPublisher);
+        console.log('Textbook Year field in data:', updateContentDto.textbookYear);
         console.log('Physical delivery method in data:', updateContentDto.physicalDeliveryMethod);
         console.log('=====================================');
         const result = await this.prisma.content.update({
@@ -191,9 +333,6 @@ let ContentService = class ContentService {
             },
         });
         console.log('Update Service - Update result:', result);
-        console.log('Update Service - Result author:', result.author);
-        console.log('Update Service - Result publisher:', result.publisher);
-        console.log('Update Service - Result year:', result.year);
         return result;
     }
     async remove(id, creatorId) {

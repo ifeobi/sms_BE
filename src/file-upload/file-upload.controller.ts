@@ -37,7 +37,11 @@ export class FileUploadController {
     @Body('contentId') contentId: string,
     @Body('fileType') fileType: FileType,
   ) {
-    return this.fileUploadService.uploadMultipleFiles(files, contentId, fileType);
+    return this.fileUploadService.uploadMultipleFiles(
+      files,
+      contentId,
+      fileType,
+    );
   }
 
   @Delete('file/:fileId')
@@ -47,4 +51,3 @@ export class FileUploadController {
     return { message: 'File deleted successfully' };
   }
 }
-

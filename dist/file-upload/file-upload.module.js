@@ -25,7 +25,7 @@ exports.FileUploadModule = FileUploadModule = __decorate([
                 storage: (0, multer_1.diskStorage)({
                     destination: (0, path_1.join)(__dirname, '..', '..', 'uploads', 'marketplace'),
                     filename: (req, file, callback) => {
-                        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+                        const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1e9);
                         const ext = (0, path_1.extname)(file.originalname);
                         const filename = `${file.fieldname}-${uniqueSuffix}${ext}`;
                         callback(null, filename);

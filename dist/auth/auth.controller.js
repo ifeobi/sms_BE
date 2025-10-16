@@ -200,7 +200,10 @@ __decorate([
     (0, common_1.Post)('verify-creator-email'),
     (0, swagger_1.ApiOperation)({ summary: 'Verify creator email with code' }),
     (0, swagger_1.ApiResponse)({ status: 200, description: 'Email verified successfully' }),
-    (0, swagger_1.ApiResponse)({ status: 401, description: 'Invalid or expired verification code' }),
+    (0, swagger_1.ApiResponse)({
+        status: 401,
+        description: 'Invalid or expired verification code',
+    }),
     __param(0, (0, common_1.Body)()),
     __metadata("design:type", Function),
     __metadata("design:paramtypes", [Object]),
