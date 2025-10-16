@@ -5,6 +5,7 @@ import {
   UseGuards,
   Get,
   Request,
+  Logger,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
@@ -25,6 +26,7 @@ import { plainToClass } from 'class-transformer';
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+  private readonly logger = new Logger(AuthController.name);
 
   @Post('login')
   @ApiOperation({ summary: 'User login' })
@@ -46,8 +48,24 @@ export class AuthController {
     console.log('Request body keys:', Object.keys(registerDto));
     console.log('================================');
 
+    // Pre-sanitize payload: normalize casing, drop school-only fields for non-school admins, coerce empty strings
+    const payload: any = { ...registerDto } as any;
+    if (typeof payload.userType === 'string') {
+      payload.userType = payload.userType.toUpperCase();
+    }
+    if (payload.gender === '') {
+      payload.gender = undefined;
+    }
+    if (payload.userType !== 'SCHOOL_ADMIN') {
+      delete payload.role;
+      delete payload.schoolName;
+      delete payload.country;
+      delete payload.schoolTypes;
+      delete payload.addresses;
+    }
+
     // Transform and exclude unwanted fields
-    const cleanRegisterDto = plainToClass(RegisterDto, registerDto, {
+    const cleanRegisterDto = plainToClass(RegisterDto, payload, {
       excludeExtraneousValues: true,
     });
 
@@ -108,6 +126,9 @@ export class AuthController {
   async resendVerificationEmail(
     @Body() data: { email: string; userType: string; userName?: string },
   ) {
+    this.logger.log(
+      `Resend verification requested | email=${data.email} userType=${data.userType}`,
+    );
     return this.authService.sendVerificationEmail(
       data.email,
       data.userType,

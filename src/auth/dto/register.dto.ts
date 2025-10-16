@@ -9,7 +9,8 @@ import {
   IsObject,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { Type, Exclude, Expose } from 'class-transformer';
+import { Type, Exclude, Expose, Transform } from 'class-transformer';
+import { ValidateIf } from 'class-validator';
 
 export enum UserType {
   PARENT = 'PARENT',
@@ -92,28 +93,35 @@ export class RegisterDto {
   lastName: string;
 
   @Expose()
-  @ApiProperty({ enum: Gender, example: Gender.MALE })
+  @ApiProperty({ enum: Gender, example: Gender.MALE, required: false })
+  @ValidateIf((o) => o.gender !== undefined && o.gender !== null)
   @IsEnum(Gender)
-  gender: Gender;
+  gender?: Gender;
 
   @Expose()
   @ApiProperty({
     example: 'principal',
     description: 'Role in school: principal, vice_principal, admin, etc.',
+    required: false,
   })
+  @ValidateIf((o) => o.userType === UserType.SCHOOL_ADMIN)
   @IsString()
-  role: string;
+  role?: string;
 
   @Expose()
   @ApiProperty({ enum: UserType, example: UserType.SCHOOL_ADMIN })
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.toUpperCase() : value,
+  )
   @IsEnum(UserType)
   userType: UserType;
 
   // School Information
   @Expose()
-  @ApiProperty({ example: 'Academeka International School' })
+  @ApiProperty({ example: 'Academeka International School', required: false })
+  @ValidateIf((o) => o.userType === UserType.SCHOOL_ADMIN)
   @IsString()
-  schoolName: string;
+  schoolName?: string;
 
   @Expose()
   @ApiProperty({ example: '+2348012345678' })
@@ -127,29 +135,34 @@ export class RegisterDto {
   website?: string;
 
   @Expose()
-  @ApiProperty({ example: 'NG', description: 'Country code' })
+  @ApiProperty({ example: 'NG', description: 'Country code', required: false })
+  @ValidateIf((o) => o.userType === UserType.SCHOOL_ADMIN)
   @IsString()
-  country: string;
+  country?: string;
 
   @Expose()
   @ApiProperty({
     type: [String],
     example: ['ELEMENTARY', 'SECONDARY'],
     description: 'Array of school types',
+    required: false,
   })
+  @ValidateIf((o) => o.userType === UserType.SCHOOL_ADMIN)
   @IsArray()
   @IsString({ each: true })
-  schoolTypes: string[];
+  schoolTypes?: string[];
 
   @Expose()
   @ApiProperty({
     type: [AddressDto],
     description: 'Array of school addresses',
+    required: false,
   })
+  @ValidateIf((o) => o.userType === UserType.SCHOOL_ADMIN)
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AddressDto)
-  addresses: AddressDto[];
+  addresses?: AddressDto[];
 
   @Expose()
   @ApiProperty({ required: false })
