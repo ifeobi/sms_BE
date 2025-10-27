@@ -1,10 +1,12 @@
 import { DigitalPurchasesService } from './digital-purchases.service';
+import { StreamingService } from './streaming.service';
 import { CreateDigitalPurchaseDto } from './dto/create-purchase.dto';
 import { PrismaService } from '../prisma/prisma.service';
 export declare class DigitalPurchasesController {
     private readonly digitalPurchasesService;
+    private readonly streamingService;
     private readonly prisma;
-    constructor(digitalPurchasesService: DigitalPurchasesService, prisma: PrismaService);
+    constructor(digitalPurchasesService: DigitalPurchasesService, streamingService: StreamingService, prisma: PrismaService);
     private getStudentId;
     createPurchase(req: any, createPurchaseDto: CreateDigitalPurchaseDto): Promise<{
         marketplaceItem: {
@@ -19,10 +21,10 @@ export declare class DigitalPurchasesController {
             currency: string;
             contentId: string | null;
             creatorId: string;
+            thumbnailUrl: string | null;
             price: number;
             category: import(".prisma/client").$Enums.MarketplaceCategory;
             totalRatings: number;
-            thumbnailUrl: string | null;
             previewUrl: string | null;
             dateCreated: Date;
             lastUpdated: Date;
@@ -33,6 +35,7 @@ export declare class DigitalPurchasesController {
         content: {
             files: {
                 id: string;
+                videoDuration: number | null;
                 contentId: string;
                 fileType: import(".prisma/client").$Enums.FileType;
                 originalName: string;
@@ -40,6 +43,10 @@ export declare class DigitalPurchasesController {
                 mimeType: string | null;
                 sizeBytes: bigint | null;
                 uploadedAt: Date;
+                imageKitFileId: string | null;
+                imageKitUrl: string | null;
+                isProcessed: boolean;
+                thumbnailUrl: string | null;
             }[];
         } & {
             description: string;
@@ -108,9 +115,12 @@ export declare class DigitalPurchasesController {
             creatorId: string;
             viewCount: number;
             downloadCount: number;
+            streamCount: number;
             salesCount: number;
             ratingAverage: number;
             reviewCount: number;
+            marketplacePublishedAt: Date | null;
+            marketplaceUnpublishedAt: Date | null;
         };
     } & {
         id: string;
@@ -121,11 +131,13 @@ export declare class DigitalPurchasesController {
         contentId: string;
         creatorId: string;
         downloadCount: number;
+        streamCount: number;
         marketplaceItemId: string;
         paymentReference: string | null;
         paymentMethod: string | null;
         amount: number;
         lastDownloadedAt: Date | null;
+        lastStreamedAt: Date | null;
         purchasedAt: Date;
     }>;
     getMyLibrary(req: any): Promise<({
@@ -176,10 +188,10 @@ export declare class DigitalPurchasesController {
             currency: string;
             contentId: string | null;
             creatorId: string;
+            thumbnailUrl: string | null;
             price: number;
             category: import(".prisma/client").$Enums.MarketplaceCategory;
             totalRatings: number;
-            thumbnailUrl: string | null;
             previewUrl: string | null;
             dateCreated: Date;
             lastUpdated: Date;
@@ -197,6 +209,7 @@ export declare class DigitalPurchasesController {
             } | null;
             files: {
                 id: string;
+                videoDuration: number | null;
                 contentId: string;
                 fileType: import(".prisma/client").$Enums.FileType;
                 originalName: string;
@@ -204,6 +217,10 @@ export declare class DigitalPurchasesController {
                 mimeType: string | null;
                 sizeBytes: bigint | null;
                 uploadedAt: Date;
+                imageKitFileId: string | null;
+                imageKitUrl: string | null;
+                isProcessed: boolean;
+                thumbnailUrl: string | null;
             }[];
         } & {
             description: string;
@@ -272,9 +289,12 @@ export declare class DigitalPurchasesController {
             creatorId: string;
             viewCount: number;
             downloadCount: number;
+            streamCount: number;
             salesCount: number;
             ratingAverage: number;
             reviewCount: number;
+            marketplacePublishedAt: Date | null;
+            marketplaceUnpublishedAt: Date | null;
         };
     } & {
         id: string;
@@ -285,17 +305,20 @@ export declare class DigitalPurchasesController {
         contentId: string;
         creatorId: string;
         downloadCount: number;
+        streamCount: number;
         marketplaceItemId: string;
         paymentReference: string | null;
         paymentMethod: string | null;
         amount: number;
         lastDownloadedAt: Date | null;
+        lastStreamedAt: Date | null;
         purchasedAt: Date;
     })[]>;
     getDownloadLink(req: any, purchaseId: string): Promise<{
         content: {
             files: {
                 id: string;
+                videoDuration: number | null;
                 contentId: string;
                 fileType: import(".prisma/client").$Enums.FileType;
                 originalName: string;
@@ -303,6 +326,10 @@ export declare class DigitalPurchasesController {
                 mimeType: string | null;
                 sizeBytes: bigint | null;
                 uploadedAt: Date;
+                imageKitFileId: string | null;
+                imageKitUrl: string | null;
+                isProcessed: boolean;
+                thumbnailUrl: string | null;
             }[];
         } & {
             description: string;
@@ -371,9 +398,12 @@ export declare class DigitalPurchasesController {
             creatorId: string;
             viewCount: number;
             downloadCount: number;
+            streamCount: number;
             salesCount: number;
             ratingAverage: number;
             reviewCount: number;
+            marketplacePublishedAt: Date | null;
+            marketplaceUnpublishedAt: Date | null;
         };
     } & {
         id: string;
@@ -384,12 +414,39 @@ export declare class DigitalPurchasesController {
         contentId: string;
         creatorId: string;
         downloadCount: number;
+        streamCount: number;
         marketplaceItemId: string;
         paymentReference: string | null;
         paymentMethod: string | null;
         amount: number;
         lastDownloadedAt: Date | null;
+        lastStreamedAt: Date | null;
         purchasedAt: Date;
+    }>;
+    getStreamLink(req: any, purchaseId: string, quality?: 'low' | 'medium' | 'high'): Promise<{
+        url: string;
+        fileType: string | null;
+        originalName: string;
+        size: number;
+        quality: "low" | "medium" | "high";
+        streamCount: number;
+    }>;
+    getStreamingAnalytics(contentId: string): Promise<{
+        contentId: string;
+        title: string;
+        totalStreams: number;
+        uniqueStreamers: number;
+        contentStreamCount: number;
+        recentStreams: {
+            student: {
+                user: {
+                    firstName: string;
+                    lastName: string;
+                };
+            };
+            streamCount: number;
+            lastStreamedAt: Date | null;
+        }[];
     }>;
     hasAccess(req: any, contentId: string): Promise<{
         hasAccess: boolean;

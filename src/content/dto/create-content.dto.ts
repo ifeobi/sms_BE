@@ -51,39 +51,6 @@ export class CreateContentDto {
   @IsString()
   textbookIsbn?: string;
 
-  // Textbook Physical Delivery fields
-  @IsOptional()
-  @IsString()
-  physicalDeliveryMethod?: string;
-
-  @IsOptional()
-  @IsString()
-  pickupLocation?: string;
-
-  @IsOptional()
-  @IsString()
-  deliveryAvailability?: string;
-
-  @IsOptional()
-  @IsNumber()
-  deliveryFee?: number;
-
-  @IsOptional()
-  @IsString()
-  contactInfo?: string;
-
-  @IsOptional()
-  @IsString()
-  deliveryNotes?: string;
-
-  @IsOptional()
-  @IsString()
-  physicalCondition?: string; // new, like_new, good, fair
-
-  @IsOptional()
-  @IsArray()
-  deliveryMethods?: string[]; // Array of delivery method strings
-
   // Textbook Digital Delivery fields
   @IsOptional()
   @IsString()

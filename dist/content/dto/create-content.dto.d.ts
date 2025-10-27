@@ -10,14 +10,6 @@ export declare class CreateContentDto {
     textbookEdition?: string;
     textbookYear?: number;
     textbookIsbn?: string;
-    physicalDeliveryMethod?: string;
-    pickupLocation?: string;
-    deliveryAvailability?: string;
-    deliveryFee?: number;
-    contactInfo?: string;
-    deliveryNotes?: string;
-    physicalCondition?: string;
-    deliveryMethods?: string[];
     digitalDeliveryMethod?: string;
     accessInstructions?: string;
     fileSizeFormat?: string;

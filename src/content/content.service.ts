@@ -176,25 +176,12 @@ export class ContentService {
         );
         console.log('===================================================');
 
-        // Extract just the filename from storagePath (remove the full directory path)
-        const getFileNameFromPath = (storagePath: string) => {
-          return (
-            storagePath.split('\\').pop() ||
-            storagePath.split('/').pop() ||
-            storagePath
-          );
-        };
-
         // Return content with media URLs and without files (to avoid BigInt serialization)
         return {
           ...item,
           thumbnail_url: thumbnailUrl,
-          video_url: videoFile
-            ? `/images/marketplace/${getFileNameFromPath(videoFile.storagePath)}`
-            : null,
-          audio_url: audioFile
-            ? `/images/marketplace/${getFileNameFromPath(audioFile.storagePath)}`
-            : null,
+          video_url: videoFile ? this.getImageKitUrlOrFallback(videoFile) : null,
+          audio_url: audioFile ? this.getImageKitUrlOrFallback(audioFile) : null,
           video_filename: videoFile ? videoFile.originalName : null,
           audio_filename: audioFile ? audioFile.originalName : null,
           // Remove files from response to avoid BigInt serialization issues
@@ -312,25 +299,12 @@ export class ContentService {
         );
         console.log('========================================');
 
-        // Extract just the filename from storagePath (remove the full directory path)
-        const getFileNameFromPath = (storagePath: string) => {
-          return (
-            storagePath.split('\\').pop() ||
-            storagePath.split('/').pop() ||
-            storagePath
-          );
-        };
-
         // Return content with media URLs and without files (to avoid BigInt serialization)
         return {
           ...item,
           thumbnail_url: thumbnailUrl,
-          video_url: videoFile
-            ? `/images/marketplace/${getFileNameFromPath(videoFile.storagePath)}`
-            : null,
-          audio_url: audioFile
-            ? `/images/marketplace/${getFileNameFromPath(audioFile.storagePath)}`
-            : null,
+          video_url: videoFile ? this.getImageKitUrlOrFallback(videoFile) : null,
+          audio_url: audioFile ? this.getImageKitUrlOrFallback(audioFile) : null,
           video_filename: videoFile ? videoFile.originalName : null,
           audio_filename: audioFile ? audioFile.originalName : null,
           // Remove files from response to avoid BigInt serialization issues
@@ -404,7 +378,7 @@ export class ContentService {
     );
     if (thumbnailFile) {
       console.log('✓ Found THUMBNAIL file:', thumbnailFile.originalName);
-      return this.constructFileUrl(thumbnailFile.storagePath);
+      return this.getImageKitUrlOrFallback(thumbnailFile);
     }
     console.log('✗ No THUMBNAIL file found');
 
@@ -414,7 +388,7 @@ export class ContentService {
     );
     if (previewImageFile) {
       console.log('✓ Found PREVIEW_IMAGE file:', previewImageFile.originalName);
-      return this.constructFileUrl(previewImageFile.storagePath);
+      return this.getImageKitUrlOrFallback(previewImageFile);
     }
     console.log('✗ No PREVIEW_IMAGE file found');
 
@@ -427,7 +401,7 @@ export class ContentService {
         '✓ Found PHYSICAL_IMAGE file:',
         physicalImageFile.originalName,
       );
-      return this.constructFileUrl(physicalImageFile.storagePath);
+      return this.getImageKitUrlOrFallback(physicalImageFile);
     }
     console.log('✗ No PHYSICAL_IMAGE file found');
 
@@ -442,12 +416,35 @@ export class ContentService {
         '(type:',
         anyImageFile.fileType + ')',
       );
-      return this.constructFileUrl(anyImageFile.storagePath);
+      return this.getImageKitUrlOrFallback(anyImageFile);
     }
     console.log('✗ No image files found at all');
 
     // No suitable thumbnail found
     console.log('⚠ No suitable thumbnail found for content:', contentId);
+    return null;
+  }
+
+  /**
+   * Get ImageKit URL if available, otherwise fallback to local file URL
+   * 
+   * @param file - The file object containing imageKitUrl and storagePath
+   * @returns The ImageKit URL or constructed local URL, or null if neither available
+   */
+  private getImageKitUrlOrFallback(file: any): string | null {
+    // Priority 1: Use ImageKit URL if available
+    if (file.imageKitUrl) {
+      console.log('Using ImageKit URL:', file.imageKitUrl);
+      return file.imageKitUrl;
+    }
+
+    // Priority 2: Fallback to constructing local URL from storagePath
+    if (file.storagePath) {
+      console.log('ImageKit URL not available, using local storage path:', file.storagePath);
+      return this.constructFileUrl(file.storagePath);
+    }
+
+    console.warn('No ImageKit URL or storage path available for file:', file.id);
     return null;
   }
 
@@ -527,10 +524,6 @@ export class ContentService {
       updateContentDto.textbookPublisher,
     );
     console.log('Textbook Year field in data:', updateContentDto.textbookYear);
-    console.log(
-      'Physical delivery method in data:',
-      updateContentDto.physicalDeliveryMethod,
-    );
     console.log('=====================================');
 
     const result = await this.prisma.content.update({

@@ -127,6 +127,14 @@ export class MarketplaceService {
       data: marketplaceItemData,
     });
 
+    // Update content to track marketplace publication
+    await this.prisma.content.update({
+      where: { id: contentId },
+      data: {
+        marketplacePublishedAt: new Date(),
+      },
+    });
+
     console.log('Marketplace item created successfully:', marketplaceItem.id);
     return marketplaceItem;
   }
@@ -160,6 +168,14 @@ export class MarketplaceService {
       await this.prisma.marketplaceItem.delete({
         where: {
           id: marketplaceItem.id,
+        },
+      });
+
+      // Update content to track marketplace unpublishing
+      await this.prisma.content.update({
+        where: { id: contentId },
+        data: {
+          marketplaceUnpublishedAt: new Date(),
         },
       });
     }
@@ -203,10 +219,21 @@ export class MarketplaceService {
 
     // Get all image URLs from content files
     const images = this.getAllImageUrls(item.content?.files || []);
+    
+    // Get video URL from content files
+    const videoUrl = this.getVideoUrl(item.content?.files || []);
+    
+    console.log('=== MARKETPLACE ITEM BY ID DEBUG ===');
+    console.log('Item ID:', item.id);
+    console.log('Item category:', item.category);
+    console.log('Content files count:', item.content?.files?.length || 0);
+    console.log('Video URL extracted:', videoUrl);
+    console.log('=====================================');
 
     return {
       ...item,
       images, // Add array of all image URLs
+      videoUrl, // Add video URL
     };
   }
 
@@ -237,6 +264,8 @@ export class MarketplaceService {
       ];
     }
 
+    console.log('Fetching marketplace items with params:', { skip, take, category, search });
+    
     const [items, total] = await Promise.all([
       this.prisma.marketplaceItem.findMany({
         where,
@@ -267,8 +296,18 @@ export class MarketplaceService {
       this.prisma.marketplaceItem.count({ where }),
     ]);
 
+    console.log('Found marketplace items:', items.length, 'Total:', total);
+
+    // Process items to include video URLs (for now, set to null since we're not including files in the list query)
+    const processedItems = items.map(item => {
+      return {
+        ...item,
+        videoUrl: null, // Will be fetched separately for individual items
+      };
+    });
+
     return {
-      items,
+      items: processedItems,
       total,
       page: Math.floor(skip / take) + 1,
       totalPages: Math.ceil(total / take),
@@ -439,13 +478,13 @@ export class MarketplaceService {
     // Look for thumbnail files first
     const thumbnailFile = files.find((f) => f.fileType === 'THUMBNAIL');
     if (thumbnailFile) {
-      return `/images/marketplace/${this.getFileNameFromPath(thumbnailFile.storagePath)}`;
+      return thumbnailFile.imageKitUrl || (thumbnailFile.storagePath ? `/images/marketplace/${this.getFileNameFromPath(thumbnailFile.storagePath)}` : null);
     }
 
     // Look for preview images
     const previewFile = files.find((f) => f.fileType === 'PREVIEW_IMAGE');
     if (previewFile) {
-      return `/images/marketplace/${this.getFileNameFromPath(previewFile.storagePath)}`;
+      return previewFile.imageKitUrl || (previewFile.storagePath ? `/images/marketplace/${this.getFileNameFromPath(previewFile.storagePath)}` : null);
     }
 
     // Look for physical images
@@ -453,7 +492,7 @@ export class MarketplaceService {
       (f) => f.fileType === 'PHYSICAL_IMAGE',
     );
     if (physicalImageFile) {
-      return `/images/marketplace/${this.getFileNameFromPath(physicalImageFile.storagePath)}`;
+      return physicalImageFile.imageKitUrl || (physicalImageFile.storagePath ? `/images/marketplace/${this.getFileNameFromPath(physicalImageFile.storagePath)}` : null);
     }
 
     return null;
@@ -476,8 +515,54 @@ export class MarketplaceService {
 
     return imageFiles.map(
       (file) =>
-        `/images/marketplace/${this.getFileNameFromPath(file.storagePath)}`,
-    );
+        file.imageKitUrl || (file.storagePath ? `/images/marketplace/${this.getFileNameFromPath(file.storagePath)}` : null),
+    ).filter(url => url !== null);
+  }
+
+  /**
+   * Get video URL from content files
+   */
+  private getVideoUrl(files: any[]): string | null {
+    try {
+      console.log('getVideoUrl called with files:', files?.length || 0);
+      
+      if (!files || files.length === 0) {
+        console.log('No files provided to getVideoUrl');
+        return null;
+      }
+
+      // Log all file types
+      files.forEach((file, index) => {
+        console.log(`File ${index}:`, { fileType: file.fileType, storagePath: file.storagePath });
+      });
+
+      const videoFile = files.find((f) => f.fileType === 'VIDEO_FILE');
+      
+      if (!videoFile) {
+        console.log('No VIDEO_FILE found in files');
+        return null;
+      }
+      
+      // Use ImageKit URL if available, otherwise construct URL from storagePath
+      let videoUrl = videoFile.imageKitUrl;
+      
+      if (!videoUrl && videoFile.storagePath) {
+        // Extract filename from storage path and construct URL
+        const filename = this.getFileNameFromPath(videoFile.storagePath);
+        videoUrl = `/images/marketplace/${filename}`;
+      }
+      
+      if (!videoUrl) {
+        console.log('Video file found but no URL available');
+        return null;
+      }
+
+      console.log('Generated video URL:', videoUrl);
+      return videoUrl;
+    } catch (error) {
+      console.error('Error getting video URL:', error);
+      return null;
+    }
   }
 
   /**

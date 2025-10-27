@@ -22,6 +22,8 @@ const file_upload_module_1 = require("./file-upload/file-upload.module");
 const marketplace_module_1 = require("./marketplace/marketplace.module");
 const digital_purchases_module_1 = require("./digital-purchases/digital-purchases.module");
 const ratings_module_1 = require("./ratings/ratings.module");
+const escrow_module_1 = require("./escrow/escrow.module");
+const creator_history_module_1 = require("./creator/creator-history.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -30,6 +32,8 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
+                envFilePath: '.env',
+                expandVariables: true,
             }),
             prisma_module_1.PrismaModule,
             auth_module_1.AuthModule,
@@ -42,6 +46,8 @@ exports.AppModule = AppModule = __decorate([
             marketplace_module_1.MarketplaceModule,
             digital_purchases_module_1.DigitalPurchasesModule,
             ratings_module_1.RatingsModule,
+            escrow_module_1.EscrowModule,
+            creator_history_module_1.CreatorHistoryModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

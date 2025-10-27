@@ -15,14 +15,17 @@ Object.defineProperty(exports, "__esModule", { value: true });
 exports.DigitalPurchasesController = void 0;
 const common_1 = require("@nestjs/common");
 const digital_purchases_service_1 = require("./digital-purchases.service");
+const streaming_service_1 = require("./streaming.service");
 const create_purchase_dto_1 = require("./dto/create-purchase.dto");
 const jwt_auth_guard_1 = require("../auth/guards/jwt-auth.guard");
 const prisma_service_1 = require("../prisma/prisma.service");
 let DigitalPurchasesController = class DigitalPurchasesController {
     digitalPurchasesService;
+    streamingService;
     prisma;
-    constructor(digitalPurchasesService, prisma) {
+    constructor(digitalPurchasesService, streamingService, prisma) {
         this.digitalPurchasesService = digitalPurchasesService;
+        this.streamingService = streamingService;
         this.prisma = prisma;
     }
     async getStudentId(userId) {
@@ -45,6 +48,13 @@ let DigitalPurchasesController = class DigitalPurchasesController {
     async getDownloadLink(req, purchaseId) {
         const studentId = await this.getStudentId(req.user.id);
         return this.digitalPurchasesService.getDownloadLink(purchaseId, studentId);
+    }
+    async getStreamLink(req, purchaseId, quality = 'medium') {
+        const studentId = await this.getStudentId(req.user.id);
+        return this.streamingService.getStreamingUrl(purchaseId, studentId, quality);
+    }
+    async getStreamingAnalytics(contentId) {
+        return this.streamingService.getStreamingAnalytics(contentId);
     }
     async hasAccess(req, contentId) {
         try {
@@ -82,6 +92,22 @@ __decorate([
     __metadata("design:returntype", Promise)
 ], DigitalPurchasesController.prototype, "getDownloadLink", null);
 __decorate([
+    (0, common_1.Get)(':id/stream'),
+    __param(0, (0, common_1.Request)()),
+    __param(1, (0, common_1.Param)('id')),
+    __param(2, (0, common_1.Query)('quality')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [Object, String, String]),
+    __metadata("design:returntype", Promise)
+], DigitalPurchasesController.prototype, "getStreamLink", null);
+__decorate([
+    (0, common_1.Get)('analytics/:contentId'),
+    __param(0, (0, common_1.Param)('contentId')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String]),
+    __metadata("design:returntype", Promise)
+], DigitalPurchasesController.prototype, "getStreamingAnalytics", null);
+__decorate([
     (0, common_1.Get)('has-access/:contentId'),
     __param(0, (0, common_1.Request)()),
     __param(1, (0, common_1.Param)('contentId')),
@@ -93,6 +119,7 @@ exports.DigitalPurchasesController = DigitalPurchasesController = __decorate([
     (0, common_1.Controller)('digital-purchases'),
     (0, common_1.UseGuards)(jwt_auth_guard_1.JwtAuthGuard),
     __metadata("design:paramtypes", [digital_purchases_service_1.DigitalPurchasesService,
+        streaming_service_1.StreamingService,
         prisma_service_1.PrismaService])
 ], DigitalPurchasesController);
 //# sourceMappingURL=digital-purchases.controller.js.map

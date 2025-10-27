@@ -7,8 +7,10 @@ import {
   UseGuards,
   Request,
   ForbiddenException,
+  Query,
 } from '@nestjs/common';
 import { DigitalPurchasesService } from './digital-purchases.service';
+import { StreamingService } from './streaming.service';
 import { CreateDigitalPurchaseDto } from './dto/create-purchase.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { PrismaService } from '../prisma/prisma.service';
@@ -18,6 +20,7 @@ import { PrismaService } from '../prisma/prisma.service';
 export class DigitalPurchasesController {
   constructor(
     private readonly digitalPurchasesService: DigitalPurchasesService,
+    private readonly streamingService: StreamingService,
     private readonly prisma: PrismaService,
   ) {}
 
@@ -57,6 +60,21 @@ export class DigitalPurchasesController {
   async getDownloadLink(@Request() req, @Param('id') purchaseId: string) {
     const studentId = await this.getStudentId(req.user.id);
     return this.digitalPurchasesService.getDownloadLink(purchaseId, studentId);
+  }
+
+  @Get(':id/stream')
+  async getStreamLink(
+    @Request() req, 
+    @Param('id') purchaseId: string,
+    @Query('quality') quality: 'low' | 'medium' | 'high' = 'medium'
+  ) {
+    const studentId = await this.getStudentId(req.user.id);
+    return this.streamingService.getStreamingUrl(purchaseId, studentId, quality);
+  }
+
+  @Get('analytics/:contentId')
+  async getStreamingAnalytics(@Param('contentId') contentId: string) {
+    return this.streamingService.getStreamingAnalytics(contentId);
   }
 
   @Get('has-access/:contentId')

@@ -14,10 +14,10 @@ export declare class MarketplaceService {
         currency: string;
         contentId: string | null;
         creatorId: string;
+        thumbnailUrl: string | null;
         price: number;
         category: import(".prisma/client").$Enums.MarketplaceCategory;
         totalRatings: number;
-        thumbnailUrl: string | null;
         previewUrl: string | null;
         dateCreated: Date;
         lastUpdated: Date;
@@ -30,6 +30,7 @@ export declare class MarketplaceService {
     }>;
     getMarketplaceItemById(id: string): Promise<{
         images: string[];
+        videoUrl: string | null;
         creator: {
             user: {
                 email: string;
@@ -57,6 +58,7 @@ export declare class MarketplaceService {
         content: ({
             files: {
                 id: string;
+                videoDuration: number | null;
                 contentId: string;
                 fileType: import(".prisma/client").$Enums.FileType;
                 originalName: string;
@@ -64,6 +66,10 @@ export declare class MarketplaceService {
                 mimeType: string | null;
                 sizeBytes: bigint | null;
                 uploadedAt: Date;
+                imageKitFileId: string | null;
+                imageKitUrl: string | null;
+                isProcessed: boolean;
+                thumbnailUrl: string | null;
             }[];
         } & {
             description: string;
@@ -132,9 +138,12 @@ export declare class MarketplaceService {
             creatorId: string;
             viewCount: number;
             downloadCount: number;
+            streamCount: number;
             salesCount: number;
             ratingAverage: number;
             reviewCount: number;
+            marketplacePublishedAt: Date | null;
+            marketplaceUnpublishedAt: Date | null;
         }) | null;
         description: string;
         title: string;
@@ -147,10 +156,10 @@ export declare class MarketplaceService {
         currency: string;
         contentId: string | null;
         creatorId: string;
+        thumbnailUrl: string | null;
         price: number;
         category: import(".prisma/client").$Enums.MarketplaceCategory;
         totalRatings: number;
-        thumbnailUrl: string | null;
         previewUrl: string | null;
         dateCreated: Date;
         lastUpdated: Date;
@@ -164,7 +173,8 @@ export declare class MarketplaceService {
         category?: string;
         search?: string;
     }): Promise<{
-        items: ({
+        items: {
+            videoUrl: null;
             creator: {
                 user: {
                     email: string;
@@ -256,11 +266,13 @@ export declare class MarketplaceService {
                 creatorId: string;
                 viewCount: number;
                 downloadCount: number;
+                streamCount: number;
                 salesCount: number;
                 ratingAverage: number;
                 reviewCount: number;
+                marketplacePublishedAt: Date | null;
+                marketplaceUnpublishedAt: Date | null;
             } | null;
-        } & {
             description: string;
             title: string;
             isActive: boolean;
@@ -272,17 +284,17 @@ export declare class MarketplaceService {
             currency: string;
             contentId: string | null;
             creatorId: string;
+            thumbnailUrl: string | null;
             price: number;
             category: import(".prisma/client").$Enums.MarketplaceCategory;
             totalRatings: number;
-            thumbnailUrl: string | null;
             previewUrl: string | null;
             dateCreated: Date;
             lastUpdated: Date;
             isFeatured: boolean;
             isRecommended: boolean;
             commissionRate: number;
-        })[];
+        }[];
         total: number;
         page: number;
         totalPages: number;
@@ -292,5 +304,6 @@ export declare class MarketplaceService {
     private extractTags;
     private getBestThumbnailUrl;
     private getAllImageUrls;
+    private getVideoUrl;
     private getFileNameFromPath;
 }

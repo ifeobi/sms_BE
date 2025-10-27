@@ -1,25 +1,18 @@
-import { Module } from '@nestjs/common';
+import { Module, forwardRef } from '@nestjs/common';
 import { MulterModule } from '@nestjs/platform-express';
 import { FileUploadController } from './file-upload.controller';
 import { FileUploadService } from './file-upload.service';
 import { PrismaModule } from '../prisma/prisma.module';
-import { diskStorage } from 'multer';
-import { extname, join } from 'path';
+import { ImageKitModule } from '../imagekit/imagekit.module';
 
 @Module({
   imports: [
     PrismaModule,
+    forwardRef(() => ImageKitModule),
+    // Remove local storage configuration - files will be uploaded directly to ImageKit
     MulterModule.register({
-      storage: diskStorage({
-        destination: join(__dirname, '..', '..', 'uploads', 'marketplace'),
-        filename: (req, file, callback) => {
-          const uniqueSuffix =
-            Date.now() + '-' + Math.round(Math.random() * 1e9);
-          const ext = extname(file.originalname);
-          const filename = `${file.fieldname}-${uniqueSuffix}${ext}`;
-          callback(null, filename);
-        },
-      }),
+      // Use memory storage for temporary file handling before ImageKit upload
+      storage: require('multer').memoryStorage(),
     }),
   ],
   controllers: [FileUploadController],

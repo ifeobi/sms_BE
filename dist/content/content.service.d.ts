@@ -9,17 +9,17 @@ export declare class ContentService {
     private determineContentType;
     findCreatorByUserId(userId: string): Promise<({
         user: {
-            type: import(".prisma/client").$Enums.UserType;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            isActive: boolean;
             email: string;
             password: string;
+            type: import(".prisma/client").$Enums.UserType;
             firstName: string;
             lastName: string;
             profilePicture: string | null;
             phone: string | null;
-            isActive: boolean;
-            id: string;
-            createdAt: Date;
-            updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
             fullName: string | null;
@@ -29,10 +29,7 @@ export declare class ContentService {
             isEmailVerified: boolean;
         };
     } & {
-        isActive: boolean;
         id: string;
-        categories: string[];
-        plan: string;
         userId: string;
         verified: boolean;
         rating: number;
@@ -41,6 +38,9 @@ export declare class ContentService {
         totalRevenue: number;
         joinDate: Date;
         specialties: string[];
+        isActive: boolean;
+        categories: string[];
+        plan: string;
     }) | null>;
     create(createContentDto: CreateContentDto, creatorId: string): Promise<Content>;
     findAll(params: {
@@ -64,32 +64,32 @@ export declare class ContentService {
     getContentFiles(contentId: string): Promise<any[]>;
     deleteFile(fileId: string, creatorId: string): Promise<any>;
     getContentCategories(): Promise<{
-        description: string | null;
+        name: string;
         id: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
     }[]>;
     getSubjectCategories(): Promise<{
-        description: string | null;
+        name: string;
         id: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
     }[]>;
     createContentCategory(name: string, description?: string): Promise<{
-        description: string | null;
+        name: string;
         id: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
     }>;
     createSubjectCategory(name: string, description?: string): Promise<{
-        description: string | null;
+        name: string;
         id: string;
+        description: string | null;
         createdAt: Date;
         updatedAt: Date;
-        name: string;
     }>;
     incrementViewCount(contentId: string): Promise<void>;
     incrementDownloadCount(contentId: string): Promise<void>;

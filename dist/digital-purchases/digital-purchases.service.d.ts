@@ -16,10 +16,10 @@ export declare class DigitalPurchasesService {
             currency: string;
             contentId: string | null;
             creatorId: string;
+            thumbnailUrl: string | null;
             price: number;
             category: import(".prisma/client").$Enums.MarketplaceCategory;
             totalRatings: number;
-            thumbnailUrl: string | null;
             previewUrl: string | null;
             dateCreated: Date;
             lastUpdated: Date;
@@ -30,6 +30,7 @@ export declare class DigitalPurchasesService {
         content: {
             files: {
                 id: string;
+                videoDuration: number | null;
                 contentId: string;
                 fileType: import(".prisma/client").$Enums.FileType;
                 originalName: string;
@@ -37,6 +38,10 @@ export declare class DigitalPurchasesService {
                 mimeType: string | null;
                 sizeBytes: bigint | null;
                 uploadedAt: Date;
+                imageKitFileId: string | null;
+                imageKitUrl: string | null;
+                isProcessed: boolean;
+                thumbnailUrl: string | null;
             }[];
         } & {
             description: string;
@@ -105,9 +110,12 @@ export declare class DigitalPurchasesService {
             creatorId: string;
             viewCount: number;
             downloadCount: number;
+            streamCount: number;
             salesCount: number;
             ratingAverage: number;
             reviewCount: number;
+            marketplacePublishedAt: Date | null;
+            marketplaceUnpublishedAt: Date | null;
         };
     } & {
         id: string;
@@ -118,11 +126,13 @@ export declare class DigitalPurchasesService {
         contentId: string;
         creatorId: string;
         downloadCount: number;
+        streamCount: number;
         marketplaceItemId: string;
         paymentReference: string | null;
         paymentMethod: string | null;
         amount: number;
         lastDownloadedAt: Date | null;
+        lastStreamedAt: Date | null;
         purchasedAt: Date;
     }>;
     getStudentLibrary(studentId: string): Promise<({
@@ -173,10 +183,10 @@ export declare class DigitalPurchasesService {
             currency: string;
             contentId: string | null;
             creatorId: string;
+            thumbnailUrl: string | null;
             price: number;
             category: import(".prisma/client").$Enums.MarketplaceCategory;
             totalRatings: number;
-            thumbnailUrl: string | null;
             previewUrl: string | null;
             dateCreated: Date;
             lastUpdated: Date;
@@ -194,6 +204,7 @@ export declare class DigitalPurchasesService {
             } | null;
             files: {
                 id: string;
+                videoDuration: number | null;
                 contentId: string;
                 fileType: import(".prisma/client").$Enums.FileType;
                 originalName: string;
@@ -201,6 +212,10 @@ export declare class DigitalPurchasesService {
                 mimeType: string | null;
                 sizeBytes: bigint | null;
                 uploadedAt: Date;
+                imageKitFileId: string | null;
+                imageKitUrl: string | null;
+                isProcessed: boolean;
+                thumbnailUrl: string | null;
             }[];
         } & {
             description: string;
@@ -269,9 +284,12 @@ export declare class DigitalPurchasesService {
             creatorId: string;
             viewCount: number;
             downloadCount: number;
+            streamCount: number;
             salesCount: number;
             ratingAverage: number;
             reviewCount: number;
+            marketplacePublishedAt: Date | null;
+            marketplaceUnpublishedAt: Date | null;
         };
     } & {
         id: string;
@@ -282,17 +300,20 @@ export declare class DigitalPurchasesService {
         contentId: string;
         creatorId: string;
         downloadCount: number;
+        streamCount: number;
         marketplaceItemId: string;
         paymentReference: string | null;
         paymentMethod: string | null;
         amount: number;
         lastDownloadedAt: Date | null;
+        lastStreamedAt: Date | null;
         purchasedAt: Date;
     })[]>;
     getDownloadLink(purchaseId: string, studentId: string): Promise<{
         content: {
             files: {
                 id: string;
+                videoDuration: number | null;
                 contentId: string;
                 fileType: import(".prisma/client").$Enums.FileType;
                 originalName: string;
@@ -300,6 +321,10 @@ export declare class DigitalPurchasesService {
                 mimeType: string | null;
                 sizeBytes: bigint | null;
                 uploadedAt: Date;
+                imageKitFileId: string | null;
+                imageKitUrl: string | null;
+                isProcessed: boolean;
+                thumbnailUrl: string | null;
             }[];
         } & {
             description: string;
@@ -368,9 +393,12 @@ export declare class DigitalPurchasesService {
             creatorId: string;
             viewCount: number;
             downloadCount: number;
+            streamCount: number;
             salesCount: number;
             ratingAverage: number;
             reviewCount: number;
+            marketplacePublishedAt: Date | null;
+            marketplaceUnpublishedAt: Date | null;
         };
     } & {
         id: string;
@@ -381,11 +409,122 @@ export declare class DigitalPurchasesService {
         contentId: string;
         creatorId: string;
         downloadCount: number;
+        streamCount: number;
         marketplaceItemId: string;
         paymentReference: string | null;
         paymentMethod: string | null;
         amount: number;
         lastDownloadedAt: Date | null;
+        lastStreamedAt: Date | null;
+        purchasedAt: Date;
+    }>;
+    getStreamLink(purchaseId: string, studentId: string): Promise<{
+        content: {
+            files: {
+                id: string;
+                videoDuration: number | null;
+                contentId: string;
+                fileType: import(".prisma/client").$Enums.FileType;
+                originalName: string;
+                storagePath: string;
+                mimeType: string | null;
+                sizeBytes: bigint | null;
+                uploadedAt: Date;
+                imageKitFileId: string | null;
+                imageKitUrl: string | null;
+                isProcessed: boolean;
+                thumbnailUrl: string | null;
+            }[];
+        } & {
+            description: string;
+            title: string;
+            id: string;
+            createdAt: Date;
+            updatedAt: Date;
+            tags: import("@prisma/client/runtime/library").JsonValue | null;
+            status: import(".prisma/client").$Enums.ContentStatus;
+            contentCategoryId: string | null;
+            subjectCategoryId: string | null;
+            contentType: import(".prisma/client").$Enums.ContentType;
+            textbookAuthor: string | null;
+            textbookPublisher: string | null;
+            textbookEdition: string | null;
+            textbookYear: number | null;
+            textbookIsbn: string | null;
+            contactInfo: string | null;
+            digitalDeliveryMethod: string | null;
+            accessInstructions: string | null;
+            fileSizeFormat: string | null;
+            supportContact: string | null;
+            videoDuration: string | null;
+            videoDeliveryMethod: string | null;
+            worksheetGrade: string | null;
+            worksheetFormat: string | null;
+            assignmentGrade: string | null;
+            assignmentFormat: string | null;
+            assignmentLength: string | null;
+            examBody: string | null;
+            examYears: string | null;
+            examLevel: string | null;
+            pastQuestionsFormat: string | null;
+            pastQuestionsPages: string | null;
+            audiobookAuthor: string | null;
+            audiobookNarrator: string | null;
+            audiobookDuration: string | null;
+            audiobookLanguage: string | null;
+            audiobookFormat: string | null;
+            interactiveFormat: string | null;
+            interactiveLevel: string | null;
+            interactiveDuration: string | null;
+            interactiveLink: string | null;
+            notesLevel: string | null;
+            notesFormat: string | null;
+            notesLength: string | null;
+            ebookAuthor: string | null;
+            ebookFileFormat: string | null;
+            ebookLicenseType: string | null;
+            ebookAccessType: string | null;
+            ebookLanguage: string | null;
+            ebookPages: string | null;
+            digitalPrice: number | null;
+            textbookPrice: number | null;
+            videoPrice: number | null;
+            worksheetPrice: number | null;
+            assignmentPrice: number | null;
+            pastQuestionsPrice: number | null;
+            audiobookPrice: number | null;
+            interactivePrice: number | null;
+            notesPrice: number | null;
+            ebookPrice: number | null;
+            currency: string;
+            licenseType: import(".prisma/client").$Enums.LicenseType;
+            visibility: import(".prisma/client").$Enums.Visibility;
+            creatorId: string;
+            viewCount: number;
+            downloadCount: number;
+            streamCount: number;
+            salesCount: number;
+            ratingAverage: number;
+            reviewCount: number;
+            marketplacePublishedAt: Date | null;
+            marketplaceUnpublishedAt: Date | null;
+        };
+    } & {
+        id: string;
+        status: import(".prisma/client").$Enums.PurchaseStatus;
+        completedAt: Date | null;
+        studentId: string;
+        currency: string;
+        contentId: string;
+        creatorId: string;
+        downloadCount: number;
+        streamCount: number;
+        marketplaceItemId: string;
+        paymentReference: string | null;
+        paymentMethod: string | null;
+        amount: number;
+        lastDownloadedAt: Date | null;
+        lastStreamedAt: Date | null;
         purchasedAt: Date;
     }>;
     hasAccess(studentId: string, contentId: string): Promise<boolean>;

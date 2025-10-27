@@ -8,7 +8,7 @@ datasource db {
 }
 
 model User {
-  id              String       @id @default(cuid())
+  id              String              @id @default(cuid())
   email           String
   password        String
   type            UserType
@@ -16,22 +16,25 @@ model User {
   lastName        String
   profilePicture  String?
   phone           String?
-  isActive        Boolean      @default(true)
-  createdAt       DateTime     @default(now())
-  updatedAt       DateTime     @updatedAt
+  isActive        Boolean             @default(true)
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
   createdBy       String?
   lastLoginAt     DateTime?
   fullName        String?
   bio             String?
   country         String?
   website         String?
-  isEmailVerified Boolean      @default(false)
+  isEmailVerified Boolean             @default(false)
   creator         Creator?
+  escrowAsBuyer   EscrowTransaction[] @relation("EscrowBuyer")
+  escrowAsSeller  EscrowTransaction[] @relation("EscrowSeller")
   parent          Parent?
+  productRatings  ProductRating[]
   schoolAdmin     SchoolAdmin?
+  sellerBalance   SellerBalance?      @relation("SellerBalance")
   student         Student?
   teacher         Teacher?
-  productRatings  ProductRating[]
 
   @@unique([email, type])
   @@map("users")
@@ -122,6 +125,7 @@ model Student {
   academicRecords           AcademicRecord[]
   attendanceRecords         AttendanceRecord[]
   bulkImportRecords         BulkImportRecord[]
+  digitalPurchases          DigitalPurchase[]
   disciplinaryRecords       DisciplinaryRecord[]
   emergencyContacts         EmergencyContact[]
   financialRecords          FinancialRecord[]
@@ -136,7 +140,6 @@ model Student {
   user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
   timelineEvents            TimelineEvent[]
   parentRelationships       ParentSchoolRelationship[] @relation("ParentSchoolRelationshipToStudent")
-  digitalPurchases          DigitalPurchase[]
 
   @@map("students")
 }
@@ -582,38 +585,39 @@ model Creator {
   plan             String            @default("free")
   content          Content[]
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)
-  marketplaceItems MarketplaceItem[]
   digitalPurchases DigitalPurchase[]
+  marketplaceItems MarketplaceItem[]
 
   @@map("creators")
 }
 
 model MarketplaceItem {
-  id             String              @id @default(cuid())
-  contentId      String?             @unique // Link to source content (optional for now)
-  title          String
-  description    String
-  price          Float
-  currency       String              @default("NGN")
-  category       MarketplaceCategory
-  creatorId      String
-  rating         Float               @default(0)
-  totalRatings   Int                 @default(0)
-  totalSales     Int                 @default(0)
-  totalRevenue   Float               @default(0)
-  thumbnailUrl   String?
-  previewUrl     String?
-  tags           String[]
-  dateCreated    DateTime            @default(now())
-  lastUpdated    DateTime            @updatedAt
-  isActive       Boolean             @default(true)
-  isFeatured     Boolean             @default(false)
-  isRecommended  Boolean             @default(false)
-  commissionRate Float               @default(0)
-  content        Content?            @relation(fields: [contentId], references: [id])
-  creator        Creator             @relation(fields: [creatorId], references: [id])
-  digitalPurchases DigitalPurchase[]
-  productRatings   ProductRating[]
+  id                 String              @id @default(cuid())
+  title              String
+  description        String
+  price              Float
+  currency           String              @default("NGN")
+  category           MarketplaceCategory
+  creatorId          String
+  rating             Float               @default(0)
+  totalRatings       Int                 @default(0)
+  totalSales         Int                 @default(0)
+  totalRevenue       Float               @default(0)
+  thumbnailUrl       String?
+  previewUrl         String?
+  tags               String[]
+  dateCreated        DateTime            @default(now())
+  lastUpdated        DateTime            @updatedAt
+  isActive           Boolean             @default(true)
+  isFeatured         Boolean             @default(false)
+  isRecommended      Boolean             @default(false)
+  commissionRate     Float               @default(0)
+  contentId          String?             @unique
+  digitalPurchases   DigitalPurchase[]
+  escrowTransactions EscrowTransaction[]
+  content            Content?            @relation(fields: [contentId], references: [id])
+  creator            Creator             @relation(fields: [creatorId], references: [id])
+  productRatings     ProductRating[]
 
   @@map("marketplace_items")
 }
@@ -641,95 +645,103 @@ model SubjectCategory {
 }
 
 model Content {
-  id                     String           @id @default(cuid())
-  creatorId              String
-  title                  String
-  description            String
-  contentCategoryId      String?
-  subjectCategoryId      String?
-  contentType            ContentType
-  textbookAuthor         String?
-  textbookPublisher      String?
-  textbookEdition        String?
-  textbookYear           Int?
-  textbookIsbn           String?
-  contactInfo            String?
-  digitalDeliveryMethod  String?
-  accessInstructions     String?
-  fileSizeFormat         String?
-  supportContact         String?
-  videoDuration          String?
-  videoDeliveryMethod    String?
-  worksheetGrade         String?
-  worksheetFormat        String?
-  assignmentGrade        String?
-  assignmentFormat       String?
-  assignmentLength       String?
-  examBody               String?
-  examYears              String?
-  examLevel              String?
-  pastQuestionsFormat    String?
-  pastQuestionsPages     String?
-  audiobookAuthor        String?
-  audiobookNarrator      String?
-  audiobookDuration      String?
-  audiobookLanguage      String?
-  audiobookFormat        String?
-  interactiveFormat      String?
-  interactiveLevel       String?
-  interactiveDuration    String?
-  interactiveLink        String?
-  notesLevel             String?
-  notesFormat            String?
-  notesLength            String?
-  ebookAuthor            String?
-  ebookFileFormat        String?
-  ebookLicenseType       String?
-  ebookAccessType        String?
-  ebookLanguage          String?
-  ebookPages             String?
-  digitalPrice           Float?
-  textbookPrice          Float?
-  videoPrice             Float?
-  worksheetPrice         Float?
-  assignmentPrice        Float?
-  pastQuestionsPrice     Float?
-  audiobookPrice         Float?
-  interactivePrice       Float?
-  notesPrice             Float?
-  ebookPrice             Float?
-  currency               String           @default("NGN")
-  licenseType            LicenseType      @default(PERSONAL)
-  visibility             Visibility       @default(PUBLIC)
-  tags                   Json?
-  status                 ContentStatus    @default(DRAFT)
-  createdAt              DateTime         @default(now())
-  updatedAt              DateTime         @updatedAt
-  viewCount              Int              @default(0)
-  downloadCount          Int              @default(0)
-  salesCount             Int              @default(0)
-  ratingAverage          Float            @default(0.00)
-  reviewCount            Int              @default(0)
-  contentCategory        ContentCategory? @relation(fields: [contentCategoryId], references: [id])
-  creator                Creator          @relation(fields: [creatorId], references: [id], onDelete: Cascade)
-  subjectCategory        SubjectCategory? @relation(fields: [subjectCategoryId], references: [id])
-  files                  ContentFile[]
-  marketplaceItem        MarketplaceItem?
-  digitalPurchases       DigitalPurchase[]
+  id                    String            @id @default(cuid())
+  creatorId             String
+  title                 String
+  description           String
+  contentCategoryId     String?
+  subjectCategoryId     String?
+  contentType           ContentType
+  contactInfo           String?
+  digitalDeliveryMethod String?
+  accessInstructions    String?
+  fileSizeFormat        String?
+  supportContact        String?
+  videoDuration         String?
+  videoDeliveryMethod   String?
+  worksheetGrade        String?
+  worksheetFormat       String?
+  assignmentGrade       String?
+  assignmentFormat      String?
+  assignmentLength      String?
+  examBody              String?
+  examYears             String?
+  examLevel             String?
+  pastQuestionsFormat   String?
+  pastQuestionsPages    String?
+  audiobookAuthor       String?
+  audiobookNarrator     String?
+  audiobookDuration     String?
+  audiobookLanguage     String?
+  audiobookFormat       String?
+  interactiveFormat     String?
+  interactiveLevel      String?
+  interactiveDuration   String?
+  interactiveLink       String?
+  notesLevel            String?
+  notesFormat           String?
+  notesLength           String?
+  digitalPrice          Float?
+  videoPrice            Float?
+  worksheetPrice        Float?
+  assignmentPrice       Float?
+  pastQuestionsPrice    Float?
+  audiobookPrice        Float?
+  interactivePrice      Float?
+  notesPrice            Float?
+  currency              String            @default("NGN")
+  licenseType           LicenseType       @default(PERSONAL)
+  visibility            Visibility        @default(PUBLIC)
+  tags                  Json?
+  status                ContentStatus     @default(DRAFT)
+  createdAt             DateTime          @default(now())
+  updatedAt             DateTime          @updatedAt
+  viewCount             Int               @default(0)
+  downloadCount         Int               @default(0)
+  streamCount           Int               @default(0)
+  salesCount            Int               @default(0)
+  ratingAverage         Float             @default(0.00)
+  reviewCount           Int               @default(0)
+  marketplacePublishedAt DateTime?
+  marketplaceUnpublishedAt DateTime?
+  textbookAuthor        String?
+  textbookEdition       String?
+  textbookIsbn          String?
+  textbookPrice         Float?
+  textbookPublisher     String?
+  textbookYear          Int?
+  ebookAccessType       String?
+  ebookAuthor           String?
+  ebookFileFormat       String?
+  ebookLanguage         String?
+  ebookLicenseType      String?
+  ebookPages            String?
+  ebookPrice            Float?
+  contentCategory       ContentCategory?  @relation(fields: [contentCategoryId], references: [id])
+  creator               Creator           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
+  subjectCategory       SubjectCategory?  @relation(fields: [subjectCategoryId], references: [id])
+  files                 ContentFile[]
+  digitalPurchases      DigitalPurchase[]
+  marketplaceItem       MarketplaceItem?
 
   @@map("content")
 }
 
 model ContentFile {
-  id           String   @id @default(cuid())
-  contentId    String
-  fileType     FileType
-  originalName String
-  storagePath  String
-  mimeType     String?
-  sizeBytes    BigInt?
-  uploadedAt   DateTime @default(now())
-  content      Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
+  id             String   @id @default(cuid())
+  contentId      String
+  fileType       FileType
+  originalName   String
+  storagePath    String
+  mimeType       String?
+  sizeBytes      BigInt?
+  uploadedAt     DateTime @default(now())
+  imageKitFileId String?  @unique
+  imageKitUrl    String?
+  isProcessed    Boolean  @default(false)
+  thumbnailUrl   String?
+  videoDuration  Int?
+  content        Content  @relation(fields: [contentId], references: [id], onDelete: Cascade)
 
   @@map("content_files")
 }
@@ -758,6 +770,80 @@ model BulkImportRecord {
   student      Student?               @relation(fields: [studentId], references: [id])
 
   @@map("bulk_import_records")
+}
+
+model DigitalPurchase {
+  id                String          @id @default(cuid())
+  studentId         String
+  contentId         String
+  marketplaceItemId String
+  creatorId         String
+  amount            Float
+  currency          String          @default("NGN")
+  paymentReference  String?         @unique
+  paymentMethod     String?
+  status            PurchaseStatus  @default(PENDING)
+  downloadCount     Int             @default(0)
+  streamCount       Int             @default(0)
+  lastDownloadedAt  DateTime?
+  lastStreamedAt    DateTime?
+  purchasedAt       DateTime        @default(now())
+  completedAt       DateTime?
+  content           Content         @relation(fields: [contentId], references: [id])
+  creator           Creator         @relation(fields: [creatorId], references: [id])
+  marketplaceItem   MarketplaceItem @relation(fields: [marketplaceItemId], references: [id])
+  student           Student         @relation(fields: [studentId], references: [id])
+
+  @@map("digital_purchases")
+}
+
+model ProductRating {
+  id                String          @id @default(cuid())
+  marketplaceItemId String
+  rating            Float
+  review            String?
+  isVerified        Boolean         @default(false)
+  createdAt         DateTime        @default(now())
+  updatedAt         DateTime        @updatedAt
+  userId            String
+  marketplaceItem   MarketplaceItem @relation(fields: [marketplaceItemId], references: [id])
+  user              User            @relation(fields: [userId], references: [id])
+
+  @@unique([userId, marketplaceItemId])
+  @@map("product_ratings")
+}
+
+model EscrowTransaction {
+  id                String          @id @default(cuid())
+  marketplaceItemId String
+  buyerId           String
+  sellerId          String
+  amount            Float
+  currency          String          @default("NGN")
+  paymentReference  String?         @unique
+  paymentProvider   String?
+  status            EscrowStatus    @default(PENDING)
+  createdAt         DateTime        @default(now())
+  paidAt            DateTime?
+  releasedAt        DateTime?
+  refundedAt        DateTime?
+  buyer             User            @relation("EscrowBuyer", fields: [buyerId], references: [id])
+  marketplaceItem   MarketplaceItem @relation(fields: [marketplaceItemId], references: [id])
+  seller            User            @relation("EscrowSeller", fields: [sellerId], references: [id])
+
+  @@map("escrow_transactions")
+}
+
+model SellerBalance {
+  id        String   @id @default(cuid())
+  sellerId  String   @unique
+  pending   Float    @default(0)
+  available Float    @default(0)
+  total     Float    @default(0)
+  updatedAt DateTime @updatedAt
+  seller    User     @relation("SellerBalance", fields: [sellerId], references: [id])
+
+  @@map("seller_balances")
 }
 
 enum UserType {
@@ -969,6 +1055,7 @@ enum FileType {
   WORKSHEET_FILE
   ASSIGNMENT_FILE
   PAST_QUESTIONS_FILE
+  VIDEO
 }
 
 enum BulkImportRecordStatus {
@@ -985,61 +1072,10 @@ enum PurchaseStatus {
   REFUNDED
 }
 
-model DigitalPurchase {
-  id                String         @id @default(cuid())
-  studentId         String
-  contentId         String
-  marketplaceItemId String
-  creatorId         String
-  
-  // Payment details
-  amount            Float
-  currency          String         @default("NGN")
-  paymentReference  String?        @unique
-  paymentMethod     String?
-  
-  // Status
-  status            PurchaseStatus @default(PENDING)
-  
-  // Access
-  downloadCount     Int            @default(0)
-  lastDownloadedAt  DateTime?
-  
-  // Timestamps
-  purchasedAt       DateTime       @default(now())
-  completedAt       DateTime?
-  
-  // Relations
-  student           Student        @relation(fields: [studentId], references: [id])
-  content           Content        @relation(fields: [contentId], references: [id])
-  creator           Creator        @relation(fields: [creatorId], references: [id])
-  marketplaceItem   MarketplaceItem @relation(fields: [marketplaceItemId], references: [id])
-  
-  @@map("digital_purchases")
-}
-
-// Rating and Review System
-model ProductRating {
-  id            String   @id @default(cuid())
-  
-  // Foreign keys
-  userId        String
-  marketplaceItemId String
-  
-  // Rating details
-  rating        Float    // 1.0 to 5.0 (0.5 increments)
-  review        String?  // Optional text review
-  isVerified    Boolean  @default(false) // Whether the user actually purchased
-  
-  // Timestamps
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
-  
-  // Relations
-  user          User             @relation(fields: [userId], references: [id])
-  marketplaceItem MarketplaceItem @relation(fields: [marketplaceItemId], references: [id])
-  
-  // Composite unique constraint - one rating per user per product
-  @@unique([userId, marketplaceItemId])
-  @@map("product_ratings")
+enum EscrowStatus {
+  PENDING
+  PAID
+  RELEASED
+  REFUNDED
+  DISPUTED
 }

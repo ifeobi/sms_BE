@@ -4,6 +4,11 @@ import { ValidationPipe, Logger } from '@nestjs/common';
 import { DocumentBuilder, SwaggerModule } from '@nestjs/swagger';
 import { NestExpressApplication } from '@nestjs/platform-express';
 import { join } from 'path';
+import * as dotenv from 'dotenv';
+
+// Load environment variables manually
+dotenv.config();
+console.log('🔧 DATABASE_URL:', process.env.DATABASE_URL ? 'SET' : 'NOT SET');
 
 async function bootstrap() {
   const logger = new Logger('Main');
@@ -22,7 +27,9 @@ async function bootstrap() {
     return Number(this);
   };
 
-  const app = await NestFactory.create<NestExpressApplication>(AppModule);
+  const app = await NestFactory.create<NestExpressApplication>(AppModule, {
+    logger: ['log', 'error', 'warn', 'debug', 'verbose'],
+  });
 
   // Serve static files
   app.useStaticAssets(join(__dirname, '..', 'uploads'), {
@@ -58,11 +65,12 @@ async function bootstrap() {
   const port = process.env.PORT || 3001;
   await app.listen(port);
 
-  console.log(`🚀 Application is running on: http://localhost:${port}`);
-  console.log(`📚 Swagger documentation: http://localhost:${port}/api`);
-  console.log(
+  logger.log(`🚀 Application is running`);
+  logger.log(`🚀 Application is running on: http://localhost:${port}`);
+  logger.log(`📚 Swagger documentation: http://localhost:${port}/api`);
+  logger.log(
     `Database URL: ${process.env.DATABASE_URL?.replace(/:[^:]*@/, ':****@') || 'Not set'}`,
   );
-  console.log('✅ Application startup completed successfully');
+  logger.log('✅ Application startup completed successfully');
 }
 bootstrap();

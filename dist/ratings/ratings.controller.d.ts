@@ -57,8 +57,8 @@ export declare class RatingsController {
                 title: string;
                 id: string;
                 currency: string;
-                price: number;
                 thumbnailUrl: string | null;
+                price: number;
             };
         } & {
             id: string;

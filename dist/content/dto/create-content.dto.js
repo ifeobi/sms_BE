@@ -23,14 +23,6 @@ class CreateContentDto {
     textbookEdition;
     textbookYear;
     textbookIsbn;
-    physicalDeliveryMethod;
-    pickupLocation;
-    deliveryAvailability;
-    deliveryFee;
-    contactInfo;
-    deliveryNotes;
-    physicalCondition;
-    deliveryMethods;
     digitalDeliveryMethod;
     accessInstructions;
     fileSizeFormat;
@@ -128,46 +120,6 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateContentDto.prototype, "textbookIsbn", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateContentDto.prototype, "physicalDeliveryMethod", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateContentDto.prototype, "pickupLocation", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateContentDto.prototype, "deliveryAvailability", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsNumber)(),
-    __metadata("design:type", Number)
-], CreateContentDto.prototype, "deliveryFee", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateContentDto.prototype, "contactInfo", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateContentDto.prototype, "deliveryNotes", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], CreateContentDto.prototype, "physicalCondition", void 0);
-__decorate([
-    (0, class_validator_1.IsOptional)(),
-    (0, class_validator_1.IsArray)(),
-    __metadata("design:type", Array)
-], CreateContentDto.prototype, "deliveryMethods", void 0);
 __decorate([
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),

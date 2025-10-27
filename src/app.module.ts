@@ -13,11 +13,15 @@ import { FileUploadModule } from './file-upload/file-upload.module';
 import { MarketplaceModule } from './marketplace/marketplace.module';
 import { DigitalPurchasesModule } from './digital-purchases/digital-purchases.module';
 import { RatingsModule } from './ratings/ratings.module';
+import { EscrowModule } from './escrow/escrow.module';
+import { CreatorHistoryModule } from './creator/creator-history.module';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
+      envFilePath: '.env',
+      expandVariables: true,
     }),
     PrismaModule,
     AuthModule,
@@ -30,6 +34,8 @@ import { RatingsModule } from './ratings/ratings.module';
     MarketplaceModule,
     DigitalPurchasesModule,
     RatingsModule,
+    EscrowModule,
+    CreatorHistoryModule,
   ],
   controllers: [AppController],
   providers: [AppService],

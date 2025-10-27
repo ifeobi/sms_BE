@@ -156,6 +156,43 @@ let DigitalPurchasesService = class DigitalPurchasesService {
         });
         return purchase;
     }
+    async getStreamLink(purchaseId, studentId) {
+        const purchase = await this.prisma.digitalPurchase.findFirst({
+            where: {
+                id: purchaseId,
+                studentId,
+                status: 'COMPLETED',
+            },
+            include: {
+                content: {
+                    include: {
+                        files: {
+                            where: {
+                                fileType: 'DIGITAL_FILE',
+                            },
+                        },
+                    },
+                },
+            },
+        });
+        if (!purchase) {
+            throw new common_1.NotFoundException('Purchase not found or not completed');
+        }
+        await this.prisma.digitalPurchase.update({
+            where: { id: purchaseId },
+            data: {
+                streamCount: { increment: 1 },
+                lastStreamedAt: new Date(),
+            },
+        });
+        await this.prisma.content.update({
+            where: { id: purchase.contentId },
+            data: {
+                streamCount: { increment: 1 },
+            },
+        });
+        return purchase;
+    }
     async hasAccess(studentId, contentId) {
         const purchase = await this.prisma.digitalPurchase.findFirst({
             where: {

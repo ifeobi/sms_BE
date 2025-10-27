@@ -160,7 +160,18 @@ export class DigitalPurchasesService {
           include: {
             files: {
               where: {
-                fileType: 'DIGITAL_FILE',
+                fileType: {
+                  in: [
+                    'DIGITAL_FILE',
+                    'VIDEO_FILE',
+                    'AUDIO_FILE',
+                    'WORKSHEET_FILE',
+                    'ASSIGNMENT_FILE',
+                    'PAST_QUESTIONS_FILE',
+                    'NOTES_FILE',
+                    'INTERACTIVE_FILE',
+                  ],
+                },
               },
             },
           },
@@ -186,6 +197,64 @@ export class DigitalPurchasesService {
       where: { id: purchase.contentId },
       data: {
         downloadCount: { increment: 1 },
+      },
+    });
+
+    return purchase;
+  }
+
+  /**
+   * Get streaming link for purchased content
+   */
+  async getStreamLink(purchaseId: string, studentId: string) {
+    const purchase = await this.prisma.digitalPurchase.findFirst({
+      where: {
+        id: purchaseId,
+        studentId,
+        status: 'COMPLETED',
+      },
+      include: {
+        content: {
+          include: {
+            files: {
+              where: {
+                fileType: {
+                  in: [
+                    'DIGITAL_FILE',
+                    'VIDEO_FILE',
+                    'AUDIO_FILE',
+                    'WORKSHEET_FILE',
+                    'ASSIGNMENT_FILE',
+                    'PAST_QUESTIONS_FILE',
+                    'NOTES_FILE',
+                    'INTERACTIVE_FILE',
+                  ],
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+
+    if (!purchase) {
+      throw new NotFoundException('Purchase not found or not completed');
+    }
+
+    // Update stream count
+    await this.prisma.digitalPurchase.update({
+      where: { id: purchaseId },
+      data: {
+        streamCount: { increment: 1 },
+        lastStreamedAt: new Date(),
+      },
+    });
+
+    // Update content stream count
+    await this.prisma.content.update({
+      where: { id: purchase.contentId },
+      data: {
+        streamCount: { increment: 1 },
       },
     });
 

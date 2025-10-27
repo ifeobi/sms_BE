@@ -98,6 +98,12 @@ let MarketplaceService = class MarketplaceService {
         const marketplaceItem = await this.prisma.marketplaceItem.create({
             data: marketplaceItemData,
         });
+        await this.prisma.content.update({
+            where: { id: contentId },
+            data: {
+                marketplacePublishedAt: new Date(),
+            },
+        });
         console.log('Marketplace item created successfully:', marketplaceItem.id);
         return marketplaceItem;
     }
@@ -120,6 +126,12 @@ let MarketplaceService = class MarketplaceService {
             await this.prisma.marketplaceItem.delete({
                 where: {
                     id: marketplaceItem.id,
+                },
+            });
+            await this.prisma.content.update({
+                where: { id: contentId },
+                data: {
+                    marketplaceUnpublishedAt: new Date(),
                 },
             });
         }
@@ -155,9 +167,17 @@ let MarketplaceService = class MarketplaceService {
             throw new common_1.NotFoundException('Marketplace item not found');
         }
         const images = this.getAllImageUrls(item.content?.files || []);
+        const videoUrl = this.getVideoUrl(item.content?.files || []);
+        console.log('=== MARKETPLACE ITEM BY ID DEBUG ===');
+        console.log('Item ID:', item.id);
+        console.log('Item category:', item.category);
+        console.log('Content files count:', item.content?.files?.length || 0);
+        console.log('Video URL extracted:', videoUrl);
+        console.log('=====================================');
         return {
             ...item,
             images,
+            videoUrl,
         };
     }
     async getMarketplaceItems(params) {
@@ -175,6 +195,7 @@ let MarketplaceService = class MarketplaceService {
                 { tags: { has: search } },
             ];
         }
+        console.log('Fetching marketplace items with params:', { skip, take, category, search });
         const [items, total] = await Promise.all([
             this.prisma.marketplaceItem.findMany({
                 where,
@@ -204,8 +225,15 @@ let MarketplaceService = class MarketplaceService {
             }),
             this.prisma.marketplaceItem.count({ where }),
         ]);
+        console.log('Found marketplace items:', items.length, 'Total:', total);
+        const processedItems = items.map(item => {
+            return {
+                ...item,
+                videoUrl: null,
+            };
+        });
         return {
-            items,
+            items: processedItems,
             total,
             page: Math.floor(skip / take) + 1,
             totalPages: Math.ceil(total / take),
@@ -314,15 +342,15 @@ let MarketplaceService = class MarketplaceService {
         }
         const thumbnailFile = files.find((f) => f.fileType === 'THUMBNAIL');
         if (thumbnailFile) {
-            return `/images/marketplace/${this.getFileNameFromPath(thumbnailFile.storagePath)}`;
+            return thumbnailFile.imageKitUrl || (thumbnailFile.storagePath ? `/images/marketplace/${this.getFileNameFromPath(thumbnailFile.storagePath)}` : null);
         }
         const previewFile = files.find((f) => f.fileType === 'PREVIEW_IMAGE');
         if (previewFile) {
-            return `/images/marketplace/${this.getFileNameFromPath(previewFile.storagePath)}`;
+            return previewFile.imageKitUrl || (previewFile.storagePath ? `/images/marketplace/${this.getFileNameFromPath(previewFile.storagePath)}` : null);
         }
         const physicalImageFile = files.find((f) => f.fileType === 'PHYSICAL_IMAGE');
         if (physicalImageFile) {
-            return `/images/marketplace/${this.getFileNameFromPath(physicalImageFile.storagePath)}`;
+            return physicalImageFile.imageKitUrl || (physicalImageFile.storagePath ? `/images/marketplace/${this.getFileNameFromPath(physicalImageFile.storagePath)}` : null);
         }
         return null;
     }
@@ -333,7 +361,39 @@ let MarketplaceService = class MarketplaceService {
         const imageFiles = files.filter((f) => f.fileType === 'THUMBNAIL' ||
             f.fileType === 'PREVIEW_IMAGE' ||
             f.fileType === 'PHYSICAL_IMAGE');
-        return imageFiles.map((file) => `/images/marketplace/${this.getFileNameFromPath(file.storagePath)}`);
+        return imageFiles.map((file) => file.imageKitUrl || (file.storagePath ? `/images/marketplace/${this.getFileNameFromPath(file.storagePath)}` : null)).filter(url => url !== null);
+    }
+    getVideoUrl(files) {
+        try {
+            console.log('getVideoUrl called with files:', files?.length || 0);
+            if (!files || files.length === 0) {
+                console.log('No files provided to getVideoUrl');
+                return null;
+            }
+            files.forEach((file, index) => {
+                console.log(`File ${index}:`, { fileType: file.fileType, storagePath: file.storagePath });
+            });
+            const videoFile = files.find((f) => f.fileType === 'VIDEO_FILE');
+            if (!videoFile) {
+                console.log('No VIDEO_FILE found in files');
+                return null;
+            }
+            let videoUrl = videoFile.imageKitUrl;
+            if (!videoUrl && videoFile.storagePath) {
+                const filename = this.getFileNameFromPath(videoFile.storagePath);
+                videoUrl = `/images/marketplace/${filename}`;
+            }
+            if (!videoUrl) {
+                console.log('Video file found but no URL available');
+                return null;
+            }
+            console.log('Generated video URL:', videoUrl);
+            return videoUrl;
+        }
+        catch (error) {
+            console.error('Error getting video URL:', error);
+            return null;
+        }
     }
     getFileNameFromPath(storagePath) {
         return (storagePath.split('\\').pop() ||
