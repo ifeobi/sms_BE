@@ -124,9 +124,10 @@ export class RegisterDto {
   schoolName?: string;
 
   @Expose()
-  @ApiProperty({ example: '+2348012345678' })
+  @ApiProperty({ example: '+2348012345678', required: false })
+  @IsOptional()
   @IsString()
-  phone: string;
+  phone?: string;
 
   @Expose()
   @ApiProperty({ example: 'https://academeka.com', required: false })
