@@ -15,11 +15,15 @@ export declare class StaffService {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
+            bio: string | null;
+            country: string | null;
+            website: string | null;
+            isEmailVerified: boolean;
         };
         school: {
             type: string;
@@ -27,6 +31,7 @@ export declare class StaffService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            country: string;
             name: string;
             street: string | null;
             city: string | null;
@@ -36,7 +41,6 @@ export declare class StaffService {
             formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            country: string;
             logo: string | null;
         };
     } & {
@@ -58,11 +62,15 @@ export declare class StaffService {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
+            bio: string | null;
+            country: string | null;
+            website: string | null;
+            isEmailVerified: boolean;
         };
         school: {
             type: string;
@@ -70,6 +78,7 @@ export declare class StaffService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            country: string;
             name: string;
             street: string | null;
             city: string | null;
@@ -79,7 +88,6 @@ export declare class StaffService {
             formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            country: string;
             logo: string | null;
         };
     } & {
@@ -101,11 +109,15 @@ export declare class StaffService {
                 phone: string | null;
                 isActive: boolean;
                 id: string;
-                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
+                fullName: string | null;
+                bio: string | null;
+                country: string | null;
+                website: string | null;
+                isEmailVerified: boolean;
             };
             school: {
                 type: string;
@@ -113,6 +125,7 @@ export declare class StaffService {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                country: string;
                 name: string;
                 street: string | null;
                 city: string | null;
@@ -122,7 +135,6 @@ export declare class StaffService {
                 formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                country: string;
                 logo: string | null;
             };
             teacherAssignments: ({
@@ -139,8 +151,8 @@ export declare class StaffService {
                     isActive: boolean;
                     id: string;
                     name: string;
-                    schoolId: string;
                     code: string;
+                    schoolId: string;
                 };
             } & {
                 isActive: boolean;
@@ -174,11 +186,15 @@ export declare class StaffService {
                 phone: string | null;
                 isActive: boolean;
                 id: string;
-                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
+                fullName: string | null;
+                bio: string | null;
+                country: string | null;
+                website: string | null;
+                isEmailVerified: boolean;
             };
             school: {
                 type: string;
@@ -186,6 +202,7 @@ export declare class StaffService {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                country: string;
                 name: string;
                 street: string | null;
                 city: string | null;
@@ -195,7 +212,6 @@ export declare class StaffService {
                 formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                country: string;
                 logo: string | null;
             };
         } & {
@@ -217,11 +233,15 @@ export declare class StaffService {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
+            bio: string | null;
+            country: string | null;
+            website: string | null;
+            isEmailVerified: boolean;
         };
         school: {
             type: string;
@@ -229,6 +249,7 @@ export declare class StaffService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            country: string;
             name: string;
             street: string | null;
             city: string | null;
@@ -238,7 +259,6 @@ export declare class StaffService {
             formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            country: string;
             logo: string | null;
         };
         teacherAssignments: ({
@@ -255,8 +275,8 @@ export declare class StaffService {
                 isActive: boolean;
                 id: string;
                 name: string;
-                schoolId: string;
                 code: string;
+                schoolId: string;
             };
         } & {
             isActive: boolean;
@@ -289,11 +309,15 @@ export declare class StaffService {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
+            bio: string | null;
+            country: string | null;
+            website: string | null;
+            isEmailVerified: boolean;
         };
         school: {
             type: string;
@@ -301,6 +325,7 @@ export declare class StaffService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            country: string;
             name: string;
             street: string | null;
             city: string | null;
@@ -310,7 +335,6 @@ export declare class StaffService {
             formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            country: string;
             logo: string | null;
         };
     } & {
@@ -331,11 +355,15 @@ export declare class StaffService {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
+            bio: string | null;
+            country: string | null;
+            website: string | null;
+            isEmailVerified: boolean;
         };
         school: {
             type: string;
@@ -343,6 +371,7 @@ export declare class StaffService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            country: string;
             name: string;
             street: string | null;
             city: string | null;
@@ -352,7 +381,6 @@ export declare class StaffService {
             formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            country: string;
             logo: string | null;
         };
         teacherAssignments: ({
@@ -369,8 +397,8 @@ export declare class StaffService {
                 isActive: boolean;
                 id: string;
                 name: string;
-                schoolId: string;
                 code: string;
+                schoolId: string;
             };
         } & {
             isActive: boolean;
@@ -403,11 +431,15 @@ export declare class StaffService {
             phone: string | null;
             isActive: boolean;
             id: string;
-            fullName: string | null;
             createdAt: Date;
             updatedAt: Date;
             createdBy: string | null;
             lastLoginAt: Date | null;
+            fullName: string | null;
+            bio: string | null;
+            country: string | null;
+            website: string | null;
+            isEmailVerified: boolean;
         };
         school: {
             type: string;
@@ -415,6 +447,7 @@ export declare class StaffService {
             id: string;
             createdAt: Date;
             updatedAt: Date;
+            country: string;
             name: string;
             street: string | null;
             city: string | null;
@@ -424,7 +457,6 @@ export declare class StaffService {
             formattedAddress: string | null;
             latitude: number | null;
             longitude: number | null;
-            country: string;
             logo: string | null;
         };
     } & {
@@ -449,11 +481,15 @@ export declare class StaffService {
                 phone: string | null;
                 isActive: boolean;
                 id: string;
-                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
+                fullName: string | null;
+                bio: string | null;
+                country: string | null;
+                website: string | null;
+                isEmailVerified: boolean;
             };
             school: {
                 type: string;
@@ -461,6 +497,7 @@ export declare class StaffService {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                country: string;
                 name: string;
                 street: string | null;
                 city: string | null;
@@ -470,7 +507,6 @@ export declare class StaffService {
                 formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                country: string;
                 logo: string | null;
             };
             teacherAssignments: ({
@@ -487,8 +523,8 @@ export declare class StaffService {
                     isActive: boolean;
                     id: string;
                     name: string;
-                    schoolId: string;
                     code: string;
+                    schoolId: string;
                 };
             } & {
                 isActive: boolean;
@@ -522,11 +558,15 @@ export declare class StaffService {
                 phone: string | null;
                 isActive: boolean;
                 id: string;
-                fullName: string | null;
                 createdAt: Date;
                 updatedAt: Date;
                 createdBy: string | null;
                 lastLoginAt: Date | null;
+                fullName: string | null;
+                bio: string | null;
+                country: string | null;
+                website: string | null;
+                isEmailVerified: boolean;
             };
             school: {
                 type: string;
@@ -534,6 +574,7 @@ export declare class StaffService {
                 id: string;
                 createdAt: Date;
                 updatedAt: Date;
+                country: string;
                 name: string;
                 street: string | null;
                 city: string | null;
@@ -543,7 +584,6 @@ export declare class StaffService {
                 formattedAddress: string | null;
                 latitude: number | null;
                 longitude: number | null;
-                country: string;
                 logo: string | null;
             };
         } & {

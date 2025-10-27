@@ -93,16 +93,14 @@ class RegisterDto {
     password;
     firstName;
     lastName;
-    gender;
-    role;
     userType;
-    schoolName;
     phone;
     website;
     country;
-    schoolTypes;
-    addresses;
+    bio;
     profilePicture;
+    categories;
+    plan;
     confirmPassword;
 }
 exports.RegisterDto = RegisterDto;
@@ -133,72 +131,38 @@ __decorate([
 ], RegisterDto.prototype, "lastName", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
-    (0, swagger_1.ApiProperty)({ enum: Gender, example: Gender.MALE }),
-    (0, class_validator_1.IsEnum)(Gender),
-    __metadata("design:type", String)
-], RegisterDto.prototype, "gender", void 0);
-__decorate([
-    (0, class_transformer_1.Expose)(),
-    (0, swagger_1.ApiProperty)({
-        example: 'principal',
-        description: 'Role in school: principal, vice_principal, admin, etc.',
-    }),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], RegisterDto.prototype, "role", void 0);
-__decorate([
-    (0, class_transformer_1.Expose)(),
-    (0, swagger_1.ApiProperty)({ enum: UserType, example: UserType.SCHOOL_ADMIN }),
+    (0, swagger_1.ApiProperty)({ enum: UserType, example: UserType.CREATOR }),
     (0, class_validator_1.IsEnum)(UserType),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "userType", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
-    (0, swagger_1.ApiProperty)({ example: 'Academeka International School' }),
-    (0, class_validator_1.IsString)(),
-    __metadata("design:type", String)
-], RegisterDto.prototype, "schoolName", void 0);
-__decorate([
-    (0, class_transformer_1.Expose)(),
-    (0, swagger_1.ApiProperty)({ example: '+2348012345678' }),
+    (0, swagger_1.ApiProperty)({ example: '+2348012345678', required: false }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "phone", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
-    (0, swagger_1.ApiProperty)({ example: 'https://academeka.com', required: false }),
+    (0, swagger_1.ApiProperty)({ example: 'https://mywebsite.com', required: false }),
     (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "website", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
-    (0, swagger_1.ApiProperty)({ example: 'NG', description: 'Country code' }),
+    (0, swagger_1.ApiProperty)({ example: 'NG', description: 'Country code', required: false }),
+    (0, class_validator_1.IsOptional)(),
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "country", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
-    (0, swagger_1.ApiProperty)({
-        type: [String],
-        example: ['ELEMENTARY', 'SECONDARY'],
-        description: 'Array of school types',
-    }),
-    (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.IsString)({ each: true }),
-    __metadata("design:type", Array)
-], RegisterDto.prototype, "schoolTypes", void 0);
-__decorate([
-    (0, class_transformer_1.Expose)(),
-    (0, swagger_1.ApiProperty)({
-        type: [AddressDto],
-        description: 'Array of school addresses',
-    }),
-    (0, class_validator_1.IsArray)(),
-    (0, class_validator_1.ValidateNested)({ each: true }),
-    (0, class_transformer_1.Type)(() => AddressDto),
-    __metadata("design:type", Array)
-], RegisterDto.prototype, "addresses", void 0);
+    (0, swagger_1.ApiProperty)({ example: 'I am a passionate educator...', required: false }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterDto.prototype, "bio", void 0);
 __decorate([
     (0, class_transformer_1.Expose)(),
     (0, swagger_1.ApiProperty)({ required: false }),
@@ -206,6 +170,30 @@ __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], RegisterDto.prototype, "profilePicture", void 0);
+__decorate([
+    (0, class_transformer_1.Expose)(),
+    (0, swagger_1.ApiProperty)({
+        type: [String],
+        example: ['mathematics', 'science', 'english'],
+        description: 'Content categories the creator specializes in',
+        required: false,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    __metadata("design:type", Array)
+], RegisterDto.prototype, "categories", void 0);
+__decorate([
+    (0, class_transformer_1.Expose)(),
+    (0, swagger_1.ApiProperty)({
+        example: 'free',
+        description: 'Creator plan: free, premium, pro',
+        required: false,
+    }),
+    (0, class_validator_1.IsOptional)(),
+    (0, class_validator_1.IsString)(),
+    __metadata("design:type", String)
+], RegisterDto.prototype, "plan", void 0);
 __decorate([
     (0, class_transformer_1.Exclude)(),
     __metadata("design:type", String)

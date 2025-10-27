@@ -17,6 +17,13 @@ const prisma_module_1 = require("./prisma/prisma.module");
 const school_module_1 = require("./school/school.module");
 const students_module_1 = require("./students/students.module");
 const staff_module_1 = require("./staff/staff.module");
+const content_module_1 = require("./content/content.module");
+const file_upload_module_1 = require("./file-upload/file-upload.module");
+const marketplace_module_1 = require("./marketplace/marketplace.module");
+const digital_purchases_module_1 = require("./digital-purchases/digital-purchases.module");
+const ratings_module_1 = require("./ratings/ratings.module");
+const escrow_module_1 = require("./escrow/escrow.module");
+const creator_history_module_1 = require("./creator/creator-history.module");
 let AppModule = class AppModule {
 };
 exports.AppModule = AppModule;
@@ -25,6 +32,8 @@ exports.AppModule = AppModule = __decorate([
         imports: [
             config_1.ConfigModule.forRoot({
                 isGlobal: true,
+                envFilePath: '.env',
+                expandVariables: true,
             }),
             prisma_module_1.PrismaModule,
             auth_module_1.AuthModule,
@@ -32,6 +41,13 @@ exports.AppModule = AppModule = __decorate([
             school_module_1.SchoolModule,
             students_module_1.StudentsModule,
             staff_module_1.StaffModule,
+            content_module_1.ContentModule,
+            file_upload_module_1.FileUploadModule,
+            marketplace_module_1.MarketplaceModule,
+            digital_purchases_module_1.DigitalPurchasesModule,
+            ratings_module_1.RatingsModule,
+            escrow_module_1.EscrowModule,
+            creator_history_module_1.CreatorHistoryModule,
         ],
         controllers: [app_controller_1.AppController],
         providers: [app_service_1.AppService],

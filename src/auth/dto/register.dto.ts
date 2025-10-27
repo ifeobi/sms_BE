@@ -92,70 +92,63 @@ export class RegisterDto {
   lastName: string;
 
   @Expose()
-  @ApiProperty({ enum: Gender, example: Gender.MALE })
-  @IsEnum(Gender)
-  gender: Gender;
-
-  @Expose()
-  @ApiProperty({
-    example: 'principal',
-    description: 'Role in school: principal, vice_principal, admin, etc.',
-  })
-  @IsString()
-  role: string;
-
-  @Expose()
-  @ApiProperty({ enum: UserType, example: UserType.SCHOOL_ADMIN })
+  @ApiProperty({ enum: UserType, example: UserType.CREATOR })
   @IsEnum(UserType)
   userType: UserType;
 
-  // School Information
+  // Optional Contact Information
   @Expose()
-  @ApiProperty({ example: 'Academeka International School' })
+  @ApiProperty({ example: '+2348012345678', required: false })
+  @IsOptional()
   @IsString()
-  schoolName: string;
+  phone?: string;
 
   @Expose()
-  @ApiProperty({ example: '+2348012345678' })
-  @IsString()
-  phone: string;
-
-  @Expose()
-  @ApiProperty({ example: 'https://academeka.com', required: false })
+  @ApiProperty({ example: 'https://mywebsite.com', required: false })
   @IsOptional()
   @IsString()
   website?: string;
 
   @Expose()
-  @ApiProperty({ example: 'NG', description: 'Country code' })
+  @ApiProperty({ example: 'NG', description: 'Country code', required: false })
+  @IsOptional()
   @IsString()
-  country: string;
+  country?: string;
 
   @Expose()
-  @ApiProperty({
-    type: [String],
-    example: ['ELEMENTARY', 'SECONDARY'],
-    description: 'Array of school types',
-  })
-  @IsArray()
-  @IsString({ each: true })
-  schoolTypes: string[];
-
-  @Expose()
-  @ApiProperty({
-    type: [AddressDto],
-    description: 'Array of school addresses',
-  })
-  @IsArray()
-  @ValidateNested({ each: true })
-  @Type(() => AddressDto)
-  addresses: AddressDto[];
+  @ApiProperty({ example: 'I am a passionate educator...', required: false })
+  @IsOptional()
+  @IsString()
+  bio?: string;
 
   @Expose()
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()
   profilePicture?: string;
+
+  // Creator-specific fields
+  @Expose()
+  @ApiProperty({
+    type: [String],
+    example: ['mathematics', 'science', 'english'],
+    description: 'Content categories the creator specializes in',
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categories?: string[];
+
+  @Expose()
+  @ApiProperty({
+    example: 'free',
+    description: 'Creator plan: free, premium, pro',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  plan?: string;
 
   // Exclude fields that shouldn't be sent to backend
   @Exclude()

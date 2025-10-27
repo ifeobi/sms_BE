@@ -30,15 +30,13 @@ export declare class RegisterDto {
     password: string;
     firstName: string;
     lastName: string;
-    gender: Gender;
-    role: string;
     userType: UserType;
-    schoolName: string;
-    phone: string;
+    phone?: string;
     website?: string;
-    country: string;
-    schoolTypes: string[];
-    addresses: AddressDto[];
+    country?: string;
+    bio?: string;
     profilePicture?: string;
+    categories?: string[];
+    plan?: string;
     confirmPassword?: string;
 }

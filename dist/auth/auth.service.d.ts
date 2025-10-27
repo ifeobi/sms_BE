@@ -4,6 +4,8 @@ import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { SchoolAdminRegisterDto } from './dto/school-admin-register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 export declare class AuthService {
@@ -24,7 +26,7 @@ export declare class AuthService {
             profilePicture: any;
         };
     }>;
-    register(registerDto: RegisterDto): Promise<{
+    register(registerDto: RegisterDto | SchoolAdminRegisterDto): Promise<{
         access_token: string;
         user: {
             id: string;
@@ -40,6 +42,16 @@ export declare class AuthService {
             type: string;
         };
     } | {
+        success: boolean;
+        message: string;
+        user: {
+            id: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+        };
+        requiresEmailVerification: boolean;
+    } | {
         access_token: string;
         user: {
             id: string;
@@ -51,6 +63,7 @@ export declare class AuthService {
         };
     }>;
     private registerSchoolAdmin;
+    private registerCreator;
     createMasterAccount(): Promise<{
         message: string;
         credentials?: undefined;
@@ -80,6 +93,24 @@ export declare class AuthService {
         message: string;
         email: string;
     }>;
+    verifyCreatorEmail(email: string, code: string): Promise<{
+        success: boolean;
+        message: string;
+        access_token: string;
+        user: {
+            id: string;
+            email: string;
+            type: string;
+            firstName: string;
+            lastName: string;
+            profilePicture: string | null;
+        };
+        creator: {
+            id: string | undefined;
+            categories: string[] | undefined;
+            plan: string | undefined;
+        };
+    }>;
     forgotPassword(forgotPasswordDto: ForgotPasswordDto): Promise<{
         success: boolean;
         message: string;
@@ -94,5 +125,116 @@ export declare class AuthService {
         role: string;
         schoolId: string;
     } | null>;
-    getUserProfile(user: any): Promise<any>;
+    getUserProfile(user: any): Promise<{
+        id: string;
+        email: string;
+        type: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        website: string | null;
+        bio: string | null;
+        country: string | null;
+        profilePicture: string | null;
+        isActive: boolean;
+        isEmailVerified: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+    } | {
+        role: string;
+        id: string;
+        email: string;
+        type: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        website: string | null;
+        bio: string | null;
+        country: string | null;
+        profilePicture: string | null;
+        isActive: boolean;
+        isEmailVerified: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+    } | {
+        categories: string[];
+        plan: string;
+        verified: boolean;
+        rating: number;
+        totalProducts: number;
+        totalSales: number;
+        totalRevenue: number;
+        joinDate: Date;
+        specialties: string[];
+        id: string;
+        email: string;
+        type: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        website: string | null;
+        bio: string | null;
+        country: string | null;
+        profilePicture: string | null;
+        isActive: boolean;
+        isEmailVerified: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
+    updateProfile(user: any, updateDto: UpdateProfileDto): Promise<{
+        id: string;
+        email: string;
+        type: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        website: string | null;
+        bio: string | null;
+        country: string | null;
+        profilePicture: string | null;
+        isActive: boolean;
+        isEmailVerified: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+    } | {
+        role: string;
+        id: string;
+        email: string;
+        type: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        website: string | null;
+        bio: string | null;
+        country: string | null;
+        profilePicture: string | null;
+        isActive: boolean;
+        isEmailVerified: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+    } | {
+        categories: string[];
+        plan: string;
+        verified: boolean;
+        rating: number;
+        totalProducts: number;
+        totalSales: number;
+        totalRevenue: number;
+        joinDate: Date;
+        specialties: string[];
+        id: string;
+        email: string;
+        type: string;
+        firstName: string;
+        lastName: string;
+        phone: string | null;
+        website: string | null;
+        bio: string | null;
+        country: string | null;
+        profilePicture: string | null;
+        isActive: boolean;
+        isEmailVerified: boolean;
+        createdAt: Date;
+        updatedAt: Date;
+    }>;
 }

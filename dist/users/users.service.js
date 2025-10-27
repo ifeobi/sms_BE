@@ -67,18 +67,24 @@ let UsersService = class UsersService {
     }
     async findByEmail(email, type) {
         if (type) {
-            return this.prisma.user.findUnique({
+            return await this.prisma.user.findFirst({
                 where: {
-                    email_type: {
-                        email,
-                        type: type
-                    }
+                    email: {
+                        equals: email,
+                        mode: 'insensitive',
+                    },
+                    type: type,
                 },
             });
         }
         else {
-            return this.prisma.user.findFirst({
-                where: { email },
+            return await this.prisma.user.findFirst({
+                where: {
+                    email: {
+                        equals: email,
+                        mode: 'insensitive',
+                    },
+                },
             });
         }
     }

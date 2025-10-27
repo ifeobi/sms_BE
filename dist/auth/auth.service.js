@@ -69,7 +69,6 @@ let AuthService = class AuthService {
         try {
             const existingUser = await this.usersService.findByEmail(registerDto.email, registerDto.userType);
             if (existingUser) {
-                console.log('❌ User already exists for this type:', registerDto.email, registerDto.userType);
                 throw new common_1.ConflictException('User with this email already exists for this account type');
             }
             console.log('✅ User does not exist, proceeding with registration');
@@ -77,6 +76,9 @@ let AuthService = class AuthService {
             console.log('✅ Password hashed successfully');
             if (registerDto.userType === create_user_dto_1.UserType.SCHOOL_ADMIN) {
                 return await this.registerSchoolAdmin(registerDto, hashedPassword);
+            }
+            if (registerDto.userType === create_user_dto_1.UserType.CREATOR) {
+                return await this.registerCreator(registerDto, hashedPassword);
             }
             const userData = {
                 email: registerDto.email,
@@ -112,10 +114,6 @@ let AuthService = class AuthService {
             };
         }
         catch (error) {
-            console.error('❌ Registration failed:', error);
-            console.error('Error message:', error.message);
-            console.error('Error stack:', error.stack);
-            console.log('================================');
             throw error;
         }
     }
@@ -194,6 +192,67 @@ let AuthService = class AuthService {
             };
         });
     }
+    async registerCreator(registerDto, hashedPassword) {
+        console.log('=== CREATOR REGISTRATION ===');
+        return await this.prisma.$transaction(async (prisma) => {
+            const userData = {
+                email: registerDto.email,
+                password: hashedPassword,
+                firstName: registerDto.firstName,
+                lastName: registerDto.lastName,
+                type: create_user_dto_1.UserType.CREATOR,
+                phone: registerDto.phone,
+                website: registerDto.website,
+                bio: registerDto.bio,
+                country: registerDto.country,
+                profilePicture: registerDto.profilePicture,
+                isActive: false,
+                isEmailVerified: false,
+            };
+            console.log('Creating creator user with data:', JSON.stringify(userData, null, 2));
+            const user = await prisma.user.create({
+                data: userData,
+            });
+            console.log('✅ Creator user created:', user.id);
+            const creatorData = {
+                userId: user.id,
+                categories: registerDto.categories || [],
+                plan: registerDto.plan || 'free',
+            };
+            console.log('Creating creator profile with data:', JSON.stringify(creatorData, null, 2));
+            const creator = await prisma.creator.create({
+                data: creatorData,
+            });
+            console.log('✅ Creator profile created:', creator.id);
+            const verificationCode = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+            await prisma.verificationCode.create({
+                data: {
+                    email: user.email,
+                    code: verificationCode,
+                    type: 'EMAIL_VERIFICATION',
+                    expiresAt,
+                },
+            });
+            const emailSent = await this.emailService.sendVerificationEmail(user.email, verificationCode, `${user.firstName} ${user.lastName}`, 'CREATOR');
+            if (!emailSent) {
+                throw new Error('Failed to send verification email');
+            }
+            console.log('✅ Creator registration completed - verification email sent');
+            console.log('================================');
+            return {
+                success: true,
+                message: 'Creator account created successfully. Please check your email to verify your account.',
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                },
+                requiresEmailVerification: true,
+            };
+        });
+    }
     async createMasterAccount() {
         const masterEmail = 'master@sms.com';
         const existingMaster = await this.usersService.findByEmail(masterEmail);
@@ -226,10 +285,42 @@ let AuthService = class AuthService {
     }
     async sendVerificationEmail(email, userType, userName) {
         try {
+            console.log('=== SEND VERIFICATION EMAIL ===');
+            console.log('Email:', email);
+            console.log('UserType:', userType);
+            console.log('UserName:', userName);
             const code = Math.floor(100000 + Math.random() * 900000).toString();
+            const expiresAt = new Date(Date.now() + 15 * 60 * 1000);
+            if (userType === 'CREATOR') {
+                const user = await this.prisma.user.findFirst({
+                    where: {
+                        email,
+                        type: create_user_dto_1.UserType.CREATOR,
+                    },
+                });
+                if (!user) {
+                    throw new Error('Creator account not found');
+                }
+                await this.prisma.verificationCode.deleteMany({
+                    where: {
+                        email,
+                        type: 'EMAIL_VERIFICATION',
+                    },
+                });
+                await this.prisma.verificationCode.create({
+                    data: {
+                        email,
+                        code,
+                        type: 'EMAIL_VERIFICATION',
+                        expiresAt,
+                    },
+                });
+                console.log('✅ Verification code stored in database');
+            }
             const emailSent = await this.emailService.sendVerificationEmail(email, code, userName || 'User', userType);
             if (emailSent) {
-                console.log(`Verification code for ${email}: ${code}`);
+                console.log(`✅ Verification email sent to ${email}: ${code}`);
+                console.log('================================');
                 return {
                     success: true,
                     message: 'Verification email sent successfully',
@@ -242,7 +333,7 @@ let AuthService = class AuthService {
             }
         }
         catch (error) {
-            console.error('Email sending error:', error);
+            console.error('❌ Email sending error:', error);
             throw new Error('Failed to send verification email');
         }
     }
@@ -256,6 +347,79 @@ let AuthService = class AuthService {
         }
         else {
             throw new common_1.UnauthorizedException('Invalid verification code');
+        }
+    }
+    async verifyCreatorEmail(email, code) {
+        try {
+            console.log('=== CREATOR EMAIL VERIFICATION ===');
+            console.log('Email:', email);
+            console.log('Code:', code);
+            const verificationCode = await this.prisma.verificationCode.findFirst({
+                where: {
+                    email,
+                    code,
+                    type: 'EMAIL_VERIFICATION',
+                    usedAt: null,
+                    expiresAt: {
+                        gt: new Date(),
+                    },
+                },
+            });
+            if (!verificationCode) {
+                throw new common_1.UnauthorizedException('Invalid or expired verification code');
+            }
+            const user = await this.prisma.user.findFirst({
+                where: {
+                    email,
+                    type: create_user_dto_1.UserType.CREATOR,
+                },
+                include: {
+                    creator: true,
+                },
+            });
+            if (!user) {
+                throw new common_1.UnauthorizedException('User not found');
+            }
+            await this.prisma.user.update({
+                where: { id: user.id },
+                data: {
+                    isActive: true,
+                },
+            });
+            await this.prisma.verificationCode.update({
+                where: { id: verificationCode.id },
+                data: { usedAt: new Date() },
+            });
+            console.log('✅ Creator email verified and account activated');
+            const payload = {
+                email: user.email,
+                sub: user.id,
+                type: user.type.toLowerCase(),
+                firstName: user.firstName,
+                lastName: user.lastName,
+            };
+            return {
+                success: true,
+                message: 'Email verified successfully. Your creator account is now active.',
+                access_token: this.jwtService.sign(payload),
+                user: {
+                    id: user.id,
+                    email: user.email,
+                    type: user.type.toLowerCase(),
+                    firstName: user.firstName,
+                    lastName: user.lastName,
+                    profilePicture: user.profilePicture,
+                },
+                creator: {
+                    id: user.creator?.id,
+                    categories: user.creator?.categories,
+                    plan: user.creator?.plan,
+                },
+            };
+        }
+        catch (error) {
+            console.error('❌ Creator email verification failed:', error);
+            throw error;
         }
     }
     async forgotPassword(forgotPasswordDto) {
@@ -362,12 +526,33 @@ let AuthService = class AuthService {
         });
     }
     async getUserProfile(user) {
+        const completeUser = await this.prisma.user.findUnique({
+            where: { id: user.id },
+            include: {
+                creator: true,
+            },
+        });
+        if (!completeUser) {
+            throw new Error('User not found');
+        }
         const userData = {
-            ...user,
-            type: user.type.toLowerCase(),
+            id: completeUser.id,
+            email: completeUser.email,
+            type: completeUser.type.toLowerCase(),
+            firstName: completeUser.firstName,
+            lastName: completeUser.lastName,
+            phone: completeUser.phone,
+            website: completeUser.website,
+            bio: completeUser.bio,
+            country: completeUser.country,
+            profilePicture: completeUser.profilePicture,
+            isActive: completeUser.isActive,
+            isEmailVerified: completeUser.isEmailVerified,
+            createdAt: completeUser.createdAt,
+            updatedAt: completeUser.updatedAt,
         };
-        if (user.type === 'school_admin') {
-            const schoolAdmin = await this.getSchoolAdminProfile(user.id);
+        if (completeUser.type === 'SCHOOL_ADMIN') {
+            const schoolAdmin = await this.getSchoolAdminProfile(completeUser.id);
             if (schoolAdmin) {
                 return {
                     ...userData,
@@ -375,7 +560,62 @@ let AuthService = class AuthService {
                 };
             }
         }
+        if (completeUser.type === 'CREATOR' && completeUser.creator) {
+            return {
+                ...userData,
+                categories: completeUser.creator.categories,
+                plan: completeUser.creator.plan,
+                verified: completeUser.creator.verified,
+                rating: completeUser.creator.rating,
+                totalProducts: completeUser.creator.totalProducts,
+                totalSales: completeUser.creator.totalSales,
+                totalRevenue: completeUser.creator.totalRevenue,
+                joinDate: completeUser.creator.joinDate,
+                specialties: completeUser.creator.specialties,
+            };
+        }
         return userData;
+    }
+    async updateProfile(user, updateDto) {
+        return await this.prisma.$transaction(async (prisma) => {
+            const userUpdateData = {};
+            if (updateDto.firstName !== undefined)
+                userUpdateData.firstName = updateDto.firstName;
+            if (updateDto.lastName !== undefined)
+                userUpdateData.lastName = updateDto.lastName;
+            if (updateDto.email !== undefined)
+                userUpdateData.email = updateDto.email;
+            if (updateDto.phone !== undefined)
+                userUpdateData.phone = updateDto.phone;
+            if (updateDto.website !== undefined)
+                userUpdateData.website = updateDto.website;
+            if (updateDto.country !== undefined)
+                userUpdateData.country = updateDto.country;
+            if (updateDto.bio !== undefined)
+                userUpdateData.bio = updateDto.bio;
+            if (updateDto.profilePicture !== undefined)
+                userUpdateData.profilePicture = updateDto.profilePicture;
+            if (Object.keys(userUpdateData).length > 0) {
+                await prisma.user.update({
+                    where: { id: user.id },
+                    data: userUpdateData,
+                });
+            }
+            if (user.type === 'CREATOR') {
+                const creatorUpdateData = {};
+                if (updateDto.categories !== undefined)
+                    creatorUpdateData.categories = updateDto.categories;
+                if (updateDto.plan !== undefined)
+                    creatorUpdateData.plan = updateDto.plan;
+                if (Object.keys(creatorUpdateData).length > 0) {
+                    await prisma.creator.update({
+                        where: { userId: user.id },
+                        data: creatorUpdateData,
+                    });
+                }
+            }
+            return this.getUserProfile(user);
+        });
     }
 };
 exports.AuthService = AuthService;
