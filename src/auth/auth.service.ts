@@ -7,11 +7,10 @@ import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
+import { AcademicStructureService } from '../academic-structure/academic-structure.service';
 import * as bcrypt from 'bcryptjs';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
-import { SchoolAdminRegisterDto } from './dto/school-admin-register.dto';
-import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { UserType } from '../users/dto/create-user.dto';
@@ -23,6 +22,7 @@ export class AuthService {
     private jwtService: JwtService,
     private emailService: EmailService,
     private prisma: PrismaService,
+    private academicStructureService: AcademicStructureService,
   ) {}
 
   async validateUser(
@@ -48,12 +48,23 @@ export class AuthService {
       throw new UnauthorizedException('Invalid credentials');
     }
 
+    // Get schoolId for school admin users
+    let schoolId: string | null = null;
+    if (user.type === 'SCHOOL_ADMIN') {
+      const schoolAdmin = await this.prisma.schoolAdmin.findFirst({
+        where: { userId: user.id },
+        select: { schoolId: true },
+      });
+      schoolId = schoolAdmin?.schoolId || null;
+    }
+
     const payload = {
       email: user.email,
       sub: user.id,
       type: user.type.toLowerCase(), // Store lowercase in JWT for consistency
       firstName: user.firstName,
       lastName: user.lastName,
+      schoolId: schoolId,
     };
 
     return {
@@ -65,11 +76,12 @@ export class AuthService {
         firstName: user.firstName,
         lastName: user.lastName,
         profilePicture: user.profilePicture,
+        schoolId: schoolId,
       },
     };
   }
 
-  async register(registerDto: RegisterDto | SchoolAdminRegisterDto) {
+  async register(registerDto: RegisterDto) {
     console.log('=== REGISTRATION DEBUG ===');
     console.log(
       'Received registration data:',
@@ -85,8 +97,12 @@ export class AuthService {
         registerDto.email,
         registerDto.userType,
       );
-
       if (existingUser) {
+        console.log(
+          '❌ User already exists for this type:',
+          registerDto.email,
+          registerDto.userType,
+        );
         throw new ConflictException(
           'User with this email already exists for this account type',
         );
@@ -100,15 +116,7 @@ export class AuthService {
 
       // Handle school registration
       if (registerDto.userType === UserType.SCHOOL_ADMIN) {
-        return await this.registerSchoolAdmin(
-          registerDto as SchoolAdminRegisterDto,
-          hashedPassword,
-        );
-      }
-
-      // Handle creator registration
-      if (registerDto.userType === UserType.CREATOR) {
-        return await this.registerCreator(registerDto, hashedPassword);
+        return await this.registerSchoolAdmin(registerDto, hashedPassword);
       }
 
       // Handle other user types (existing logic)
@@ -151,12 +159,16 @@ export class AuthService {
         },
       };
     } catch (error) {
+      console.error('❌ Registration failed:', error);
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      console.log('================================');
       throw error;
     }
   }
 
   private async registerSchoolAdmin(
-    registerDto: SchoolAdminRegisterDto,
+    registerDto: RegisterDto,
     hashedPassword: string,
   ) {
     console.log('=== SCHOOL ADMIN REGISTRATION ===');
@@ -188,7 +200,6 @@ export class AuthService {
 
       const schoolData = {
         name: registerDto.schoolName,
-        type: registerDto.schoolTypes[0], // Use the frontend value directly
         country: registerDto.country,
         street: primaryAddress.street,
         city: primaryAddress.city,
@@ -228,12 +239,30 @@ export class AuthService {
       });
       console.log('✅ School admin created:', schoolAdmin.id);
 
+      // 4. Generate academic structure for the school
+      console.log('Generating academic structure...');
+      const educationSystemId = this.getEducationSystemIdByCountry(
+        registerDto.country,
+      );
+      const availableLevels = this.getAvailableLevelsForCountry(
+        registerDto.country,
+      );
+
+      await this.academicStructureService.generateAcademicStructureForSchool(
+        school.id,
+        educationSystemId,
+        registerDto.schoolTypes, // All selected school types
+        availableLevels, // All available levels for future expansion
+      );
+      console.log('✅ Academic structure generated');
+
       const payload = {
         email: user.email,
         sub: user.id,
         type: user.type.toLowerCase(), // Store lowercase in JWT for consistency
         firstName: user.firstName,
         lastName: user.lastName,
+        schoolId: school.id, // Include schoolId in JWT payload
       };
 
       console.log('✅ School admin registration completed successfully');
@@ -248,109 +277,13 @@ export class AuthService {
           firstName: user.firstName,
           lastName: user.lastName,
           profilePicture: user.profilePicture,
+          schoolId: school.id, // Include schoolId for school admin users
         },
         school: {
           id: school.id,
           name: school.name,
-          type: school.type,
+          // type field removed - using academic config instead
         },
-      };
-    });
-  }
-
-  private async registerCreator(
-    registerDto: RegisterDto,
-    hashedPassword: string,
-  ) {
-    console.log('=== CREATOR REGISTRATION ===');
-
-    // Use transaction to ensure data consistency
-    return await this.prisma.$transaction(async (prisma) => {
-      // Create the creator user (inactive until email verification)
-      const userData = {
-        email: registerDto.email,
-        password: hashedPassword,
-        firstName: registerDto.firstName,
-        lastName: registerDto.lastName,
-        type: UserType.CREATOR,
-        phone: registerDto.phone,
-        website: registerDto.website,
-        bio: registerDto.bio,
-        country: registerDto.country,
-        profilePicture: registerDto.profilePicture,
-        isActive: false, // Inactive until email verification
-        isEmailVerified: false,
-      };
-
-      console.log(
-        'Creating creator user with data:',
-        JSON.stringify(userData, null, 2),
-      );
-      const user = await prisma.user.create({
-        data: userData,
-      });
-      console.log('✅ Creator user created:', user.id);
-
-      // Create creator profile with categories and plan
-      const creatorData = {
-        userId: user.id,
-        categories: registerDto.categories || [],
-        plan: registerDto.plan || 'free',
-      };
-
-      console.log(
-        'Creating creator profile with data:',
-        JSON.stringify(creatorData, null, 2),
-      );
-      const creator = await prisma.creator.create({
-        data: creatorData,
-      });
-      console.log('✅ Creator profile created:', creator.id);
-
-      // Generate verification code
-      const verificationCode = Math.floor(
-        100000 + Math.random() * 900000,
-      ).toString();
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-
-      // Store verification code
-      await prisma.verificationCode.create({
-        data: {
-          email: user.email,
-          code: verificationCode,
-          type: 'EMAIL_VERIFICATION',
-          expiresAt,
-        },
-      });
-
-      // Send verification email
-      const emailSent = await this.emailService.sendVerificationEmail(
-        user.email,
-        verificationCode,
-        `${user.firstName} ${user.lastName}`,
-        'CREATOR',
-      );
-
-      if (!emailSent) {
-        throw new Error('Failed to send verification email');
-      }
-
-      console.log(
-        '✅ Creator registration completed - verification email sent',
-      );
-      console.log('================================');
-
-      return {
-        success: true,
-        message:
-          'Creator account created successfully. Please check your email to verify your account.',
-        user: {
-          id: user.id,
-          email: user.email,
-          firstName: user.firstName,
-          lastName: user.lastName,
-        },
-        requiresEmailVerification: true,
       };
     });
   }
@@ -396,49 +329,8 @@ export class AuthService {
     userName?: string,
   ) {
     try {
-      console.log('=== SEND VERIFICATION EMAIL ===');
-      console.log('Email:', email);
-      console.log('UserType:', userType);
-      console.log('UserName:', userName);
-
       // Generate a 6-digit verification code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
-
-      // For creator verification, store the code in database
-      if (userType === 'CREATOR') {
-        // Check if user exists and is a creator
-        const user = await this.prisma.user.findFirst({
-          where: {
-            email,
-            type: UserType.CREATOR,
-          },
-        });
-
-        if (!user) {
-          throw new Error('Creator account not found');
-        }
-
-        // Delete any existing verification codes for this email
-        await this.prisma.verificationCode.deleteMany({
-          where: {
-            email,
-            type: 'EMAIL_VERIFICATION',
-          },
-        });
-
-        // Store the new verification code
-        await this.prisma.verificationCode.create({
-          data: {
-            email,
-            code,
-            type: 'EMAIL_VERIFICATION',
-            expiresAt,
-          },
-        });
-
-        console.log('✅ Verification code stored in database');
-      }
 
       // Send the verification email
       const emailSent = await this.emailService.sendVerificationEmail(
@@ -449,8 +341,8 @@ export class AuthService {
       );
 
       if (emailSent) {
-        console.log(`✅ Verification email sent to ${email}: ${code}`);
-        console.log('================================');
+        // In production, store the code in database with expiration
+        console.log(`Verification code for ${email}: ${code}`);
 
         return {
           success: true,
@@ -462,7 +354,7 @@ export class AuthService {
         throw new Error('Failed to send verification email');
       }
     } catch (error) {
-      console.error('❌ Email sending error:', error);
+      console.error('Email sending error:', error);
       throw new Error('Failed to send verification email');
     }
   }
@@ -478,95 +370,6 @@ export class AuthService {
       };
     } else {
       throw new UnauthorizedException('Invalid verification code');
-    }
-  }
-
-  async verifyCreatorEmail(email: string, code: string) {
-    try {
-      console.log('=== CREATOR EMAIL VERIFICATION ===');
-      console.log('Email:', email);
-      console.log('Code:', code);
-
-      // Find the verification code
-      const verificationCode = await this.prisma.verificationCode.findFirst({
-        where: {
-          email,
-          code,
-          type: 'EMAIL_VERIFICATION',
-          usedAt: null,
-          expiresAt: {
-            gt: new Date(),
-          },
-        },
-      });
-
-      if (!verificationCode) {
-        throw new UnauthorizedException('Invalid or expired verification code');
-      }
-
-      // Find the user
-      const user = await this.prisma.user.findFirst({
-        where: {
-          email,
-          type: UserType.CREATOR,
-        },
-        include: {
-          creator: true,
-        },
-      });
-
-      if (!user) {
-        throw new UnauthorizedException('User not found');
-      }
-
-      // Activate the user and mark email as verified
-      await this.prisma.user.update({
-        where: { id: user.id },
-        data: {
-          isActive: true,
-          // isEmailVerified: true, // TODO: Fix Prisma client generation
-        },
-      });
-
-      // Mark verification code as used
-      await this.prisma.verificationCode.update({
-        where: { id: verificationCode.id },
-        data: { usedAt: new Date() },
-      });
-
-      console.log('✅ Creator email verified and account activated');
-
-      // Generate JWT token
-      const payload = {
-        email: user.email,
-        sub: user.id,
-        type: user.type.toLowerCase(),
-        firstName: user.firstName,
-        lastName: user.lastName,
-      };
-
-      return {
-        success: true,
-        message:
-          'Email verified successfully. Your creator account is now active.',
-        access_token: this.jwtService.sign(payload),
-        user: {
-          id: user.id,
-          email: user.email,
-          type: user.type.toLowerCase(),
-          firstName: user.firstName,
-          lastName: user.lastName,
-          profilePicture: user.profilePicture,
-        },
-        creator: {
-          id: user.creator?.id,
-          categories: user.creator?.categories,
-          plan: user.creator?.plan,
-        },
-      };
-    } catch (error) {
-      console.error('❌ Creator email verification failed:', error);
-      throw error;
     }
   }
 
@@ -724,115 +527,48 @@ export class AuthService {
   }
 
   async getUserProfile(user: any) {
-    // Fetch complete user data from database
-    const completeUser = await this.prisma.user.findUnique({
-      where: { id: user.id },
-      include: {
-        creator: true, // Include creator-specific data
-      },
-    });
-
-    if (!completeUser) {
-      throw new Error('User not found');
-    }
-
     // Get basic user data with lowercase type for frontend consistency
     const userData = {
-      id: completeUser.id,
-      email: completeUser.email,
-      type: completeUser.type.toLowerCase(),
-      firstName: completeUser.firstName,
-      lastName: completeUser.lastName,
-      phone: completeUser.phone,
-      website: completeUser.website,
-      bio: completeUser.bio,
-      country: completeUser.country,
-      profilePicture: completeUser.profilePicture,
-      isActive: completeUser.isActive,
-      isEmailVerified: completeUser.isEmailVerified,
-      createdAt: completeUser.createdAt,
-      updatedAt: completeUser.updatedAt,
+      ...user,
+      type: user.type.toLowerCase(),
     };
 
     // If user is a school admin, fetch the role information
-    if (completeUser.type === 'SCHOOL_ADMIN') {
-      const schoolAdmin = await this.getSchoolAdminProfile(completeUser.id);
+    if (user.type === 'school_admin') {
+      const schoolAdmin = await this.getSchoolAdminProfile(user.id);
 
       if (schoolAdmin) {
         return {
           ...userData,
           role: schoolAdmin.role,
+          schoolId: schoolAdmin.schoolId,
         };
       }
-    }
-
-    // If user is a creator, include creator-specific data
-    if (completeUser.type === 'CREATOR' && completeUser.creator) {
-      return {
-        ...userData,
-        categories: completeUser.creator.categories,
-        plan: completeUser.creator.plan,
-        verified: completeUser.creator.verified,
-        rating: completeUser.creator.rating,
-        totalProducts: completeUser.creator.totalProducts,
-        totalSales: completeUser.creator.totalSales,
-        totalRevenue: completeUser.creator.totalRevenue,
-        joinDate: completeUser.creator.joinDate,
-        specialties: completeUser.creator.specialties,
-      };
     }
 
     return userData;
   }
 
-  async updateProfile(user: any, updateDto: UpdateProfileDto) {
-    // Use transaction to ensure data consistency
-    return await this.prisma.$transaction(async (prisma) => {
-      // Prepare user data for update
-      const userUpdateData: any = {};
+  private getEducationSystemIdByCountry(country: string): string {
+    // Map country codes to education system IDs
+    const countryToSystemMap: Record<string, string> = {
+      NG: 'nigeria-6334',
+      GH: 'ghana-6334', // Add when available
+      KE: 'kenya-844', // Add when available
+      // Add more mappings as needed
+    };
 
-      if (updateDto.firstName !== undefined)
-        userUpdateData.firstName = updateDto.firstName;
-      if (updateDto.lastName !== undefined)
-        userUpdateData.lastName = updateDto.lastName;
-      if (updateDto.email !== undefined) userUpdateData.email = updateDto.email;
-      if (updateDto.phone !== undefined) userUpdateData.phone = updateDto.phone;
-      if (updateDto.website !== undefined)
-        userUpdateData.website = updateDto.website;
-      if (updateDto.country !== undefined)
-        userUpdateData.country = updateDto.country;
-      if (updateDto.bio !== undefined) userUpdateData.bio = updateDto.bio;
-      if (updateDto.profilePicture !== undefined)
-        userUpdateData.profilePicture = updateDto.profilePicture;
+    return countryToSystemMap[country] || 'nigeria-6334'; // Default to Nigeria
+  }
 
-      // Update user data if there are changes
-      if (Object.keys(userUpdateData).length > 0) {
-        await prisma.user.update({
-          where: { id: user.id },
-          data: userUpdateData,
-        });
-      }
+  private getAvailableLevelsForCountry(country: string): string[] {
+    // Get all available levels for the country's education system
+    const educationSystemId = this.getEducationSystemIdByCountry(country);
+    const system =
+      this.academicStructureService.getEducationSystemById(educationSystemId);
 
-      // Handle creator-specific updates
-      if (user.type === 'CREATOR') {
-        const creatorUpdateData: any = {};
+    if (!system) return [];
 
-        if (updateDto.categories !== undefined)
-          creatorUpdateData.categories = updateDto.categories;
-        if (updateDto.plan !== undefined)
-          creatorUpdateData.plan = updateDto.plan;
-
-        // Update creator data if there are changes
-        if (Object.keys(creatorUpdateData).length > 0) {
-          await prisma.creator.update({
-            where: { userId: user.id },
-            data: creatorUpdateData,
-          });
-        }
-      }
-
-      // Return updated user profile
-      return this.getUserProfile(user);
-    });
+    return system.levels.map((level) => level.id);
   }
 }
