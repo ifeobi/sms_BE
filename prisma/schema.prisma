@@ -32,6 +32,7 @@ model User {
   parent         Parent?
   schoolAdmin    SchoolAdmin?
   creator        Creator?
+  settings       UserSettings?
 
   // Audit fields
   createdBy      String?
@@ -40,6 +41,41 @@ model User {
   // Composite unique constraint: same email can't be used twice for same user type
   @@unique([email, type])
   @@map("users")
+}
+
+// ==================== USER SETTINGS ====================
+
+model UserSettings {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile settings
+  profileData Json? // Store profile preferences as JSON
+
+  // Notification settings
+  notifications Json? // Store notification preferences as JSON
+
+  // Privacy settings
+  privacy Json? // Store privacy preferences as JSON
+
+  // Security settings
+  security Json? // Store security preferences as JSON
+
+  // Appearance settings
+  appearance Json? // Store appearance preferences as JSON
+
+  // Accessibility settings
+  accessibility Json? // Store accessibility preferences as JSON
+
+  // Communication settings
+  communication Json? // Store communication preferences as JSON
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("user_settings")
 }
 
 enum UserType {
