@@ -150,11 +150,6 @@ export class ContentController {
       updateContentDto.textbookPublisher,
     );
     console.log('Textbook Year in DTO:', updateContentDto.textbookYear);
-    console.log(
-      'Physical delivery method in DTO:',
-      updateContentDto.physicalDeliveryMethod,
-    );
-    console.log('Pickup location in DTO:', updateContentDto.pickupLocation);
     console.log('==============================');
 
     let creatorId = req.user.creatorId;
