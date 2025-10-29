@@ -65,19 +65,25 @@ export class UsersService {
 
   async findByEmail(email: string, type?: string) {
     if (type) {
-      // Use composite unique constraint
-      return this.prisma.user.findUnique({
-        where: { 
-          email_type: {
-            email,
-            type: type as any
-          }
+      // Use exact match with case insensitive search
+      return await this.prisma.user.findFirst({
+        where: {
+          email: {
+            equals: email,
+            mode: 'insensitive',
+          },
+          type: type as any,
         },
       });
     } else {
       // Find by email only (returns first match)
-      return this.prisma.user.findFirst({
-        where: { email },
+      return await this.prisma.user.findFirst({
+        where: {
+          email: {
+            equals: email,
+            mode: 'insensitive',
+          },
+        },
       });
     }
   }

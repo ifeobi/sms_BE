@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
@@ -25,60 +26,92 @@ export class AuthService {
     private academicStructureService: AcademicStructureService,
   ) {}
 
+  private readonly logger = new Logger(AuthService.name);
+
   async validateUser(
     email: string,
     password: string,
     userType?: string,
   ): Promise<any> {
-    const user = await this.usersService.findByEmail(email, userType);
-    if (user && (await bcrypt.compare(password, user.password))) {
-      const { password, ...result } = user;
-      return result;
+    try {
+      this.logger.log(`Validating user: ${email} (type: ${userType})`);
+      
+      // First try to find user with the specified type
+      let user = await this.usersService.findByEmail(email, userType);
+      
+      // If not found and a userType was specified, check if it's a MASTER account
+      // Master accounts can login with any userType
+      if (!user && userType) {
+        this.logger.log(`User not found with type ${userType}, checking for MASTER account...`);
+        user = await this.usersService.findByEmail(email, 'MASTER');
+        
+        if (user && user.type === 'MASTER') {
+          this.logger.log(`Found MASTER account, allowing login with any userType`);
+        }
+      }
+      
+      if (!user) {
+        this.logger.warn(`User not found: ${email} (type: ${userType})`);
+        return null;
+      }
+
+      this.logger.log(`User found, checking password...`);
+      const passwordMatch = await bcrypt.compare(password, user.password);
+      
+      if (passwordMatch) {
+        this.logger.log(`Password match successful for: ${email}`);
+        const { password, ...result } = user;
+        return result;
+      }
+      
+      this.logger.warn(`Password mismatch for: ${email}`);
+      return null;
+    } catch (error) {
+      this.logger.error(`Error in validateUser for ${email}:`, error);
+      throw error;
     }
-    return null;
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(
-      loginDto.email,
-      loginDto.password,
-      loginDto.userType,
-    );
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+    try {
+      this.logger.log(`Login attempt: ${loginDto.email} (${loginDto.userType})`);
+      
+      const user = await this.validateUser(
+        loginDto.email,
+        loginDto.password,
+        loginDto.userType,
+      );
+      
+      if (!user) {
+        this.logger.warn(`Failed login attempt: ${loginDto.email} - Invalid credentials`);
+        throw new UnauthorizedException('Invalid credentials');
+      }
 
-    // Get schoolId for school admin users
-    let schoolId: string | null = null;
-    if (user.type === 'SCHOOL_ADMIN') {
-      const schoolAdmin = await this.prisma.schoolAdmin.findFirst({
-        where: { userId: user.id },
-        select: { schoolId: true },
-      });
-      schoolId = schoolAdmin?.schoolId || null;
-    }
+      this.logger.log(`Successful login: ${loginDto.email}`);
 
-    const payload = {
-      email: user.email,
-      sub: user.id,
-      type: user.type.toLowerCase(), // Store lowercase in JWT for consistency
-      firstName: user.firstName,
-      lastName: user.lastName,
-      schoolId: schoolId,
-    };
-
-    return {
-      access_token: this.jwtService.sign(payload),
-      user: {
-        id: user.id,
+      const payload = {
         email: user.email,
-        type: user.type.toLowerCase(), // Return lowercase for frontend consistency
+        sub: user.id,
+        type: user.type.toLowerCase(), // Store lowercase in JWT for consistency
         firstName: user.firstName,
         lastName: user.lastName,
-        profilePicture: user.profilePicture,
-        schoolId: schoolId,
-      },
-    };
+      };
+
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: {
+          id: user.id,
+          email: user.email,
+          type: user.type.toLowerCase(), // Return lowercase for frontend consistency
+          firstName: user.firstName,
+          lastName: user.lastName,
+          profilePicture: user.profilePicture,
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Login error for ${loginDto.email}:`, error);
+      throw error;
+    }
   }
 
   async register(registerDto: RegisterDto) {
@@ -136,6 +169,29 @@ export class AuthService {
       const user = await this.usersService.create(userData);
       console.log('✅ User created successfully:', user.id);
 
+      // If parent self-registration, send verification code to their email
+      let parentVerificationCode: string | undefined;
+      if (registerDto.userType === UserType.PARENT) {
+        try {
+          const code = Math.floor(100000 + Math.random() * 900000).toString();
+          parentVerificationCode = code;
+          // Log the code explicitly so you can see it in your terminal during development
+          console.log(`Parent verification code for ${user.email}: ${code}`);
+          this.logger.log(`Parent verification code for ${user.email}: ${code}`);
+          await this.emailService.sendVerificationEmail(
+            user.email,
+            code,
+            `${user.firstName} ${user.lastName}`,
+            'PARENT',
+          );
+          console.log(`✅ Sent parent verification code to ${user.email}`);
+          this.logger.log(`✅ Sent parent verification code to ${user.email}`);
+        } catch (emailError) {
+          console.error('❌ Failed to send parent verification email:', emailError);
+          this.logger.error('❌ Failed to send parent verification email:', emailError as any);
+        }
+      }
+
       const payload = {
         email: user.email,
         sub: user.id,
@@ -157,6 +213,12 @@ export class AuthService {
           lastName: user.lastName,
           profilePicture: user.profilePicture,
         },
+        // Expose the code only in non-production for quick testing
+        devVerificationCode:
+          process.env.NODE_ENV !== 'production' &&
+          registerDto.userType === UserType.PARENT
+            ? parentVerificationCode
+            : undefined,
       };
     } catch (error) {
       console.error('❌ Registration failed:', error);
@@ -196,16 +258,30 @@ export class AuthService {
       console.log('✅ User created:', user.id);
 
       // 2. Create the school
-      const primaryAddress = registerDto.addresses[0];
+      if (!registerDto.schoolName) {
+        throw new ConflictException('School name is required for school admins');
+      }
+      if (!registerDto.country) {
+        throw new ConflictException('Country is required for school admins');
+      }
+      if (!registerDto.schoolTypes || registerDto.schoolTypes.length === 0) {
+        throw new ConflictException('At least one school type is required');
+      }
+
+      const primaryAddress =
+        registerDto.addresses && registerDto.addresses.length > 0
+          ? registerDto.addresses[0]
+          : undefined;
 
       const schoolData = {
-        name: registerDto.schoolName,
-        country: registerDto.country,
-        street: primaryAddress.street,
-        city: primaryAddress.city,
-        state: primaryAddress.state,
-        postalCode: primaryAddress.postalCode,
-        landmark: primaryAddress.landmark,
+        name: registerDto.schoolName as string,
+        type: registerDto.schoolTypes[0] as string, // Use the frontend value directly
+        country: registerDto.country as string,
+        street: primaryAddress?.street,
+        city: primaryAddress?.city,
+        state: primaryAddress?.state,
+        postalCode: primaryAddress?.postalCode,
+        landmark: primaryAddress?.landmark,
         logo: registerDto.profilePicture,
       };
 
@@ -222,7 +298,7 @@ export class AuthService {
       const schoolAdminData = {
         userId: user.id,
         schoolId: school.id,
-        role: registerDto.role, // principal, vice_principal, admin, etc.
+        role: (registerDto.role ?? 'admin') as string, // principal, vice_principal, admin, etc.
       };
 
       console.log('=== ROLE MAPPING ===');
@@ -333,6 +409,11 @@ export class AuthService {
       // Generate a 6-digit verification code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
 
+      // Log server-side for visibility
+      this.logger.log(
+        `Preparing verification email | email=${email} userType=${userType} code=${code}`,
+      );
+
       // Send the verification email
       const emailSent = await this.emailService.sendVerificationEmail(
         email,
@@ -344,6 +425,7 @@ export class AuthService {
       if (emailSent) {
         // In production, store the code in database with expiration
         console.log(`Verification code for ${email}: ${code}`);
+        this.logger.log(`Verification code for ${email}: ${code}`);
 
         return {
           success: true,
@@ -352,10 +434,14 @@ export class AuthService {
           userType,
         };
       } else {
+        this.logger.error(
+          `Failed to send verification email to ${email} (userType=${userType})`,
+        );
         throw new Error('Failed to send verification email');
       }
     } catch (error) {
       console.error('Email sending error:', error);
+      this.logger.error('Email sending error', error as any);
       throw new Error('Failed to send verification email');
     }
   }
