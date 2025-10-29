@@ -36,9 +36,43 @@ model User {
   sellerBalance   SellerBalance?      @relation("SellerBalance")
   student         Student?
   teacher         Teacher?
+  settings        UserSettings?
 
   @@unique([email, type])
   @@map("users")
+}
+
+model UserSettings {
+  id        String   @id @default(cuid())
+  userId    String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Profile settings
+  profileData Json? // Store profile preferences as JSON
+  
+  // Notification settings
+  notifications Json? // Store notification preferences as JSON
+
+  // Privacy settings
+  privacy Json? // Store privacy preferences as JSON
+
+  // Security settings
+  security Json? // Store security preferences as JSON
+
+  // Appearance settings
+  appearance Json? // Store appearance preferences as JSON
+
+  // Accessibility settings
+  accessibility Json? // Store accessibility preferences as JSON
+
+  // Communication settings
+  communication Json? // Store communication preferences as JSON
+
+  // Relationships
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)  
+
+  @@map("user_settings")
 }
 
 model School {
@@ -69,6 +103,9 @@ model School {
   subjects           Subject[]
   teacherAssignments TeacherAssignment[]
   teachers           Teacher[]
+  schoolAcademicConfig SchoolAcademicConfig?
+  sections          Section[]
+  customSectionPatterns CustomSectionPattern[]
 
   @@map("schools")
 }
@@ -80,6 +117,7 @@ model Student {
   studentNumber             String                     @unique
   currentLevelId            String
   currentClassId            String
+  currentSectionId          String?                   // Optional section within class
   academicYear              String
   status                    StudentStatus              @default(ACTIVE)
   enrollmentDate            DateTime                   @default(now())
@@ -139,6 +177,7 @@ model Student {
   currentLevel              Level                      @relation("StudentCurrentLevel", fields: [currentLevelId], references: [id])
   school                    School                     @relation(fields: [schoolId], references: [id])
   user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
+  section                   Section?                   @relation("StudentCurrentSection", fields: [currentSectionId], references: [id])
   timelineEvents            TimelineEvent[]
   parentRelationships       ParentSchoolRelationship[] @relation("ParentSchoolRelationshipToStudent")
 
@@ -163,8 +202,16 @@ model Class {
   levelId           String
   schoolId          String
   name              String
+  shortName         String?             // "P1", "G1", etc. - abbreviated name
+  sectionName       String?             // "A", "Red", "Lion", "Alpha-1" - null for base class
+  sectionOrder      Int?                // Order within level for sections (1, 2, 3...)
+  capacity          Int?                // Student capacity per section
+  templateUsed      String?             // "alphabetical", "colors", "custom", etc.
+  graduation        Boolean             @default(false) // Whether this class level graduates students
   order             Int
   isActive          Boolean             @default(true)
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
   academicRecords   AcademicRecord[]
   assignments       Assignment[]
   attendanceRecords AttendanceRecord[]
@@ -173,6 +220,7 @@ model Class {
   students          Student[]           @relation("StudentCurrentClass")
   teachers          TeacherAssignment[]
   subjects          Subject[]           @relation("ClassToSubject")
+  sections          Section[]
 
   @@map("classes")
 }
@@ -183,6 +231,7 @@ model Subject {
   name            String
   code            String
   description     String?
+  category        String?             // For analytics grouping (e.g., "English", "Mathematics")
   isActive        Boolean             @default(true)
   academicRecords AcademicRecord[]
   assignments     Assignment[]
@@ -207,8 +256,84 @@ model Teacher {
   teacherAssignments TeacherAssignment[]
   school             School              @relation(fields: [schoolId], references: [id])
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  sections           Section[]           @relation("SectionTeacher")
 
   @@map("teachers")
+}
+
+// ==================== ACADEMIC STRUCTURE ====================
+
+model SchoolAcademicConfig {
+  id                    String   @id @default(cuid())
+  schoolId              String   @unique
+  educationSystemId     String   // Reference to education system (e.g., "nigeria-6334")
+  selectedLevels        String[] // Array of selected level IDs (e.g., ["primary", "jss"])
+  availableLevels       String[] // Array of available but inactive level IDs (e.g., ["nursery", "sss"])
+  customClassNames      Json?    // Override default class names
+  customSubjectNames    Json?    // Override default subject names
+  isActive              Boolean  @default(true)
+  createdAt             DateTime @default(now())
+  updatedAt             DateTime @updatedAt
+
+  // Relationships
+  school                School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@map("school_academic_configs")
+}
+
+// ==================== SECTION MANAGEMENT ====================
+
+model SectionTemplate {
+  id          String   @id @default(cuid())
+  name        String   @unique // "Alphabetical", "Numbers", "Colors", "Animals"
+  description String   // "A, B, C, D, E, F..."
+  pattern     String[] // ["A", "B", "C", "D", "E", "F"]
+  isDefault   Boolean  @default(false)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  customPatterns CustomSectionPattern[]
+  
+  @@map("section_templates")
+}
+
+model CustomSectionPattern {
+  id        String   @id @default(cuid())
+  schoolId  String
+  templateId String?
+  name      String   // "Custom Pattern 1"
+  pattern   String[] // ["Alpha", "Beta", "Gamma", "Delta"]
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relationships
+  school   School          @relation(fields: [schoolId], references: [id])
+  template SectionTemplate? @relation(fields: [templateId], references: [id])
+
+  @@map("custom_section_patterns")
+}
+
+model Section {
+  id          String   @id @default(cuid())
+  classId     String
+  schoolId    String
+  name        String   // "A", "B", "Red", "Alpha", etc.
+  teacherId   String?  // Assigned teacher for this section
+  capacity    Int?     // Student capacity for this section
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  // Relationships
+  class       Class    @relation(fields: [classId], references: [id], onDelete: Cascade)
+  school      School   @relation(fields: [schoolId], references: [id])
+  teacher     Teacher? @relation("SectionTeacher", fields: [teacherId], references: [id])
+  students    Student[] @relation("StudentCurrentSection")
+
+  @@map("sections")
 }
 
 model TeacherAssignment {

@@ -14,6 +14,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserType } from '../users/dto/create-user.dto';
 
 @Injectable()
@@ -457,6 +458,76 @@ export class AuthService {
       };
     } else {
       throw new UnauthorizedException('Invalid verification code');
+    }
+  }
+
+  async verifyCreatorEmail(email: string, code: string) {
+    // Verify creator email with code (similar to verifyEmail but for creators)
+    // For now, accept any 6-digit code for development
+    // In production, this would validate against stored codes
+    if (code.length === 6 && /^\d+$/.test(code)) {
+      // Update user's email verification status if needed
+      const user = await this.usersService.findByEmail(email, UserType.CREATOR);
+      if (user) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { isEmailVerified: true },
+        });
+      }
+      
+      return {
+        success: true,
+        message: 'Creator email verified successfully',
+        email,
+      };
+    } else {
+      throw new UnauthorizedException('Invalid or expired verification code');
+    }
+  }
+
+  async updateProfile(user: any, updateDto: UpdateProfileDto) {
+    try {
+      const updateData: any = {};
+      
+      if (updateDto.firstName !== undefined) {
+        updateData.firstName = updateDto.firstName;
+      }
+      if (updateDto.lastName !== undefined) {
+        updateData.lastName = updateDto.lastName;
+      }
+      if (updateDto.phone !== undefined) {
+        updateData.phone = updateDto.phone;
+      }
+      if (updateDto.profilePicture !== undefined) {
+        updateData.profilePicture = updateDto.profilePicture;
+      }
+      if (updateDto.bio !== undefined) {
+        updateData.bio = updateDto.bio;
+      }
+      if (updateDto.website !== undefined) {
+        updateData.website = updateDto.website;
+      }
+      if (updateDto.country !== undefined) {
+        updateData.country = updateDto.country;
+      }
+
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user.id },
+        data: updateData,
+      });
+
+      const { password, ...result } = updatedUser;
+      return {
+        success: true,
+        message: 'Profile updated successfully',
+        user: {
+          ...result,
+          type: result.type.toLowerCase(),
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Error updating profile for user ${user.id}:`, error);
+      throw new Error('Failed to update profile');
     }
   }
 
