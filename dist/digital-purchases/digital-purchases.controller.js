@@ -28,22 +28,54 @@ let DigitalPurchasesController = class DigitalPurchasesController {
         this.streamingService = streamingService;
         this.prisma = prisma;
     }
+    async getBuyerInfo(userId) {
+        const student = await this.prisma.student.findUnique({
+            where: { userId },
+        });
+        if (student) {
+            return {
+                buyerId: userId,
+                buyerType: 'STUDENT',
+            };
+        }
+        const parent = await this.prisma.parent.findUnique({
+            where: { userId },
+        });
+        if (parent) {
+            return {
+                buyerId: userId,
+                buyerType: 'PARENT',
+            };
+        }
+        throw new common_1.ForbiddenException('Only students and parents can purchase digital content');
+    }
     async getStudentId(userId) {
         const student = await this.prisma.student.findUnique({
             where: { userId },
         });
         if (!student) {
-            throw new common_1.ForbiddenException('Only students can purchase digital content');
+            throw new common_1.ForbiddenException('Only students can access this resource');
         }
         return student.id;
     }
     async createPurchase(req, createPurchaseDto) {
-        const studentId = await this.getStudentId(req.user.id);
-        return this.digitalPurchasesService.createPurchase(studentId, createPurchaseDto);
+        const { buyerId, buyerType } = await this.getBuyerInfo(req.user.id);
+        return this.digitalPurchasesService.createPurchase(buyerId, buyerType, createPurchaseDto);
     }
     async getMyLibrary(req) {
-        const studentId = await this.getStudentId(req.user.id);
-        return this.digitalPurchasesService.getStudentLibrary(studentId);
+        const student = await this.prisma.student.findUnique({
+            where: { userId: req.user.id },
+        });
+        if (student) {
+            return this.digitalPurchasesService.getStudentLibrary(student.id);
+        }
+        const parent = await this.prisma.parent.findUnique({
+            where: { userId: req.user.id },
+        });
+        if (parent) {
+            return this.digitalPurchasesService.getParentPurchases(req.user.id);
+        }
+        throw new common_1.ForbiddenException('Only students and parents can access this resource');
     }
     async getDownloadLink(req, purchaseId) {
         const studentId = await this.getStudentId(req.user.id);

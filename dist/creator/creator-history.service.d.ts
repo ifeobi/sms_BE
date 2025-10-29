@@ -271,6 +271,9 @@ export declare class CreatorHistoryService {
             marketplaceItemId: string;
             paymentReference: string | null;
             paymentMethod: string | null;
+            giftMessage: string | null;
+            buyerId: string;
+            buyerType: import(".prisma/client").$Enums.BuyerType;
             amount: number;
             lastDownloadedAt: Date | null;
             lastStreamedAt: Date | null;

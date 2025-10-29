@@ -13,8 +13,15 @@ export class DigitalPurchasesService {
 
   /**
    * Create a new digital purchase
+   * @param buyerId - User ID of the person making the purchase (parent or student)
+   * @param buyerType - Type of buyer (PARENT or STUDENT)
+   * @param dto - Purchase data including beneficiaryStudentIds for parent purchases
    */
-  async createPurchase(studentId: string, dto: CreateDigitalPurchaseDto) {
+  async createPurchase(
+    buyerId: string,
+    buyerType: 'PARENT' | 'STUDENT',
+    dto: CreateDigitalPurchaseDto,
+  ) {
     // Get marketplace item with content
     const item = await this.prisma.marketplaceItem.findUnique({
       where: { id: dto.marketplaceItemId },
@@ -39,57 +46,150 @@ export class DigitalPurchasesService {
       throw new BadRequestException('This item is not a digital product');
     }
 
-    // Check if already purchased
-    const existingPurchase = await this.prisma.digitalPurchase.findFirst({
-      where: {
-        studentId,
-        marketplaceItemId: dto.marketplaceItemId,
-        status: 'COMPLETED',
-      },
-    });
+    // Determine beneficiary student IDs
+    let beneficiaryStudentIds: string[] = [];
 
-    if (existingPurchase) {
-      throw new BadRequestException('You have already purchased this content');
+    if (buyerType === 'PARENT') {
+      // For parent purchases, use beneficiaryStudentIds from DTO
+      if (!dto.beneficiaryStudentIds || dto.beneficiaryStudentIds.length === 0) {
+        throw new BadRequestException(
+          'Parent purchases must specify at least one beneficiary student.',
+        );
+      }
+
+      // Validate that parent has relationship with all children
+      const parent = await this.prisma.parent.findUnique({
+        where: { userId: buyerId },
+        include: {
+          user: true,
+        },
+      });
+
+      if (!parent) {
+        throw new ForbiddenException('Parent not found');
+      }
+
+      // Check parent-student relationships
+      const relationships = await this.prisma.parentSchoolRelationship.findMany({
+        where: { parentUserId: buyerId, isActive: true },
+        include: { children: true },
+      });
+
+      const validStudentIds = new Set<string>();
+      relationships.forEach((rel) => {
+        rel.children.forEach((student) => {
+          validStudentIds.add(student.id);
+        });
+      });
+
+      // Validate all beneficiary students are children of this parent
+      for (const studentId of dto.beneficiaryStudentIds) {
+        if (!validStudentIds.has(studentId)) {
+          throw new ForbiddenException(
+            `Student ${studentId} is not linked to this parent account`,
+          );
+        }
+      }
+
+      beneficiaryStudentIds = dto.beneficiaryStudentIds;
+    } else {
+      // For student purchases, buyer is the beneficiary
+      const student = await this.prisma.student.findUnique({
+        where: { userId: buyerId },
+      });
+
+      if (!student) {
+        throw new ForbiddenException('Student not found');
+      }
+
+      beneficiaryStudentIds = [student.id];
     }
 
-    // Prevent creator from buying their own content
-    if (item.creatorId === studentId) {
+    // Get creator's userId to check if creator is buying their own content
+    const creator = await this.prisma.creator.findUnique({
+      where: { id: item.creatorId },
+      include: { user: true },
+    });
+
+    if (!creator) {
+      throw new NotFoundException('Creator not found');
+    }
+
+    // Prevent creator from buying their own content (unless buying for children)
+    if (creator.userId === buyerId && buyerType === 'STUDENT') {
       throw new ForbiddenException(
-        'Creators cannot purchase their own digital content',
+        'Creators cannot purchase their own digital content for themselves',
       );
     }
 
-    // Create purchase
-    const purchase = await this.prisma.digitalPurchase.create({
-      data: {
-        studentId,
-        contentId: item.contentId!,
-        marketplaceItemId: dto.marketplaceItemId,
-        creatorId: item.creatorId,
-        amount: item.price,
-        currency: item.currency,
-        paymentReference: dto.paymentReference,
-        paymentMethod: dto.paymentMethod || 'PENDING',
-        status: dto.paymentReference ? 'COMPLETED' : 'PENDING', // If payment ref provided, mark as completed
-        completedAt: dto.paymentReference ? new Date() : null,
-      },
-      include: {
-        content: {
-          include: {
-            files: true,
-          },
-        },
-        marketplaceItem: true,
-      },
-    });
+    // Check for existing purchases and create purchase records
+    const purchases: any[] = [];
+    const paymentStatus = dto.paymentReference ? 'COMPLETED' : 'PENDING';
+    const completedAt = dto.paymentReference ? new Date() : null;
 
-    // Update marketplace item stats
-    if (purchase.status === 'COMPLETED') {
+    for (const studentId of beneficiaryStudentIds) {
+      // Check if already purchased
+      const existingPurchase = await this.prisma.digitalPurchase.findFirst({
+        where: {
+          studentId,
+          marketplaceItemId: dto.marketplaceItemId,
+          status: 'COMPLETED',
+        },
+      });
+
+      if (existingPurchase) {
+        throw new BadRequestException(
+          `Student ${studentId} has already purchased this content`,
+        );
+      }
+
+      // Create purchase record
+      const purchase = await this.prisma.digitalPurchase.create({
+        data: {
+          studentId,
+          buyerId,
+          buyerType: (buyerType === 'PARENT' ? 'PARENT' : 'STUDENT') as any,
+          contentId: item.contentId!,
+          marketplaceItemId: dto.marketplaceItemId,
+          creatorId: item.creatorId,
+          amount: item.price,
+          currency: item.currency,
+          paymentReference: dto.paymentReference,
+          paymentMethod: dto.paymentMethod || 'PENDING',
+          status: paymentStatus,
+          completedAt,
+          giftMessage: buyerType === 'PARENT' ? dto.giftMessage : null,
+        } as any,
+        include: {
+          content: {
+            include: {
+              files: true,
+            },
+          },
+          marketplaceItem: true,
+          buyer: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              email: true,
+            },
+          },
+        } as any,
+      });
+
+      purchases.push(purchase);
+    }
+
+    // Update marketplace item stats (only once per transaction)
+    if (paymentStatus === 'COMPLETED') {
+      const totalAmount = item.price * purchases.length;
+
       await this.prisma.marketplaceItem.update({
         where: { id: dto.marketplaceItemId },
         data: {
-          totalSales: { increment: 1 },
-          totalRevenue: { increment: item.price },
+          totalSales: { increment: purchases.length },
+          totalRevenue: { increment: totalAmount },
         },
       });
 
@@ -97,7 +197,7 @@ export class DigitalPurchasesService {
       await this.prisma.content.update({
         where: { id: item.contentId! },
         data: {
-          salesCount: { increment: 1 },
+          salesCount: { increment: purchases.length },
         },
       });
 
@@ -105,13 +205,14 @@ export class DigitalPurchasesService {
       await this.prisma.creator.update({
         where: { id: item.creatorId },
         data: {
-          totalSales: { increment: 1 },
-          totalRevenue: { increment: item.price },
+          totalSales: { increment: purchases.length },
+          totalRevenue: { increment: totalAmount },
         },
       });
     }
 
-    return purchase;
+    // Return single purchase if one, array if multiple
+    return purchases.length === 1 ? purchases[0] : purchases;
   }
 
   /**
@@ -136,9 +237,61 @@ export class DigitalPurchasesService {
             user: true,
           },
         },
-      },
+        buyer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            type: true,
+          },
+        },
+      } as any,
       orderBy: {
         completedAt: 'desc',
+      },
+    });
+
+    return purchases;
+  }
+
+  /**
+   * Get parent's purchase history (purchases made for their children)
+   */
+  async getParentPurchases(parentUserId: string) {
+    const purchases = await this.prisma.digitalPurchase.findMany({
+      where: {
+        buyerId: parentUserId,
+        buyerType: 'PARENT' as any,
+      } as any,
+      include: {
+        content: {
+          include: {
+            files: true,
+            contentCategory: true,
+          },
+        },
+        marketplaceItem: true,
+        creator: {
+          include: {
+            user: true,
+          },
+        },
+        student: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        purchasedAt: 'desc',
       },
     });
 

@@ -15,8 +15,8 @@ export declare class EscrowService {
         currency: string;
         marketplaceItemId: string;
         paymentReference: string | null;
-        amount: number;
         buyerId: string;
+        amount: number;
         sellerId: string;
         paymentProvider: string | null;
         paidAt: Date | null;
@@ -30,8 +30,8 @@ export declare class EscrowService {
         currency: string;
         marketplaceItemId: string;
         paymentReference: string | null;
-        amount: number;
         buyerId: string;
+        amount: number;
         sellerId: string;
         paymentProvider: string | null;
         paidAt: Date | null;
@@ -97,8 +97,8 @@ export declare class EscrowService {
         currency: string;
         marketplaceItemId: string;
         paymentReference: string | null;
-        amount: number;
         buyerId: string;
+        amount: number;
         sellerId: string;
         paymentProvider: string | null;
         paidAt: Date | null;
@@ -128,8 +128,8 @@ export declare class EscrowService {
         currency: string;
         marketplaceItemId: string;
         paymentReference: string | null;
-        amount: number;
         buyerId: string;
+        amount: number;
         sellerId: string;
         paymentProvider: string | null;
         paidAt: Date | null;

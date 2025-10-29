@@ -24,6 +24,39 @@ export class DigitalPurchasesController {
     private readonly prisma: PrismaService,
   ) {}
 
+  private async getBuyerInfo(userId: string): Promise<{
+    buyerId: string;
+    buyerType: 'PARENT' | 'STUDENT';
+  }> {
+    // Check if user is a student
+    const student = await this.prisma.student.findUnique({
+      where: { userId },
+    });
+
+    if (student) {
+      return {
+        buyerId: userId,
+        buyerType: 'STUDENT',
+      };
+    }
+
+    // Check if user is a parent
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId },
+    });
+
+    if (parent) {
+      return {
+        buyerId: userId,
+        buyerType: 'PARENT',
+      };
+    }
+
+    throw new ForbiddenException(
+      'Only students and parents can purchase digital content',
+    );
+  }
+
   private async getStudentId(userId: string): Promise<string> {
     const student = await this.prisma.student.findUnique({
       where: { userId },
@@ -31,7 +64,7 @@ export class DigitalPurchasesController {
 
     if (!student) {
       throw new ForbiddenException(
-        'Only students can purchase digital content',
+        'Only students can access this resource',
       );
     }
 
@@ -43,17 +76,35 @@ export class DigitalPurchasesController {
     @Request() req,
     @Body() createPurchaseDto: CreateDigitalPurchaseDto,
   ) {
-    const studentId = await this.getStudentId(req.user.id);
+    const { buyerId, buyerType } = await this.getBuyerInfo(req.user.id);
     return this.digitalPurchasesService.createPurchase(
-      studentId,
+      buyerId,
+      buyerType,
       createPurchaseDto,
     );
   }
 
   @Get('my-library')
   async getMyLibrary(@Request() req) {
-    const studentId = await this.getStudentId(req.user.id);
-    return this.digitalPurchasesService.getStudentLibrary(studentId);
+    // Check if user is student
+    const student = await this.prisma.student.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (student) {
+      return this.digitalPurchasesService.getStudentLibrary(student.id);
+    }
+
+    // Check if user is parent
+    const parent = await this.prisma.parent.findUnique({
+      where: { userId: req.user.id },
+    });
+
+    if (parent) {
+      return this.digitalPurchasesService.getParentPurchases(req.user.id);
+    }
+
+    throw new ForbiddenException('Only students and parents can access this resource');
   }
 
   @Get(':id/download')

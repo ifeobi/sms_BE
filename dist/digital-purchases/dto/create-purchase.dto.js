@@ -13,14 +13,22 @@ exports.CreateDigitalPurchaseDto = void 0;
 const class_validator_1 = require("class-validator");
 class CreateDigitalPurchaseDto {
     marketplaceItemId;
+    beneficiaryStudentIds;
     paymentReference;
     paymentMethod;
+    giftMessage;
 }
 exports.CreateDigitalPurchaseDto = CreateDigitalPurchaseDto;
 __decorate([
     (0, class_validator_1.IsString)(),
     __metadata("design:type", String)
 ], CreateDigitalPurchaseDto.prototype, "marketplaceItemId", void 0);
+__decorate([
+    (0, class_validator_1.IsArray)(),
+    (0, class_validator_1.IsString)({ each: true }),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", Array)
+], CreateDigitalPurchaseDto.prototype, "beneficiaryStudentIds", void 0);
 __decorate([
     (0, class_validator_1.IsString)(),
     (0, class_validator_1.IsOptional)(),
@@ -31,4 +39,9 @@ __decorate([
     (0, class_validator_1.IsOptional)(),
     __metadata("design:type", String)
 ], CreateDigitalPurchaseDto.prototype, "paymentMethod", void 0);
+__decorate([
+    (0, class_validator_1.IsString)(),
+    (0, class_validator_1.IsOptional)(),
+    __metadata("design:type", String)
+], CreateDigitalPurchaseDto.prototype, "giftMessage", void 0);
 //# sourceMappingURL=create-purchase.dto.js.map

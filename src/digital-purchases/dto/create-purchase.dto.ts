@@ -1,8 +1,13 @@
-import { IsString, IsNumber, IsOptional } from 'class-validator';
+import { IsString, IsOptional, IsArray } from 'class-validator';
 
 export class CreateDigitalPurchaseDto {
   @IsString()
   marketplaceItemId: string;
+
+  @IsArray()
+  @IsString({ each: true })
+  @IsOptional()
+  beneficiaryStudentIds?: string[]; // For parent purchases - which children get access
 
   @IsString()
   @IsOptional()
@@ -11,4 +16,8 @@ export class CreateDigitalPurchaseDto {
   @IsString()
   @IsOptional()
   paymentMethod?: string;
+
+  @IsString()
+  @IsOptional()
+  giftMessage?: string; // Optional message from parent to child
 }
