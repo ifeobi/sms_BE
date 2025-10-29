@@ -476,6 +476,9 @@ export declare class AcademicStructureController {
         schoolId: string;
         order: number;
     }>;
+    getLevelClassCount(id: string, getExpectedCount?: boolean): Promise<{
+        count: number;
+    }>;
     updateClass(id: string, classData: any): Promise<{
         id: string;
         name: string;

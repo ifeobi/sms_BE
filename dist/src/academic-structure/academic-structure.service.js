@@ -303,6 +303,41 @@ let AcademicStructureService = class AcademicStructureService {
         }
         return updatedLevel;
     }
+    async getLevelClassCount(levelId, getExpectedCount = false) {
+        if (getExpectedCount) {
+            const level = await this.prisma.level.findUnique({
+                where: { id: levelId },
+                include: { school: true },
+            });
+            if (!level) {
+                throw new Error('Level not found');
+            }
+            const config = await this.prisma.schoolAcademicConfig.findFirst({
+                where: { schoolId: level.schoolId },
+            });
+            if (!config) {
+                throw new Error('School academic config not found');
+            }
+            const educationSystem = this.educationSystemsService.getEducationSystemById(config.educationSystemId);
+            if (!educationSystem) {
+                throw new Error('Education system not found');
+            }
+            const systemLevel = educationSystem.levels.find((l) => l.name.toLowerCase() === level.name.toLowerCase());
+            if (!systemLevel) {
+                throw new Error('Level not found in education system');
+            }
+            return { count: systemLevel.classLevels.length };
+        }
+        else {
+            const count = await this.prisma.class.count({
+                where: {
+                    levelId,
+                    isActive: true,
+                },
+            });
+            return { count };
+        }
+    }
     async createClassesAndSubjectsForLevel(levelId, schoolId) {
         const config = await this.prisma.schoolAcademicConfig.findFirst({
             where: { schoolId },
@@ -326,28 +361,62 @@ let AcademicStructureService = class AcademicStructureService {
         }
         const createdClasses = [];
         for (const classLevel of systemLevel.classLevels) {
-            const classRecord = await this.prisma.class.create({
-                data: {
+            const existingClass = await this.prisma.class.findFirst({
+                where: {
                     name: classLevel.name,
-                    order: classLevel.order,
                     levelId: levelId,
                     schoolId,
-                    isActive: true,
                 },
             });
+            let classRecord;
+            if (existingClass) {
+                classRecord = await this.prisma.class.update({
+                    where: { id: existingClass.id },
+                    data: { isActive: true, order: classLevel.order },
+                });
+            }
+            else {
+                classRecord = await this.prisma.class.create({
+                    data: {
+                        name: classLevel.name,
+                        order: classLevel.order,
+                        levelId: levelId,
+                        schoolId,
+                        isActive: true,
+                    },
+                });
+            }
             createdClasses.push(classRecord);
         }
         for (const subjectName of systemLevel.subjects) {
-            const subject = await this.prisma.subject.create({
-                data: {
+            const existingSubject = await this.prisma.subject.findFirst({
+                where: {
                     name: subjectName,
-                    code: subjectName.toUpperCase().replace(/\s+/g, '_'),
-                    description: `${subjectName} for ${systemLevel.name}`,
-                    category: subjectName,
                     schoolId,
-                    isActive: true,
                 },
             });
+            let subject;
+            if (existingSubject) {
+                subject = await this.prisma.subject.update({
+                    where: { id: existingSubject.id },
+                    data: {
+                        isActive: true,
+                        description: `${subjectName} for ${systemLevel.name}`,
+                    },
+                });
+            }
+            else {
+                subject = await this.prisma.subject.create({
+                    data: {
+                        name: subjectName,
+                        code: subjectName.toUpperCase().replace(/\s+/g, '_'),
+                        description: `${subjectName} for ${systemLevel.name}`,
+                        category: subjectName,
+                        schoolId,
+                        isActive: true,
+                    },
+                });
+            }
             for (const classRecord of createdClasses) {
                 await this.prisma.class.update({
                     where: { id: classRecord.id },

@@ -7,6 +7,7 @@ import {
   Put,
   Delete,
   UseGuards,
+  Query,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -156,6 +157,19 @@ export class AcademicStructureController {
   })
   async toggleLevelStatus(@Param('id') id: string, @Body() body: { isActive: boolean }) {
     return this.academicStructureService.toggleLevelStatus(id, body.isActive);
+  }
+
+  @Get('levels/:id/classes/count')
+  @ApiOperation({ summary: 'Get class count for a specific level' })
+  @ApiResponse({
+    status: 200,
+    description: 'Class count retrieved successfully',
+  })
+  async getLevelClassCount(
+    @Param('id') id: string,
+    @Query('getExpectedCount') getExpectedCount?: boolean
+  ) {
+    return this.academicStructureService.getLevelClassCount(id, getExpectedCount);
   }
 
   @Put('classes/:id')
