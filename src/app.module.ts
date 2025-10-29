@@ -11,6 +11,7 @@ import { StaffModule } from './staff/staff.module';
 import { EducationSystemsModule } from './education-systems/education-systems.module';
 import { SectionManagementModule } from './section-management/section-management.module';
 import { AcademicStructureModule } from './academic-structure/academic-structure.module';
+import { ImageKitModule } from './imagekit/imagekit.module';
 
 @Module({
   imports: [
@@ -26,6 +27,7 @@ import { AcademicStructureModule } from './academic-structure/academic-structure
     EducationSystemsModule,
     SectionManagementModule,
     AcademicStructureModule,
+    ImageKitModule,
   ],
   controllers: [AppController],
   providers: [AppService],
