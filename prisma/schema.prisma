@@ -1145,6 +1145,7 @@ enum GradingScaleType {
 
 enum MarketplaceCategory {
   TEXTBOOK
+  EBOOK
   PAST_QUESTIONS
   TUTORIAL
   ASSIGNMENT

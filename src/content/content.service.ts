@@ -14,12 +14,21 @@ export class ContentService {
   constructor(private prisma: PrismaService) {}
 
   /**
-   * Determines the content type (DIGITAL or PHYSICAL) based on content category
-   * DIGITAL: video_course, ebook, audio_book, interactive
-   * PHYSICAL: textbook, worksheet, assignment, past_questions, notes, tutorial, assessment
+   * Determines the content type (DIGITAL or PHYSICAL) based on content category and delivery method
+   * 
+   * DIGITAL if:
+   * - Explicitly set to DIGITAL in DTO
+   * - Category is inherently digital (video_course, ebook, audio_book, interactive)
+   * - Has digitalDeliveryMethod set
+   * - Has digitalPrice > 0
+   * 
+   * PHYSICAL if:
+   * - Explicitly set to PHYSICAL in DTO
+   * - Category is textbook/worksheet/assignment/etc. AND no digital indicators
    */
   private determineContentType(
     contentCategoryName: string,
+    createContentDto?: CreateContentDto,
   ): 'DIGITAL' | 'PHYSICAL' {
     const digitalCategories = [
       'video_course',
@@ -29,10 +38,28 @@ export class ContentService {
     ];
     const normalizedCategory = contentCategoryName.toLowerCase().trim();
 
+    // Priority 1: If explicitly set in DTO, respect it (for both DIGITAL and PHYSICAL)
+    if (createContentDto?.contentType) {
+      return createContentDto.contentType;
+    }
+
+    // Priority 2: If category is inherently digital, return DIGITAL
     if (digitalCategories.includes(normalizedCategory)) {
       return 'DIGITAL';
     }
 
+    // Priority 3: If digitalDeliveryMethod is set, this is digital content
+    if (createContentDto?.digitalDeliveryMethod) {
+      return 'DIGITAL';
+    }
+
+    // Priority 4: If digitalPrice is set, this is digital content
+    if (createContentDto?.digitalPrice && createContentDto.digitalPrice > 0) {
+      return 'DIGITAL';
+    }
+
+    // Priority 5: Default to PHYSICAL for categories like textbook, worksheet, etc.
+    // (These can be made digital by setting digitalDeliveryMethod or digitalPrice above)
     return 'PHYSICAL';
   }
 
@@ -75,20 +102,52 @@ export class ContentService {
     );
 
     // Fetch the content category to determine the content type
+    console.log('🔍 CREATING CONTENT - Category resolution:');
+    console.log('  - Received contentCategoryId:', createContentDto.contentCategoryId);
+    console.log('  - Received content_category (string):', (createContentDto as any).content_category);
+    
     const contentCategory = await this.prisma.contentCategory.findUnique({
       where: { id: createContentDto.contentCategoryId },
     });
 
     if (!contentCategory) {
+      console.error('  ❌ Content category not found!');
       throw new Error(
         `Content category with ID ${createContentDto.contentCategoryId} not found`,
       );
     }
+    
+    console.log('  ✅ Found category:', { id: contentCategory.id, name: contentCategory.name });
+    console.log('  - This category will be stored in database as contentCategoryId');
+    console.log('  - VERIFY: contentCategoryId to be stored:', createContentDto.contentCategoryId);
+    console.log('  - VERIFY: Category name matches:', contentCategory.name);
+    
+    // CRITICAL: Verify the ID matches
+    if (createContentDto.contentCategoryId !== contentCategory.id) {
+      console.error('  ⚠️ WARNING: contentCategoryId mismatch!');
+      console.error('    - Received ID:', createContentDto.contentCategoryId);
+      console.error('    - Resolved ID:', contentCategory.id);
+      console.error('    - Category name:', contentCategory.name);
+    }
 
-    // Automatically determine contentType based on content category
-    const contentType = this.determineContentType(contentCategory.name);
+    // Automatically determine contentType based on content category and delivery method
+    // If contentType is explicitly provided in DTO, use it; otherwise auto-determine
+    const contentType = createContentDto.contentType 
+      ? createContentDto.contentType 
+      : this.determineContentType(contentCategory.name, createContentDto);
+    
+    const contentTypeSource = createContentDto.contentType 
+      ? 'explicitly set in request' 
+      : createContentDto.digitalDeliveryMethod 
+        ? 'auto-detected (has digitalDeliveryMethod)' 
+        : (createContentDto.digitalPrice && createContentDto.digitalPrice > 0)
+          ? 'auto-detected (has digitalPrice)'
+          : 'auto-detected (category default)';
+    
     console.log(
-      `Auto-determined contentType: ${contentType} for category: ${contentCategory.name}`,
+      `✓ Content type determined: ${contentType} for category: ${contentCategory.name} (${contentTypeSource})`,
+      createContentDto.digitalDeliveryMethod ? `\n  digitalDeliveryMethod: ${createContentDto.digitalDeliveryMethod}` : '',
+      (createContentDto.digitalPrice && createContentDto.digitalPrice > 0) ? `\n  digitalPrice: ${createContentDto.digitalPrice}` : '',
     );
 
     return this.prisma.content.create({
@@ -265,14 +324,47 @@ export class ContentService {
       },
     });
 
+    // DEBUG: Log raw Prisma results for ebook content specifically
+    console.log('=== RAW PRISMA QUERY RESULTS ===');
+    console.log('Total items:', content.length);
+    const ebookItem = content.find((item: any) => 
+      item.contentCategoryId && 
+      item.contentCategory?.name === 'ebook'
+    );
+    if (ebookItem) {
+      console.log('📚 Found ebook item:', ebookItem.id);
+      console.log('  - contentCategoryId:', ebookItem.contentCategoryId);
+      console.log('  - contentCategory object:', JSON.stringify(ebookItem.contentCategory, null, 2));
+      console.log('  - contentCategory type:', typeof ebookItem.contentCategory);
+    } else {
+      console.log('⚠️ No ebook item found in query results');
+      // Log all category IDs to debug
+      content.forEach((item: any) => {
+        console.log(`  - Item ${item.id}: contentCategoryId=${item.contentCategoryId}, category=${item.contentCategory?.name || item.contentCategory || 'N/A'}`);
+      });
+    }
+    console.log('================================');
+
     // Step 2: Process each content item to find the best thumbnail
     const contentWithThumbnails = await Promise.all(
       content.map(async (item) => {
         console.log('=== PROCESSING CONTENT FOR THUMBNAIL ===');
         console.log('Content ID:', item.id);
         console.log('Content Title:', item.title);
-        console.log('Content Category:', item.contentCategoryId);
+        console.log('Content Category ID:', item.contentCategoryId);
+        console.log('Content Category Relation:', item.contentCategory);
+        console.log('Content Category Type:', typeof item.contentCategory);
+        if (item.contentCategory && typeof item.contentCategory === 'object') {
+          console.log('Content Category Name:', item.contentCategory.name);
+          // Note: ContentCategory model doesn't have a slug field
+        }
         console.log('Total files attached:', item.files.length);
+        
+        // Log ALL files with their types
+        console.log('📁 All files from Prisma query:');
+        item.files.forEach((file: any, idx: number) => {
+          console.log(`  [${idx + 1}] ID: ${file.id}, Type: ${file.fileType}, Name: ${file.originalName}`);
+        });
 
         // Get the best thumbnail URL for this content
         const thumbnailUrl = await this.getBestThumbnailUrl(
@@ -300,7 +392,8 @@ export class ContentService {
         console.log('========================================');
 
         // Return content with media URLs and without files (to avoid BigInt serialization)
-        return {
+        // IMPORTANT: Preserve the contentCategory relation object, don't let string fields override it
+        const responseItem: any = {
           ...item,
           thumbnail_url: thumbnailUrl,
           video_url: videoFile ? this.getImageKitUrlOrFallback(videoFile) : null,
@@ -310,6 +403,20 @@ export class ContentService {
           // Remove files from response to avoid BigInt serialization issues
           files: undefined,
         };
+
+        // CRITICAL: Ensure contentCategory relation is preserved as an object, not a string
+        // If item.contentCategory is an object (relation), keep it
+        // Remove any string fields that might have been added accidentally
+        if (item.contentCategory && typeof item.contentCategory === 'object') {
+          responseItem.contentCategory = item.contentCategory;
+          // Remove any string versions that might override it
+          delete (responseItem as any).content_category;
+        } else {
+          console.warn('⚠️ contentCategory relation missing for content:', item.id);
+        }
+
+        console.log('✅ Final responseItem.contentCategory:', responseItem.contentCategory);
+        return responseItem;
       }),
     );
 
@@ -369,16 +476,101 @@ export class ContentService {
         name: file.originalName,
         mimeType: file.mimeType,
         uploadedAt: file.uploadedAt,
+        hasImageKitUrl: !!(file.imageKitUrl && file.imageKitUrl.includes('imagekit.io')),
+        imageKitUrl: file.imageKitUrl ? file.imageKitUrl.substring(0, 80) + '...' : 'None',
+        imageKitFileId: file.imageKitFileId || 'None',
+        storagePath: file.storagePath ? (file.storagePath.substring(0, 50) + '...') : 'None',
       });
     });
+    
+    // Count files by type
+    const filesByType = allFiles.reduce((acc: any, file: any) => {
+      acc[file.fileType] = (acc[file.fileType] || 0) + 1;
+      return acc;
+    }, {});
+    console.log('📊 Files by type:', filesByType);
+    
+    // Specifically check for THUMBNAIL files
+    const thumbnailCount = allFiles.filter(f => f.fileType === 'THUMBNAIL').length;
+    console.log(`📸 Total THUMBNAIL files found: ${thumbnailCount}`);
+    if (thumbnailCount > 0) {
+      const thumbnailIds = allFiles.filter(f => f.fileType === 'THUMBNAIL').map(f => f.id);
+      console.log(`   THUMBNAIL file IDs:`, thumbnailIds);
+    }
 
     // Priority 1: Look for THUMBNAIL file type
-    const thumbnailFile = allFiles.find(
-      (file) => file.fileType === 'THUMBNAIL',
+    // Find all thumbnail files, prioritize those with valid ImageKit URLs
+    const thumbnailFiles = allFiles.filter(
+      (file) => {
+        const isThumbnail = file.fileType === 'THUMBNAIL';
+        if (!isThumbnail && file.fileType) {
+          // Log files that aren't THUMBNAIL to see what types we have
+          console.log(`  ⚠️ File ${file.id} has fileType: "${file.fileType}" (not THUMBNAIL)`);
+        }
+        return isThumbnail;
+      },
     );
-    if (thumbnailFile) {
-      console.log('✓ Found THUMBNAIL file:', thumbnailFile.originalName);
-      return this.getImageKitUrlOrFallback(thumbnailFile);
+    
+    if (thumbnailFiles.length > 0) {
+      console.log(`📋 Found ${thumbnailFiles.length} THUMBNAIL file(s):`);
+      thumbnailFiles.forEach((file, index) => {
+        console.log(`  Thumbnail ${index + 1}:`, {
+          id: file.id,
+          originalName: file.originalName,
+          uploadedAt: file.uploadedAt,
+          imageKitUrl: file.imageKitUrl || 'None',
+          imageKitFileId: file.imageKitFileId || 'None',
+          storagePath: file.storagePath || 'None',
+          hasImageKitUrl: !!(file.imageKitUrl && file.imageKitUrl.includes('imagekit.io')),
+        });
+      });
+      
+      // Sort by uploadedAt desc (newest first) and prioritize files with ImageKit URLs
+      thumbnailFiles.sort((a, b) => {
+        // First, prioritize files with ImageKit URLs
+        const aHasImageKit = a.imageKitUrl && a.imageKitUrl.includes('imagekit.io');
+        const bHasImageKit = b.imageKitUrl && b.imageKitUrl.includes('imagekit.io');
+        
+        if (aHasImageKit && !bHasImageKit) {
+          console.log(`  → Prioritizing file ${a.originalName} (has ImageKit URL)`);
+          return -1;
+        }
+        if (!aHasImageKit && bHasImageKit) {
+          console.log(`  → Prioritizing file ${b.originalName} (has ImageKit URL)`);
+          return 1;
+        }
+        
+        // If both have or both don't have ImageKit URLs, sort by upload date (newest first)
+        const dateDiff = new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+        if (dateDiff !== 0) {
+          console.log(`  → Sorting by date: ${b.originalName} (newer) vs ${a.originalName} (older)`);
+        }
+        return dateDiff;
+      });
+      
+      // Try each thumbnail file in order until we find one that works
+      for (let i = 0; i < thumbnailFiles.length; i++) {
+        const thumbnailFile = thumbnailFiles[i];
+        console.log(`🔍 Trying THUMBNAIL file ${i + 1}/${thumbnailFiles.length}:`, thumbnailFile.originalName);
+        console.log('  - File ID:', thumbnailFile.id);
+        console.log('  - ImageKit URL:', thumbnailFile.imageKitUrl || 'None');
+        console.log('  - ImageKit File ID:', thumbnailFile.imageKitFileId || 'None');
+        console.log('  - Storage Path:', thumbnailFile.storagePath || 'None');
+        console.log('  - Uploaded At:', thumbnailFile.uploadedAt);
+        
+        const resultUrl = this.getImageKitUrlOrFallback(thumbnailFile);
+        
+        if (resultUrl) {
+          console.log(`✅ Using THUMBNAIL file ${i + 1}:`, thumbnailFile.originalName);
+          console.log('  - Final URL returned:', resultUrl);
+          return resultUrl;
+        } else {
+          console.warn(`⚠️ THUMBNAIL file ${i + 1} returned null URL, trying next file...`);
+        }
+      }
+      
+      console.warn('❌ All thumbnail files failed to return a valid URL');
+      return null;
     }
     console.log('✗ No THUMBNAIL file found');
 
@@ -393,15 +585,65 @@ export class ContentService {
     console.log('✗ No PREVIEW_IMAGE file found');
 
     // Priority 3: Look for PHYSICAL_IMAGE file type
-    const physicalImageFile = allFiles.find(
+    const physicalImageFiles = allFiles.filter(
       (file) => file.fileType === 'PHYSICAL_IMAGE',
     );
-    if (physicalImageFile) {
-      console.log(
-        '✓ Found PHYSICAL_IMAGE file:',
-        physicalImageFile.originalName,
-      );
-      return this.getImageKitUrlOrFallback(physicalImageFile);
+    
+    if (physicalImageFiles.length > 0) {
+      console.log(`📋 Found ${physicalImageFiles.length} PHYSICAL_IMAGE file(s):`);
+      physicalImageFiles.forEach((file, index) => {
+        console.log(`  Physical Image ${index + 1}:`, {
+          id: file.id,
+          originalName: file.originalName,
+          uploadedAt: file.uploadedAt,
+          imageKitUrl: file.imageKitUrl || 'None',
+          imageKitFileId: file.imageKitFileId || 'None',
+          storagePath: file.storagePath || 'None',
+          hasImageKitUrl: !!(file.imageKitUrl && file.imageKitUrl.includes('imagekit.io')),
+        });
+      });
+      
+      // Sort by uploadedAt desc (newest first) and prioritize files with ImageKit URLs
+      physicalImageFiles.sort((a, b) => {
+        const aHasImageKit = a.imageKitUrl && a.imageKitUrl.includes('imagekit.io');
+        const bHasImageKit = b.imageKitUrl && b.imageKitUrl.includes('imagekit.io');
+        
+        if (aHasImageKit && !bHasImageKit) {
+          console.log(`  → Prioritizing file ${a.originalName} (has ImageKit URL)`);
+          return -1;
+        }
+        if (!aHasImageKit && bHasImageKit) {
+          console.log(`  → Prioritizing file ${b.originalName} (has ImageKit URL)`);
+          return 1;
+        }
+        
+        const dateDiff = new Date(b.uploadedAt).getTime() - new Date(a.uploadedAt).getTime();
+        if (dateDiff !== 0) {
+          console.log(`  → Sorting by date: ${b.originalName} (newer) vs ${a.originalName} (older)`);
+        }
+        return dateDiff;
+      });
+
+      for (let i = 0; i < physicalImageFiles.length; i++) {
+        const physicalImageFile = physicalImageFiles[i];
+        console.log(`🔍 Trying PHYSICAL_IMAGE file ${i + 1}/${physicalImageFiles.length}:`, physicalImageFile.originalName);
+        console.log('  - File ID:', physicalImageFile.id);
+        console.log('  - ImageKit URL:', physicalImageFile.imageKitUrl || 'None');
+        console.log('  - ImageKit File ID:', physicalImageFile.imageKitFileId || 'None');
+        console.log('  - Storage Path:', physicalImageFile.storagePath || 'None');
+        console.log('  - Uploaded At:', physicalImageFile.uploadedAt);
+        
+        const resultUrl = this.getImageKitUrlOrFallback(physicalImageFile);
+        if (resultUrl) {
+          console.log(`✅ Using PHYSICAL_IMAGE file ${i + 1}:`, physicalImageFile.originalName);
+          console.log('  - Final URL returned:', resultUrl);
+          return resultUrl;
+        } else {
+          console.warn(`⚠️ PHYSICAL_IMAGE file ${i + 1} returned null URL, trying next file...`);
+        }
+      }
+      console.warn('❌ All physical image files failed to return a valid URL');
+      return null;
     }
     console.log('✗ No PHYSICAL_IMAGE file found');
 
@@ -432,19 +674,84 @@ export class ContentService {
    * @returns The ImageKit URL or constructed local URL, or null if neither available
    */
   private getImageKitUrlOrFallback(file: any): string | null {
-    // Priority 1: Use ImageKit URL if available
+    console.log('🔍 getImageKitUrlOrFallback called for file:', file.id);
+    console.log('  - Original Name:', file.originalName);
+    console.log('  - imageKitUrl:', file.imageKitUrl || 'null');
+    console.log('  - imageKitFileId:', file.imageKitFileId || 'null');
+    console.log('  - storagePath:', file.storagePath || 'null');
+    
+    // Priority 1: Use ImageKit URL if available and valid
     if (file.imageKitUrl) {
-      console.log('Using ImageKit URL:', file.imageKitUrl);
-      return file.imageKitUrl;
+      // Validate ImageKit URL format - ensure it's complete and valid
+      const imageKitUrl = file.imageKitUrl.trim();
+      console.log('  - Checking imageKitUrl validity:', imageKitUrl);
+      
+      if (imageKitUrl.startsWith('http') && imageKitUrl.includes('imagekit.io')) {
+        // Check if URL is complete (not truncated) - should have proper structure
+        const urlParts = imageKitUrl.split('/');
+        const fileName = urlParts[urlParts.length - 1];
+        
+        console.log('  - URL parts:', urlParts.length, 'parts');
+        console.log('  - Filename:', fileName);
+        
+        // Valid ImageKit URLs should have a filename with extension
+        if (fileName && fileName.includes('.') && fileName.length > 5) {
+          console.log('✅ Using ImageKit URL:', imageKitUrl);
+          console.log('  - URL length:', imageKitUrl.length);
+          console.log('  - Filename length:', fileName.length);
+          return imageKitUrl;
+        } else {
+          console.warn('⚠️ ImageKit URL appears incomplete (missing filename):', imageKitUrl);
+          console.warn('  - Filename check failed:', { fileName, hasDot: fileName?.includes('.'), length: fileName?.length });
+          // Fall through to check storagePath
+        }
+      } else {
+        console.warn('⚠️ Invalid ImageKit URL format:', imageKitUrl);
+        console.warn('  - Starts with http:', imageKitUrl.startsWith('http'));
+        console.warn('  - Contains imagekit.io:', imageKitUrl.includes('imagekit.io'));
+        // Fall through to check storagePath
+      }
+    } else {
+      console.log('  - No imageKitUrl field');
     }
 
     // Priority 2: Fallback to constructing local URL from storagePath
     if (file.storagePath) {
-      console.log('ImageKit URL not available, using local storage path:', file.storagePath);
-      return this.constructFileUrl(file.storagePath);
+      console.log('  - Checking storagePath:', file.storagePath);
+      
+      // If storagePath is already an ImageKit URL, check if it's different from imageKitUrl
+      // If imageKitUrl already failed validation, don't try storagePath if it's also an ImageKit URL
+      if (file.storagePath.startsWith('http') && file.storagePath.includes('imagekit.io')) {
+        const urlParts = file.storagePath.split('/');
+        const fileName = urlParts[urlParts.length - 1];
+        console.log('  - storagePath is ImageKit URL');
+        console.log('  - Filename:', fileName);
+        
+        // If imageKitUrl exists but was invalid, and storagePath is also ImageKit URL,
+        // they're likely both invalid (old file scenario). Only use storagePath if it's different.
+        if (file.imageKitUrl && file.imageKitUrl === file.storagePath) {
+          console.warn('⚠️ storagePath is same as invalid imageKitUrl, skipping ImageKit URL');
+          // Don't return ImageKit URL - will fall through to try local file if available
+        } else if (fileName && fileName.includes('.') && fileName.length > 5) {
+          console.log('✅ Using storagePath as ImageKit URL:', file.storagePath);
+          return file.storagePath;
+        } else {
+          console.warn('⚠️ storagePath ImageKit URL appears invalid:', file.storagePath);
+        }
+      }
+      
+      // Only try local storage if storagePath is NOT an ImageKit URL
+      if (!file.storagePath.startsWith('http') || !file.storagePath.includes('imagekit.io')) {
+        console.log('  - Falling back to local storage path:', file.storagePath);
+        const localUrl = this.constructFileUrl(file.storagePath);
+        console.log('  - Constructed local URL:', localUrl);
+        return localUrl;
+      } else {
+        console.warn('⚠️ storagePath is ImageKit URL but imageKitUrl failed, no local fallback available');
+      }
     }
 
-    console.warn('No ImageKit URL or storage path available for file:', file.id);
+    console.warn('❌ No ImageKit URL or storage path available for file:', file.id);
     return null;
   }
 
@@ -456,31 +763,63 @@ export class ContentService {
    * @returns The public URL to access the file, or null if path is invalid
    */
   private constructFileUrl(storagePath: string): string | null {
+    console.log('🔧 constructFileUrl called with storagePath:', storagePath);
+    
     if (!storagePath) {
-      console.warn('Empty storage path provided to constructFileUrl');
+      console.warn('⚠️ Empty storage path provided to constructFileUrl');
       return null;
     }
 
-    // Extract filename from path (handles both \ and / separators)
-    const filename = storagePath.split(/[/\\]/).pop();
+    // If storagePath is already a URL path (starts with /images/), return it as is
+    if (storagePath.startsWith('/images/')) {
+      console.log('✅ storagePath is already a URL path, returning as is:', storagePath);
+      return storagePath;
+    }
+
+    // Extract filename and path parts (handles both \ and / separators)
+    const pathParts = storagePath.split(/[/\\]/);
+    const filename = pathParts[pathParts.length - 1];
 
     if (!filename) {
       console.warn(
-        'Could not extract filename from storage path:',
+        '⚠️ Could not extract filename from storage path:',
         storagePath,
       );
       return null;
     }
 
-    // Construct the public URL
+    // Check if this is a new file structure: uploads/content/{contentId}/{fileType}/{filename}
+    // or old structure: uploads/marketplace/{filename}
+    const uploadsIndex = pathParts.findIndex(part => part === 'uploads');
+    if (uploadsIndex !== -1 && uploadsIndex < pathParts.length - 1) {
+      const nextPart = pathParts[uploadsIndex + 1];
+      
+      if (nextPart === 'content' && pathParts.length >= uploadsIndex + 4) {
+        // New structure: uploads/content/{contentId}/{fileType}/{filename}
+        const contentId = pathParts[uploadsIndex + 2];
+        const fileType = pathParts[uploadsIndex + 3];
+        const fileUrl = `/images/content/${contentId}/${fileType}/${filename}`;
+        console.log('✅ Constructed file URL from new structure:', fileUrl);
+        return fileUrl;
+      } else if (nextPart === 'marketplace') {
+        // Old structure: uploads/marketplace/{filename}
+        const fileUrl = `/images/marketplace/${filename}`;
+        console.log('✅ Constructed file URL from old marketplace structure:', fileUrl);
+        return fileUrl;
+      }
+    }
+
+    // Fallback: assume old marketplace structure
     const fileUrl = `/images/marketplace/${filename}`;
 
     console.log(
-      'Constructed file URL:',
+      '✅ Constructed file URL (fallback):',
       fileUrl,
       'from storage path:',
       storagePath,
     );
+    console.log('  - Extracted filename:', filename);
+    console.log('  - Final URL will be:', `${process.env.API_BASE_URL || 'http://localhost:3001'}${fileUrl}`);
 
     return fileUrl;
   }

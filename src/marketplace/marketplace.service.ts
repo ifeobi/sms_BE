@@ -264,7 +264,15 @@ export class MarketplaceService {
       ];
     }
 
+    console.log('=== MARKETPLACE FETCH DEBUG ===');
     console.log('Fetching marketplace items with params:', { skip, take, category, search });
+    console.log('Where clause:', JSON.stringify(where, null, 2));
+    
+    // Also check total count without filters for debugging
+    const totalWithoutFilters = await this.prisma.marketplaceItem.count({
+      where: { isActive: true },
+    });
+    console.log('Total active items in database:', totalWithoutFilters);
     
     const [items, total] = await Promise.all([
       this.prisma.marketplaceItem.findMany({
@@ -287,7 +295,11 @@ export class MarketplaceService {
               },
             },
           },
-          content: true, // Include content to access physicalCondition and deliveryMethods
+          content: {
+            include: {
+              contentCategory: true, // Include contentCategory to determine digital/physical correctly
+            },
+          },
         },
         orderBy: {
           dateCreated: 'desc',
@@ -296,7 +308,16 @@ export class MarketplaceService {
       this.prisma.marketplaceItem.count({ where }),
     ]);
 
-    console.log('Found marketplace items:', items.length, 'Total:', total);
+    console.log('Found marketplace items:', items.length, 'Total matching filters:', total);
+    console.log('Items returned:', items.map(item => ({
+      id: item.id,
+      title: item.title,
+      category: item.category,
+      isActive: item.isActive,
+      creatorId: item.creatorId,
+      creatorName: `${item.creator.user.firstName} ${item.creator.user.lastName}`,
+    })));
+    console.log('=== END MARKETPLACE FETCH DEBUG ===');
 
     // Process items to include video URLs (for now, set to null since we're not including files in the list query)
     const processedItems = items.map(item => {
@@ -315,14 +336,53 @@ export class MarketplaceService {
   }
 
   /**
-   * Map content category to marketplace category
+   * Get marketplace items by creator ID (for debugging)
    */
+  async getMarketplaceItemsByCreator(creatorId: string) {
+    const items = await this.prisma.marketplaceItem.findMany({
+      where: {
+        creatorId,
+      },
+      include: {
+        creator: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+              },
+            },
+          },
+        },
+        content: {
+          include: {
+            contentCategory: true, // Include contentCategory to determine digital/physical correctly
+          },
+        },
+      },
+      orderBy: {
+        dateCreated: 'desc',
+      },
+    });
+
+    console.log(`=== CREATOR MARKETPLACE ITEMS DEBUG ===`);
+    console.log(`Creator ID: ${creatorId}`);
+    console.log(`Found ${items.length} items`);
+    items.forEach(item => {
+      console.log(`- ${item.title} (ID: ${item.id}, Active: ${item.isActive}, Category: ${item.category})`);
+    });
+    console.log(`=== END CREATOR MARKETPLACE ITEMS DEBUG ===`);
+
+    return items;
+  }
   private mapContentCategoryToMarketplaceCategory(
     contentCategory: string,
   ): MarketplaceCategory {
     const mapping: Record<string, MarketplaceCategory> = {
       textbook: MarketplaceCategory.TEXTBOOK,
-      ebook: MarketplaceCategory.TEXTBOOK,
+      ebook: MarketplaceCategory.EBOOK,
       video_course: MarketplaceCategory.VIDEO_COURSE,
       audio_book: MarketplaceCategory.AUDIO_BOOK,
       worksheet: MarketplaceCategory.WORKSHEET,

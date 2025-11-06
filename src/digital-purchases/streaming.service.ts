@@ -90,44 +90,92 @@ export class StreamingService {
   }
 
   /**
-   * Generate streaming URL based on file type and quality
+   * Convert absolute file path to relative URL for static file serving
+   * Handles both ImageKit URLs (returns as-is) and local file paths (converts to relative)
    */
+  private convertFilePathToUrl(filePath: string): string | null {
+    if (!filePath) {
+      return null;
+    }
+
+    // If it's already an ImageKit URL or HTTP/HTTPS URL, return as-is
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+
+    // If it's an absolute Windows path, convert to relative path
+    if (filePath.includes('uploads')) {
+      // Extract the relative path from the absolute path
+      const uploadsIndex = filePath.indexOf('uploads');
+      if (uploadsIndex !== -1) {
+        const relativePath = filePath.substring(uploadsIndex + 'uploads'.length);
+        // Remove leading slashes and normalize
+        const normalizedPath = relativePath.replace(/^[\\/]+/, '').replace(/\\/g, '/');
+        // Return as /images/... for static file serving
+        return `/images/${normalizedPath}`;
+      }
+    }
+
+    // If it's already a relative path starting with /images/, return as-is
+    if (filePath.startsWith('/images/')) {
+      return filePath;
+    }
+
+    // For other relative paths, assume they're in uploads
+    return `/images/${filePath.replace(/^[\\/]+/, '').replace(/\\/g, '/')}`;
+  }
+
   private async generateStreamingUrl(
     file: any,
     quality: 'low' | 'medium' | 'high',
   ): Promise<string> {
     const mimeType = file.mimeType || '';
-    const imageKitUrl = file.imageKitUrl || file.storagePath;
+    
+    // Priority: ImageKit URL (for new uploads) > Local file path conversion (for legacy content)
+    let fileUrl: string | null = null;
+    if (file.imageKitUrl) {
+      fileUrl = file.imageKitUrl; // Use ImageKit URL directly for new uploads
+    } else if (file.storagePath) {
+      // Convert local file path to accessible URL
+      const convertedPath = this.convertFilePathToUrl(file.storagePath);
+      if (convertedPath) {
+        // Prepend base URL if it's a relative path
+        if (!convertedPath.startsWith('http')) {
+          const baseUrl = process.env.API_BASE_URL || 'http://localhost:3001';
+          fileUrl = `${baseUrl}${convertedPath}`;
+        } else {
+          fileUrl = convertedPath;
+        }
+      } else {
+        // Fallback to original storage path if conversion fails
+        fileUrl = file.storagePath;
+      }
+    }
 
-    if (!imageKitUrl) {
+    if (!fileUrl) {
       throw new BadRequestException('No file URL available for streaming');
     }
 
-    // For video files, use ImageKit's adaptive streaming
-    if (mimeType.startsWith('video/')) {
+    // For video files, use ImageKit's adaptive streaming (only if ImageKit file ID exists)
+    if (mimeType.startsWith('video/') && file.imageKitFileId) {
       return this.imageKitService.getAdaptiveVideoUrl(
         file.imageKitFileId,
         quality,
       );
     }
 
-    // For PDF files, use ImageKit's document viewer
-    if (mimeType === 'application/pdf') {
-      return this.generatePdfViewerUrl(imageKitUrl, quality);
+    // For PDF files, use ImageKit's document viewer (only if ImageKit URL exists)
+    if (mimeType === 'application/pdf' && file.imageKitUrl) {
+      return this.generatePdfViewerUrl(fileUrl, quality);
     }
 
-    // For EPUB files, use ImageKit's document viewer
-    if (mimeType === 'application/epub+zip') {
-      return this.generateEpubViewerUrl(imageKitUrl, quality);
+    // For EPUB files, use ImageKit's document viewer (only if ImageKit URL exists)
+    if (mimeType === 'application/epub+zip' && file.imageKitUrl) {
+      return this.generateEpubViewerUrl(fileUrl, quality);
     }
 
-    // For HTML files, return direct URL
-    if (mimeType === 'text/html') {
-      return imageKitUrl;
-    }
-
-    // For other file types, return direct URL
-    return imageKitUrl;
+    // For other file types (including local files), return direct URL
+    return fileUrl;
   }
 
   /**

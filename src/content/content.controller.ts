@@ -22,7 +22,10 @@ import { ContentStatus } from '@prisma/client';
 @Controller('content')
 @UseGuards(JwtAuthGuard)
 export class ContentController {
-  constructor(private readonly contentService: ContentService) {}
+  constructor(private readonly contentService: ContentService) {
+    console.log('✅ ContentController initialized - routes should be registered');
+    console.log('Routes: POST /content, GET /content, GET /content/my-content, GET /content/:id, etc.');
+  }
 
   @Post()
   async create(@Body() createContentDto: CreateContentDto, @Request() req) {
@@ -87,6 +90,10 @@ export class ContentController {
     @Query('take', new DefaultValuePipe(10), ParseIntPipe) take: number,
     @Query('status') status?: string,
   ) {
+    console.log('=== MY-CONTENT ENDPOINT HIT ===');
+    console.log('Request user:', req.user);
+    console.log('Query params:', { skip, take, status });
+    
     let creatorId = req.user.creatorId;
 
     // If creatorId is not in JWT, look it up from the user ID

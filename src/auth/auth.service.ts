@@ -35,16 +35,32 @@ export class AuthService {
     userType?: string,
   ): Promise<any> {
     try {
-      this.logger.log(`Validating user: ${email} (type: ${userType})`);
+      // Trim email and password to handle any whitespace issues
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
+      
+      this.logger.log(`Validating user: ${trimmedEmail} (type: ${userType || 'NOT SPECIFIED'})`);
+      console.log(`🔍 [AUTH DEBUG] Email: ${trimmedEmail}, UserType: ${userType || 'NOT SPECIFIED'}, Password length: ${trimmedPassword.length}`);
       
       // First try to find user with the specified type
-      let user = await this.usersService.findByEmail(email, userType);
+      let user = await this.usersService.findByEmail(trimmedEmail, userType);
+      
+      if (!user && userType) {
+        this.logger.log(`User not found with type ${userType}, checking without type filter...`);
+        console.log(`⚠️ [AUTH DEBUG] User not found with type ${userType}, checking all users...`);
+        // Check if user exists with any type
+        user = await this.usersService.findByEmail(trimmedEmail);
+        if (user) {
+          console.log(`⚠️ [AUTH DEBUG] User found but with type: ${user.type}, expected: ${userType}`);
+          this.logger.warn(`User found but with different type: ${user.type} (expected: ${userType})`);
+        }
+      }
       
       // If not found and a userType was specified, check if it's a MASTER account
       // Master accounts can login with any userType
       if (!user && userType) {
         this.logger.log(`User not found with type ${userType}, checking for MASTER account...`);
-        user = await this.usersService.findByEmail(email, 'MASTER');
+        user = await this.usersService.findByEmail(trimmedEmail, 'MASTER');
         
         if (user && user.type === 'MASTER') {
           this.logger.log(`Found MASTER account, allowing login with any userType`);
@@ -52,23 +68,32 @@ export class AuthService {
       }
       
       if (!user) {
-        this.logger.warn(`User not found: ${email} (type: ${userType})`);
+        this.logger.warn(`User not found: ${trimmedEmail} (type: ${userType || 'any'})`);
+        console.error(`❌ [AUTH DEBUG] User not found in database`);
         return null;
       }
 
       this.logger.log(`User found, checking password...`);
-      const passwordMatch = await bcrypt.compare(password, user.password);
+      console.log(`✅ [AUTH DEBUG] User found: ${user.email}, Type: ${user.type}`);
+      console.log(`🔑 [AUTH DEBUG] Comparing password...`);
+      
+      const passwordMatch = await bcrypt.compare(trimmedPassword, user.password);
       
       if (passwordMatch) {
-        this.logger.log(`Password match successful for: ${email}`);
+        this.logger.log(`Password match successful for: ${trimmedEmail}`);
+        console.log(`✅ [AUTH DEBUG] Password match successful!`);
         const { password, ...result } = user;
         return result;
       }
       
-      this.logger.warn(`Password mismatch for: ${email}`);
+      this.logger.warn(`Password mismatch for: ${trimmedEmail}`);
+      console.error(`❌ [AUTH DEBUG] Password mismatch!`);
+      console.log(`🔍 [AUTH DEBUG] Provided password (trimmed): "${trimmedPassword}"`);
+      console.log(`🔍 [AUTH DEBUG] Password length: ${trimmedPassword.length}`);
       return null;
     } catch (error) {
       this.logger.error(`Error in validateUser for ${email}:`, error);
+      console.error(`❌ [AUTH DEBUG] Error:`, error);
       throw error;
     }
   }
@@ -89,8 +114,33 @@ export class AuthService {
       }
 
       this.logger.log(`Successful login: ${loginDto.email}`);
+      console.log('🟢 [LOGIN DEBUG] User type:', user.type);
+      console.log('🟢 [LOGIN DEBUG] User ID:', user.id);
 
-      const payload = {
+      // Fetch schoolId for school admin users
+      let schoolId: string | undefined;
+      if (user.type === 'SCHOOL_ADMIN') {
+        console.log('🟢 [LOGIN DEBUG] User is SCHOOL_ADMIN, fetching schoolId...');
+        const schoolAdmin = await this.prisma.schoolAdmin.findUnique({
+          where: { userId: user.id },
+          select: { schoolId: true },
+        });
+        
+        console.log('🟢 [LOGIN DEBUG] SchoolAdmin lookup result:', schoolAdmin);
+        
+        if (schoolAdmin) {
+          schoolId = schoolAdmin.schoolId;
+          this.logger.log(`Found schoolId for school admin: ${schoolId}`);
+          console.log('✅ [LOGIN DEBUG] Found schoolId:', schoolId);
+        } else {
+          this.logger.warn(`School admin ${user.id} does not have a school assigned`);
+          console.warn('⚠️ [LOGIN DEBUG] No SchoolAdmin record found for user:', user.id);
+        }
+      } else {
+        console.log('🟢 [LOGIN DEBUG] User is NOT SCHOOL_ADMIN, type:', user.type);
+      }
+
+      const payload: any = {
         email: user.email,
         sub: user.id,
         type: user.type.toLowerCase(), // Store lowercase in JWT for consistency
@@ -98,16 +148,33 @@ export class AuthService {
         lastName: user.lastName,
       };
 
+      // Include schoolId in JWT payload if user is a school admin
+      if (schoolId) {
+        payload.schoolId = schoolId;
+        console.log('✅ [LOGIN DEBUG] Added schoolId to JWT payload:', schoolId);
+      } else {
+        console.warn('⚠️ [LOGIN DEBUG] schoolId is undefined, NOT adding to payload');
+      }
+
+      console.log('🟢 [LOGIN DEBUG] Final JWT payload:', JSON.stringify(payload, null, 2));
+
+      const userResponse: any = {
+        id: user.id,
+        email: user.email,
+        type: user.type.toLowerCase(), // Return lowercase for frontend consistency
+        firstName: user.firstName,
+        lastName: user.lastName,
+        profilePicture: user.profilePicture,
+      };
+
+      // Include schoolId in user response if user is a school admin
+      if (schoolId) {
+        userResponse.schoolId = schoolId;
+      }
+
       return {
         access_token: this.jwtService.sign(payload),
-        user: {
-          id: user.id,
-          email: user.email,
-          type: user.type.toLowerCase(), // Return lowercase for frontend consistency
-          firstName: user.firstName,
-          lastName: user.lastName,
-          profilePicture: user.profilePicture,
-        },
+        user: userResponse,
       };
     } catch (error) {
       this.logger.error(`Login error for ${loginDto.email}:`, error);
@@ -586,11 +653,31 @@ export class AuthService {
             'If an account with this email exists, a password reset link has been sent.',
         };
       } else {
-        throw new Error('Failed to send password reset email');
+        // Log the reset token for development when email fails
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('⚠️ Email sending failed, but reset token generated:');
+          console.log('Reset Token:', resetToken);
+          console.log('This token is valid for 15 minutes');
+          console.log('You can use this token directly in the reset password endpoint');
+        }
+        
+        const errorMessage = process.env.NODE_ENV === 'production'
+          ? 'Failed to send password reset email. Please check your email configuration or contact support.'
+          : 'Failed to send password reset email. Check console for SMTP configuration details.';
+        
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('❌ Forgot password error:', error);
-      throw new Error('Failed to process password reset request');
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      // Re-throw with original error message if it's already formatted
+      if (error.message && error.message.includes('Failed to send')) {
+        throw error;
+      }
+      
+      throw new Error(error.message || 'Failed to process password reset request');
     }
   }
 

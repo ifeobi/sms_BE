@@ -12,6 +12,42 @@ export class DigitalPurchasesService {
   constructor(private prisma: PrismaService) {}
 
   /**
+   * Convert absolute file path to relative URL for static file serving
+   * Handles both ImageKit URLs (returns as-is) and local file paths (converts to relative)
+   */
+  private convertFilePathToUrl(filePath: string): string | null {
+    if (!filePath) {
+      return null;
+    }
+
+    // If it's already an ImageKit URL or HTTP/HTTPS URL, return as-is
+    if (filePath.startsWith('http://') || filePath.startsWith('https://')) {
+      return filePath;
+    }
+
+    // If it's an absolute Windows path, convert to relative path
+    if (filePath.includes('uploads')) {
+      // Extract the relative path from the absolute path
+      const uploadsIndex = filePath.indexOf('uploads');
+      if (uploadsIndex !== -1) {
+        const relativePath = filePath.substring(uploadsIndex + 'uploads'.length);
+        // Remove leading slashes and normalize
+        const normalizedPath = relativePath.replace(/^[\\/]+/, '').replace(/\\/g, '/');
+        // Return as /images/... for static file serving
+        return `/images/${normalizedPath}`;
+      }
+    }
+
+    // If it's already a relative path starting with /images/, return as-is
+    if (filePath.startsWith('/images/')) {
+      return filePath;
+    }
+
+    // For other relative paths, assume they're in uploads
+    return `/images/${filePath.replace(/^[\\/]+/, '').replace(/\\/g, '/')}`;
+  }
+
+  /**
    * Create a new digital purchase
    * @param buyerId - User ID of the person making the purchase (parent or student)
    * @param buyerType - Type of buyer (PARENT or STUDENT)
@@ -70,23 +106,50 @@ export class DigitalPurchasesService {
       }
 
       // Check parent-student relationships
-      const relationships = await this.prisma.parentSchoolRelationship.findMany({
-        where: { parentUserId: buyerId, isActive: true },
+      // NOTE: parentUserId refers to Parent.id, not User.id
+      console.log(`[DIGITAL PURCHASE] Checking relationships for Parent.id: ${parent.id}, Parent.userId: ${parent.userId}`);
+      
+      // First, try with Parent.id (correct way)
+      let relationships = await this.prisma.parentSchoolRelationship.findMany({
+        where: { parentUserId: parent.id, isActive: true },
         include: { children: true },
       });
 
+      // Fallback: If no relationships found, check with User.id (for backward compatibility with old data)
+      // This handles cases where relationships were incorrectly created with User IDs
+      if (relationships.length === 0) {
+        console.warn(`[DIGITAL PURCHASE] No relationships found with Parent.id, checking with User.id as fallback`);
+        relationships = await this.prisma.parentSchoolRelationship.findMany({
+          where: { parentUserId: parent.userId, isActive: true },
+          include: { children: true },
+        });
+        if (relationships.length > 0) {
+          console.warn(`[DIGITAL PURCHASE] WARNING: Found ${relationships.length} relationships with User.id instead of Parent.id - this is incorrect data`);
+        }
+      }
+
+      console.log(`[DIGITAL PURCHASE] Found ${relationships.length} active parent-school relationships`);
+      
       const validStudentIds = new Set<string>();
       relationships.forEach((rel) => {
+        console.log(`[DIGITAL PURCHASE] Relationship ${rel.id} has ${rel.children.length} children`);
         rel.children.forEach((student) => {
           validStudentIds.add(student.id);
+          console.log(`[DIGITAL PURCHASE] Added valid student ID: ${student.id}`);
         });
       });
+
+      console.log(`[DIGITAL PURCHASE] Total valid student IDs: ${validStudentIds.size}`);
+      console.log(`[DIGITAL PURCHASE] Valid student IDs:`, Array.from(validStudentIds));
+      console.log(`[DIGITAL PURCHASE] Requested beneficiary student IDs:`, dto.beneficiaryStudentIds);
 
       // Validate all beneficiary students are children of this parent
       for (const studentId of dto.beneficiaryStudentIds) {
         if (!validStudentIds.has(studentId)) {
+          console.error(`[DIGITAL PURCHASE] ERROR: Student ${studentId} not found in valid students list`);
+          console.error(`[DIGITAL PURCHASE] Valid students were:`, Array.from(validStudentIds));
           throw new ForbiddenException(
-            `Student ${studentId} is not linked to this parent account`,
+            `Student ${studentId} is not linked to this parent account. Parent ID: ${parent.id}, Valid student IDs: ${Array.from(validStudentIds).join(', ') || 'none'}`,
           );
         }
       }
@@ -124,8 +187,35 @@ export class DigitalPurchasesService {
 
     // Check for existing purchases and create purchase records
     const purchases: any[] = [];
-    const paymentStatus = dto.paymentReference ? 'COMPLETED' : 'PENDING';
-    const completedAt = dto.paymentReference ? new Date() : null;
+    
+    // Check if test mode is enabled (bypass payment)
+    // Default to test mode in development (when NODE_ENV is not explicitly 'production')
+    // Also check for explicit PAYMENT_TEST_MODE flag
+    const nodeEnv = process.env.NODE_ENV || 'development';
+    const isTestMode = process.env.PAYMENT_TEST_MODE === 'true' || 
+                      nodeEnv !== 'production';
+    
+    console.log('🔍 Payment Test Mode Check:', {
+      PAYMENT_TEST_MODE: process.env.PAYMENT_TEST_MODE || 'not set',
+      NODE_ENV: nodeEnv,
+      isTestMode: isTestMode
+    });
+    
+    if (isTestMode) {
+      console.log('🧪 TEST MODE: Payment bypassed - purchases will be auto-completed');
+    } else {
+      console.log('⚠️ PRODUCTION MODE: Payment required - purchases will be PENDING until payment verification');
+    }
+    
+    // In test mode, auto-complete purchases without payment reference
+    const paymentStatus = (dto.paymentReference || isTestMode) ? 'COMPLETED' : 'PENDING';
+    const completedAt = (dto.paymentReference || isTestMode) ? new Date() : null;
+    const testPaymentReference = isTestMode && !dto.paymentReference 
+      ? `TEST-${Date.now()}-${Math.random().toString(36).substring(7)}` 
+      : dto.paymentReference;
+    const testPaymentMethod = isTestMode && !dto.paymentMethod 
+      ? 'TEST_MODE' 
+      : (dto.paymentMethod || 'PENDING');
 
     for (const studentId of beneficiaryStudentIds) {
       // Check if already purchased
@@ -154,8 +244,8 @@ export class DigitalPurchasesService {
           creatorId: item.creatorId,
           amount: item.price,
           currency: item.currency,
-          paymentReference: dto.paymentReference,
-          paymentMethod: dto.paymentMethod || 'PENDING',
+          paymentReference: testPaymentReference,
+          paymentMethod: testPaymentMethod,
           status: paymentStatus,
           completedAt,
           giftMessage: buyerType === 'PARENT' ? dto.giftMessage : null,
@@ -217,12 +307,14 @@ export class DigitalPurchasesService {
 
   /**
    * Get student's digital library (all purchased content)
+   * Returns all purchases regardless of status for history view
    */
   async getStudentLibrary(studentId: string) {
     const purchases = await this.prisma.digitalPurchase.findMany({
       where: {
         studentId,
-        status: 'COMPLETED',
+        // Include all statuses for history view, not just COMPLETED
+        // status: 'COMPLETED',
       },
       include: {
         content: {
@@ -248,7 +340,7 @@ export class DigitalPurchasesService {
         },
       } as any,
       orderBy: {
-        completedAt: 'desc',
+        purchasedAt: 'desc', // Use purchasedAt as primary sort since it always exists
       },
     });
 
@@ -257,12 +349,14 @@ export class DigitalPurchasesService {
 
   /**
    * Get parent's purchase history (purchases made for their children)
+   * Returns all purchases regardless of status for history view
    */
   async getParentPurchases(parentUserId: string) {
     const purchases = await this.prisma.digitalPurchase.findMany({
       where: {
         buyerId: parentUserId,
         buyerType: 'PARENT' as any,
+        // Include all statuses for history view, not just COMPLETED
       } as any,
       include: {
         content: {
@@ -353,6 +447,23 @@ export class DigitalPurchasesService {
       },
     });
 
+    // Convert file paths to accessible URLs
+    // Priority: ImageKit URL (for new uploads) > Local file path conversion (for legacy content)
+    if (purchase.content?.files && purchase.content.files.length > 0) {
+      purchase.content.files = purchase.content.files.map((file: any) => {
+        const convertedPath = file.storagePath ? this.convertFilePathToUrl(file.storagePath) : null;
+        return {
+          ...file,
+          downloadUrl: file.imageKitUrl 
+            ? file.imageKitUrl  // Use ImageKit URL directly for new uploads
+            : (convertedPath || file.storagePath), // Convert local paths for legacy content
+          streamingUrl: file.imageKitUrl 
+            ? file.imageKitUrl  // Use ImageKit URL directly for new uploads
+            : (convertedPath || file.storagePath), // Convert local paths for legacy content
+        };
+      });
+    }
+
     return purchase;
   }
 
@@ -427,5 +538,127 @@ export class DigitalPurchasesService {
     });
 
     return !!purchase;
+  }
+
+  /**
+   * Verify payment and mark purchase(s) as COMPLETED
+   */
+  async verifyPayment(
+    buyerId: string,
+    purchaseId: string,
+    paymentReference: string,
+    paymentMethod?: string,
+  ) {
+    // Find the purchase
+    const purchase = await this.prisma.digitalPurchase.findUnique({
+      where: { id: purchaseId },
+      include: {
+        marketplaceItem: true,
+        content: true,
+      },
+    });
+
+    if (!purchase) {
+      throw new NotFoundException('Purchase not found');
+    }
+
+    // Verify buyer owns this purchase
+    if (purchase.buyerId !== buyerId) {
+      throw new ForbiddenException('You do not have permission to verify this purchase');
+    }
+
+    // If already completed, return as is
+    if (purchase.status === 'COMPLETED') {
+      return purchase;
+    }
+
+    // Update purchase status
+    const updatedPurchase = await this.prisma.digitalPurchase.update({
+      where: { id: purchaseId },
+      data: {
+        status: 'COMPLETED',
+        paymentReference,
+        paymentMethod: paymentMethod || 'PAYMENT_GATEWAY',
+        completedAt: new Date(),
+      },
+      include: {
+        content: {
+          include: {
+            files: true,
+            contentCategory: true,
+          },
+        },
+        marketplaceItem: true,
+        creator: {
+          include: {
+            user: true,
+          },
+        },
+        buyer: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            type: true,
+          },
+        },
+      } as any,
+    });
+
+    // Update marketplace item stats (only once per purchase)
+    await this.prisma.marketplaceItem.update({
+      where: { id: purchase.marketplaceItemId },
+      data: {
+        totalSales: { increment: 1 },
+        totalRevenue: { increment: purchase.amount },
+      },
+    });
+
+    // Update content stats
+    await this.prisma.content.update({
+      where: { id: purchase.contentId },
+      data: {
+        salesCount: { increment: 1 },
+      },
+    });
+
+    // Update creator stats
+    await this.prisma.creator.update({
+      where: { id: purchase.creatorId },
+      data: {
+        totalSales: { increment: 1 },
+        totalRevenue: { increment: purchase.amount },
+      },
+    });
+
+    return updatedPurchase;
+  }
+
+  /**
+   * Get a specific child's library (for parent viewing)
+   */
+  async getChildLibrary(parentUserId: string, studentId: string) {
+    // Verify parent has relationship with this student
+    const relationships = await this.prisma.parentSchoolRelationship.findMany({
+      where: { parentUserId, isActive: true },
+      include: { children: true },
+    });
+
+    const validStudentIds = new Set<string>();
+    relationships.forEach((rel) => {
+      rel.children.forEach((student) => {
+        validStudentIds.add(student.id);
+      });
+    });
+
+    if (!validStudentIds.has(studentId)) {
+      throw new ForbiddenException(
+        'You do not have permission to view this student\'s library',
+      );
+    }
+
+    // Return student's library
+    return this.getStudentLibrary(studentId);
   }
 }

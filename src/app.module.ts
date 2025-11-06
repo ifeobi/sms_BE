@@ -12,6 +12,9 @@ import { EducationSystemsModule } from './education-systems/education-systems.mo
 import { SectionManagementModule } from './section-management/section-management.module';
 import { AcademicStructureModule } from './academic-structure/academic-structure.module';
 import { ImageKitModule } from './imagekit/imagekit.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
+import { ContentModule } from './content/content.module';
+import { DigitalPurchasesModule } from './digital-purchases/digital-purchases.module';
 
 @Module({
   imports: [
@@ -28,6 +31,9 @@ import { ImageKitModule } from './imagekit/imagekit.module';
     SectionManagementModule,
     AcademicStructureModule,
     ImageKitModule,
+    MarketplaceModule,
+    ContentModule,
+    DigitalPurchasesModule,
   ],
   controllers: [AppController],
   providers: [AppService],

@@ -2,6 +2,8 @@ import { Injectable, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { FileType } from '@prisma/client';
 import { ImageKitService } from '../imagekit/imagekit.service';
+import { writeFileSync, mkdirSync, existsSync } from 'fs';
+import { join } from 'path';
 
 @Injectable()
 export class FileUploadService {
@@ -22,31 +24,92 @@ export class FileUploadService {
     // Step 1: Delete existing files of the same type for this content
     await this.deleteExistingFilesByType(contentId, fileType);
 
-    // Step 2: Upload to ImageKit instead of local storage
-    const imageKitResult = await this.uploadToImageKit(file, contentId, fileType);
+    // Step 2: Try to upload to ImageKit, fallback to local storage on ANY error
+    let uploadResult: { fileId?: string; url: string };
+    try {
+      uploadResult = await this.uploadToImageKit(file, contentId, fileType);
+      console.log(`✅ ImageKit upload succeeded for ${fileType}:`, {
+        fileId: uploadResult.fileId,
+        url: uploadResult.url.substring(0, 80) + '...',
+      });
+    } catch (error: any) {
+      // Log ALL errors for debugging
+      const errorMessage = error.message || '';
+      const errorCode = error.code || '';
+      
+      console.error('❌ ImageKit upload failed:', {
+        code: errorCode,
+        message: errorMessage,
+        fileType,
+        contentId,
+        fileName: file.originalname,
+      });
+      
+      // Check if it's a network/connectivity error
+      const isNetworkError = 
+        errorCode === 'ENOTFOUND' ||
+        errorCode === 'ECONNREFUSED' ||
+        errorCode === 'ETIMEDOUT' ||
+        errorMessage.includes('ENOTFOUND') ||
+        errorMessage.includes('ECONNREFUSED') ||
+        errorMessage.includes('ETIMEDOUT') ||
+        errorMessage.includes('Cannot reach ImageKit') ||
+        errorMessage.includes('Cannot connect to ImageKit') ||
+        errorMessage.includes('ImageKit servers are unreachable') ||
+        errorMessage.includes('Connection timeout') ||
+        errorMessage.includes('Network error');
+      
+      // For ANY error (network or auth/validation), fall back to local storage
+      // This ensures files are always saved, even if ImageKit fails
+      console.warn('⚠️ Falling back to local storage due to ImageKit error');
+      console.warn('   Error type:', isNetworkError ? 'Network' : 'Other (Auth/Validation)');
+      uploadResult = await this.uploadToLocalStorage(file, contentId, fileType);
+    }
 
-    // Step 3: Create new file record in database with ImageKit URL
+    // Step 3: Create new file record in database
+    // Only set imageKitFileId and imageKitUrl if ImageKit upload actually succeeded
+    const isImageKitUrl = uploadResult.url.startsWith('http') && uploadResult.url.includes('imagekit.io');
+    const hasImageKitFileId = !!uploadResult.fileId;
+    
+    console.log('💾 Saving file record to database:', {
+      contentId,
+      fileType,
+      fileName: file.originalname,
+      storagePath: uploadResult.url.substring(0, 80) + '...',
+      isImageKitUrl,
+      hasImageKitFileId,
+      imageKitFileId: uploadResult.fileId || 'null',
+    });
+    
     const fileRecord = await this.prisma.contentFile.create({
       data: {
         contentId,
         fileType,
         originalName: file.originalname,
-        storagePath: imageKitResult.url, // ImageKit URL instead of local path
+        storagePath: uploadResult.url, // ImageKit URL or local path
         mimeType: file.mimetype,
         sizeBytes: BigInt(file.size),
-        imageKitFileId: imageKitResult.fileId,
-        imageKitUrl: imageKitResult.url,
+        // Only set ImageKit fields if upload actually succeeded
+        imageKitFileId: hasImageKitFileId ? uploadResult.fileId : null,
+        imageKitUrl: isImageKitUrl && hasImageKitFileId ? uploadResult.url : null,
       },
+    });
+    
+    console.log('✅ File record created:', {
+      id: fileRecord.id,
+      storagePath: fileRecord.storagePath?.substring(0, 80) + '...',
+      imageKitUrl: fileRecord.imageKitUrl ? fileRecord.imageKitUrl.substring(0, 80) + '...' : 'null',
+      imageKitFileId: fileRecord.imageKitFileId || 'null',
     });
 
     return {
       id: fileRecord.id,
       originalName: fileRecord.originalName,
-      url: imageKitResult.url, // ImageKit URL
+      url: uploadResult.url,
       mimeType: fileRecord.mimeType,
       size: Number(fileRecord.sizeBytes),
       fileType: fileRecord.fileType,
-      imageKitFileId: imageKitResult.fileId,
+      imageKitFileId: uploadResult.fileId || null,
     };
   }
 
@@ -66,26 +129,79 @@ export class FileUploadService {
       const filePath = `content/${contentId}/${fileType.toLowerCase()}/${timestamp}-${randomId}${fileExtension}`;
 
       // Upload to ImageKit
+      // Note: Using tags and folder structure for identification instead of customMetadata
+      // customMetadata can cause issues with ImageKit validation
       const uploadResult = await this.imageKitService.uploadFile({
         file: file.buffer,
         fileName: file.originalname,
         folder: `content/${contentId}/${fileType.toLowerCase()}`,
         useUniqueFileName: true,
-        tags: [fileType.toLowerCase(), contentId],
-        customMetadata: {
-          contentId,
-          fileType,
-          originalName: file.originalname,
-        },
+        tags: [fileType.toLowerCase(), `content-${contentId}`, `original-${file.originalname.replace(/[^a-zA-Z0-9]/g, '-')}`],
+        // Removed customMetadata - using tags instead for better compatibility
       });
 
       return {
         fileId: uploadResult.fileId,
         url: uploadResult.url,
       };
-    } catch (error) {
-      console.error('ImageKit upload failed:', error);
-      throw new BadRequestException(`Failed to upload file to ImageKit: ${error.message}`);
+    } catch (error: any) {
+      console.error('ImageKit upload failed:', {
+        message: error.message,
+        code: error.code,
+        stack: error.stack,
+      });
+
+      // Provide user-friendly error message
+      let errorMessage = error.message;
+      if (error.message?.includes('ENOTFOUND')) {
+        errorMessage = 'Cannot connect to ImageKit servers. Please check your internet connection.';
+      } else if (error.message?.includes('ECONNREFUSED')) {
+        errorMessage = 'ImageKit servers are unreachable. Please check your network connection.';
+      } else if (error.message?.includes('timeout')) {
+        errorMessage = 'ImageKit upload timed out. Please try again.';
+      }
+
+      throw new BadRequestException(`Failed to upload file to ImageKit: ${errorMessage}`);
+    }
+  }
+
+  /**
+   * Upload file to local storage (fallback when ImageKit is unavailable)
+   */
+  private async uploadToLocalStorage(
+    file: Express.Multer.File,
+    contentId: string,
+    fileType: FileType,
+  ): Promise<{ url: string }> {
+    try {
+      // Create uploads directory structure: uploads/content/{contentId}/{fileType}/
+      const uploadsDir = join(process.cwd(), 'uploads', 'content', contentId, fileType.toLowerCase());
+      
+      // Create directory if it doesn't exist
+      if (!existsSync(uploadsDir)) {
+        mkdirSync(uploadsDir, { recursive: true });
+      }
+
+      // Generate unique filename
+      const timestamp = Date.now();
+      const randomId = Math.random().toString(36).substring(2, 15);
+      const fileExtension = file.originalname.substring(file.originalname.lastIndexOf('.'));
+      const fileName = `${timestamp}-${randomId}${fileExtension}`;
+      const filePath = join(uploadsDir, fileName);
+
+      // Write file to disk
+      writeFileSync(filePath, file.buffer);
+
+      // Return relative path that will be served as /images/...
+      const relativePath = `content/${contentId}/${fileType.toLowerCase()}/${fileName}`;
+      const url = `/images/${relativePath}`;
+
+      console.log(`✅ File saved to local storage: ${url}`);
+      
+      return { url };
+    } catch (error: any) {
+      console.error('Local storage upload failed:', error);
+      throw new BadRequestException(`Failed to save file locally: ${error.message}`);
     }
   }
 
@@ -117,19 +233,30 @@ export class FileUploadService {
       },
     });
 
-    // Delete each existing file record
+    // Delete each existing file record AND delete from ImageKit if it exists there
     for (const file of existingFiles) {
+      // Delete from ImageKit if it has an ImageKit file ID
+      if (file.imageKitFileId) {
+        try {
+          await this.imageKitService.deleteFile(file.imageKitFileId);
+          console.log(`✅ Deleted ImageKit file ${file.imageKitFileId} for ${fileType} (content: ${contentId})`);
+        } catch (error: any) {
+          console.warn(`⚠️ Failed to delete ImageKit file ${file.imageKitFileId}:`, error.message);
+          // Continue with database deletion even if ImageKit deletion fails
+        }
+      }
+
+      // Delete file record from database
       await this.prisma.contentFile.delete({
         where: { id: file.id },
       });
 
-      // In production, you would also delete the actual file from storage here
-      // Example: fs.unlinkSync(file.storagePath);
+      console.log(`✅ Deleted database record for file ${file.id} (${file.originalName})`);
     }
 
     if (existingFiles.length > 0) {
       console.log(
-        `Deleted ${existingFiles.length} existing ${fileType} file(s) for content ${contentId}`,
+        `🗑️ Deleted ${existingFiles.length} existing ${fileType} file(s) for content ${contentId}`,
       );
     }
   }

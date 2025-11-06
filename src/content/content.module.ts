@@ -9,4 +9,8 @@ import { PrismaModule } from '../prisma/prisma.module';
   providers: [ContentService],
   exports: [ContentService],
 })
-export class ContentModule {}
+export class ContentModule {
+  constructor() {
+    console.log('✅ ContentModule loaded');
+  }
+}

@@ -73,9 +73,25 @@ export class EmailService {
   ): Promise<boolean> {
     try {
       console.log('=== PASSWORD RESET EMAIL DEBUG ===');
+      console.log('SMTP_HOST:', process.env.SMTP_HOST);
+      console.log('SMTP_PORT:', process.env.SMTP_PORT);
+      console.log('SMTP_USER:', process.env.SMTP_USER);
+      console.log(
+        'SMTP_PASS:',
+        process.env.SMTP_PASS ? '***SET***' : '***NOT SET***',
+      );
       console.log('Sending password reset email to:', email);
       console.log('Reset token:', resetToken);
       console.log('===================================');
+
+      // Check if SMTP is configured
+      if (!process.env.SMTP_USER || !process.env.SMTP_PASS) {
+        console.error('❌ SMTP credentials not configured!');
+        console.error('Please set SMTP_USER and SMTP_PASS in your .env file');
+        console.error('For development, you can use Mailtrap or Ethereal Email');
+        console.error('See EMAIL_SETUP.md for instructions');
+        return false;
+      }
 
       const htmlContent = this.getPasswordResetEmailTemplate(
         userName,
@@ -94,6 +110,18 @@ export class EmailService {
     } catch (error) {
       console.error('❌ Failed to send password reset email:', error);
       console.error('Error details:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      // Provide helpful error messages
+      if (error.message && error.message.includes('ETIMEDOUT')) {
+        console.error('⚠️ Connection timeout - Check your network/firewall settings');
+        console.error('⚠️ Make sure port 587 is not blocked');
+        console.error('⚠️ If using Gmail, ensure you have a valid App Password');
+      } else if (error.message && error.message.includes('EAUTH')) {
+        console.error('⚠️ Authentication failed - Check your SMTP credentials');
+        console.error('⚠️ For Gmail, make sure you\'re using an App Password, not your regular password');
+      }
+      
       return false;
     }
   }

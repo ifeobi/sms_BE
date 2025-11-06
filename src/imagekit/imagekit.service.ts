@@ -204,29 +204,62 @@ export class ImageKitService {
     folder?: string;
     useUniqueFileName?: boolean;
     tags?: string[];
-    customMetadata?: any;
   }): Promise<{ fileId: string; url: string; name: string }> {
     if (!this.imagekit) {
       throw new BadRequestException('ImageKit is not configured. Please set IMAGEKIT_PUBLIC_KEY, IMAGEKIT_PRIVATE_KEY, and IMAGEKIT_URL_ENDPOINT environment variables.');
     }
 
     try {
-      const uploadResult = await this.imagekit.upload({
+      // Build upload parameters - using tags and folder structure for identification
+      // DO NOT include customMetadata - ImageKit rejects it
+      const uploadParams = {
         file: uploadData.file,
         fileName: uploadData.fileName,
         folder: uploadData.folder || '/',
-        useUniqueFileName: uploadData.useUniqueFileName || true,
+        useUniqueFileName: uploadData.useUniqueFileName !== undefined ? uploadData.useUniqueFileName : true,
         tags: uploadData.tags || [],
-        customMetadata: uploadData.customMetadata || {},
+      };
+
+      console.log('📤 Uploading to ImageKit:', {
+        fileName: uploadData.fileName,
+        folder: uploadParams.folder,
+        tags: uploadParams.tags,
+        hasCustomMetadata: false, // Explicitly logging that we're NOT sending customMetadata
       });
+
+      const uploadResult = await this.imagekit.upload(uploadParams);
+
+      console.log('✅ ImageKit upload successful:', uploadResult.url);
 
       return {
         fileId: uploadResult.fileId,
         url: uploadResult.url,
         name: uploadResult.name,
       };
-    } catch (error) {
-      throw new BadRequestException(`Failed to upload file to ImageKit: ${error.message}`);
+    } catch (error: any) {
+      console.error('❌ ImageKit upload error:', {
+        message: error.message,
+        code: error.code,
+        response: error.response?.data || error.response || 'No response data',
+        uploadParams: {
+          fileName: uploadData.fileName,
+          folder: uploadData.folder,
+          tags: uploadData.tags,
+        }
+      });
+
+      // Provide more helpful error messages based on error type
+      let errorMessage = error.message || error.response?.data?.message || 'Unknown error';
+      
+      if (error.code === 'ENOTFOUND' || error.message?.includes('ENOTFOUND')) {
+        errorMessage = `Network error: Cannot reach ImageKit servers (${error.hostname || 'upload.imagekit.io'}). Please check your internet connection and DNS settings.`;
+      } else if (error.code === 'ECONNREFUSED' || error.message?.includes('ECONNREFUSED')) {
+        errorMessage = `Connection refused: ImageKit servers are unreachable. Please check your network connection and firewall settings.`;
+      } else if (error.code === 'ETIMEDOUT' || error.message?.includes('timeout')) {
+        errorMessage = `Connection timeout: ImageKit servers did not respond in time. Please try again or check your network connection.`;
+      }
+
+      throw new BadRequestException(`Failed to upload file to ImageKit: ${errorMessage}`);
     }
   }
 
