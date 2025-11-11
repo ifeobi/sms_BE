@@ -37,6 +37,11 @@ export class BulkStudentDataDto {
 
   @IsString()
   parentPhone: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  subjects?: string[];
 }
 
 export class BulkStudentImportDto {

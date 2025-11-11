@@ -1,4 +1,4 @@
-import { IsEmail, IsString, IsNotEmpty, IsOptional, MinLength, ValidateNested, IsEnum } from 'class-validator';
+import { IsEmail, IsString, IsNotEmpty, IsOptional, MinLength, ValidateNested, IsEnum, IsArray } from 'class-validator';
 import { Type } from 'class-transformer';
 
 export enum RelationshipType {
@@ -66,6 +66,11 @@ export class CreateStudentDto {
 
   @IsString()
   academicYear: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  subjects?: string[];
 
   // Optionals
   @IsOptional()

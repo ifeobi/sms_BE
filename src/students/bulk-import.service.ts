@@ -24,6 +24,76 @@ export class BulkImportService {
     private emailService: EmailService,
   ) {}
 
+  private async resolveSubjects(
+    schoolId: string,
+    identifiers: string[],
+  ) {
+    const normalized = Array.from(
+      new Set(
+        identifiers
+          .map((identifier) => identifier?.trim())
+          .filter((identifier): identifier is string => Boolean(identifier)),
+      ),
+    );
+
+    if (normalized.length === 0) {
+      return [];
+    }
+
+    const subjectsById = await this.prisma.subject.findMany({
+      where: {
+        id: { in: normalized },
+        schoolId,
+        isActive: true,
+      },
+    });
+
+    const matchedSubjectIds = new Set(subjectsById.map((subject) => subject.id));
+    const remaining = normalized.filter(
+      (identifier) => !matchedSubjectIds.has(identifier),
+    );
+
+    if (remaining.length > 0) {
+      const subjectsByLabel = await this.prisma.subject.findMany({
+        where: {
+          schoolId,
+          isActive: true,
+          OR: remaining.map((identifier) => ({
+            OR: [
+              {
+                code: {
+                  equals: identifier,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                name: {
+                  equals: identifier,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                name: {
+                  contains: identifier,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          })),
+        },
+      });
+
+      for (const subject of subjectsByLabel) {
+        if (!matchedSubjectIds.has(subject.id)) {
+          subjectsById.push(subject);
+          matchedSubjectIds.add(subject.id);
+        }
+      }
+    }
+
+    return subjectsById;
+  }
+
   async startBulkImport(
     schoolId: string,
     importedBy: string,
@@ -347,6 +417,9 @@ export class BulkImportService {
     }
 
     // Create student record
+    const academicYear =
+      importData.academicYear || new Date().getFullYear().toString();
+
     const student = await this.prisma.student.create({
       data: {
         userId: studentUser.id,
@@ -354,8 +427,7 @@ export class BulkImportService {
         studentNumber,
         currentLevelId: resolvedLevelId,
         currentClassId: resolvedClassId,
-        academicYear:
-          importData.academicYear || new Date().getFullYear().toString(),
+        academicYear,
         dateOfBirth: new Date(studentData.dateOfBirth),
         gender: studentData.sex,
         nationality: 'Nigerian', // Default, can be updated later
@@ -365,6 +437,60 @@ export class BulkImportService {
         modifiedBy: 'bulk_import',
       },
     });
+
+    const subjectIdentifiers = Array.isArray(studentData.subjects)
+      ? studentData.subjects
+      : [];
+
+    if (subjectIdentifiers.length > 0) {
+      const resolvedSubjects = await this.resolveSubjects(
+        schoolId,
+        subjectIdentifiers,
+      );
+
+      if (resolvedSubjects.length > 0) {
+        const subjectIds = resolvedSubjects.map((subject) => subject.id);
+        const relatedAssignments = await this.prisma.teacherAssignment.findMany({
+          where: {
+            classId: resolvedClassId,
+            subjectId: {
+              in: subjectIds,
+            },
+            isActive: true,
+          },
+        });
+
+        const assignmentBySubject = new Map(
+          relatedAssignments.map((assignment) => [
+            assignment.subjectId,
+            assignment,
+          ]),
+        );
+
+        await this.prisma.studentSubjectEnrollment.createMany({
+          data: subjectIds.map((subjectId) => ({
+            studentId: student.id,
+            classId: resolvedClassId,
+            subjectId,
+            academicYear,
+            teacherAssignmentId:
+              assignmentBySubject.get(subjectId)?.id ?? null,
+            isElective: false,
+          })),
+          skipDuplicates: true,
+        });
+      } else {
+        this.logger.warn(
+          `[BULK IMPORT] No matching subjects found for row ${rowNumber}: ${subjectIdentifiers.join(
+            ', ',
+          )}`,
+        );
+      }
+    } else {
+      this.logger.warn(
+        `[BULK IMPORT] No subject identifiers provided for row ${rowNumber}`,
+      );
+    }
 
     // Create parent-school relationship
     this.logger.log(`[BULK IMPORT] Creating ParentSchoolRelationship with parentRecord.id: ${parentRecord.id}, schoolId: ${schoolId}`);

@@ -180,6 +180,7 @@ model Student {
   section                   Section?                   @relation("StudentCurrentSection", fields: [currentSectionId], references: [id])
   timelineEvents            TimelineEvent[]
   parentRelationships       ParentSchoolRelationship[] @relation("ParentSchoolRelationshipToStudent")
+  subjectEnrollments        StudentSubjectEnrollment[]
 
   @@map("students")
 }
@@ -221,6 +222,7 @@ model Class {
   teachers          TeacherAssignment[]
   subjects          Subject[]           @relation("ClassToSubject")
   sections          Section[]
+  studentEnrollments StudentSubjectEnrollment[]
 
   @@map("classes")
 }
@@ -238,8 +240,10 @@ model Subject {
   school          School              @relation(fields: [schoolId], references: [id])
   teachers        TeacherAssignment[]
   classes         Class[]             @relation("ClassToSubject")
+  studentEnrollments StudentSubjectEnrollment[]
 
   @@map("subjects")
+  @@unique([schoolId, name])
 }
 
 model Teacher {
@@ -351,6 +355,7 @@ model TeacherAssignment {
   school        School   @relation(fields: [schoolId], references: [id])
   subject       Subject  @relation(fields: [subjectId], references: [id])
   teacher       Teacher  @relation(fields: [teacherId], references: [id])
+  studentEnrollments StudentSubjectEnrollment[]
 
   @@map("teacher_assignments")
 }
@@ -436,6 +441,7 @@ model AcademicTerm {
   school            School             @relation(fields: [schoolId], references: [id])
   assignments       Assignment[]
   attendanceRecords AttendanceRecord[]
+  studentEnrollments StudentSubjectEnrollment[]
 
   @@map("academic_terms")
 }
@@ -625,6 +631,28 @@ model StudentHealthRecord {
   student               Student          @relation(fields: [studentId], references: [id])
 
   @@map("student_health_records")
+}
+
+model StudentSubjectEnrollment {
+  id                   String      @id @default(cuid())
+  studentId            String
+  classId              String
+  subjectId            String
+  teacherAssignmentId  String?
+  academicYear         String
+  termId               String?
+  isElective           Boolean     @default(false)
+  isActive             Boolean     @default(true)
+  createdAt            DateTime    @default(now())
+  updatedAt            DateTime    @updatedAt
+  student              Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  class                Class       @relation(fields: [classId], references: [id])
+  subject              Subject     @relation(fields: [subjectId], references: [id])
+  teacherAssignment    TeacherAssignment? @relation(fields: [teacherAssignmentId], references: [id])
+  term                 AcademicTerm? @relation(fields: [termId], references: [id])
+
+  @@unique([studentId, subjectId, academicYear])
+  @@map("student_subject_enrollments")
 }
 
 model StudentAchievement {

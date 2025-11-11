@@ -87,6 +87,80 @@ export class StudentsService {
       });
       console.log('✅ [DEBUG] Student record created:', student.id);
 
+      // 5b. Link student to selected subjects (if provided)
+      const selectedSubjectIdentifiers = Array.isArray(dto.subjects)
+        ? Array.from(new Set(dto.subjects.filter((id) => !!id)))
+        : [];
+
+      if (selectedSubjectIdentifiers.length > 0) {
+        console.log('🔵 [DEBUG] Step 5b: Linking student to subjects...', selectedSubjectIdentifiers);
+
+        const subjectsById = await this.prisma.subject.findMany({
+          where: {
+            schoolId,
+            id: {
+              in: selectedSubjectIdentifiers,
+            },
+          },
+        });
+
+        const missingIdentifiers = selectedSubjectIdentifiers.filter(
+          (identifier) => !subjectsById.some((subject) => subject.id === identifier),
+        );
+
+        let subjects = subjectsById;
+
+        if (missingIdentifiers.length > 0) {
+          console.warn('⚠️ [DEBUG] Some subject IDs not found, attempting by name lookup:', missingIdentifiers);
+          const subjectsByName = await this.prisma.subject.findMany({
+            where: {
+              schoolId,
+              name: {
+                in: missingIdentifiers,
+              },
+            },
+          });
+
+          if (subjectsByName.length > 0) {
+            console.log('✅ [DEBUG] Found subjects by name fallback:', subjectsByName.map((s) => s.name));
+            subjects = [...subjectsById, ...subjectsByName];
+          }
+        }
+
+        if (subjects.length === 0) {
+          console.warn('⚠️ [DEBUG] No matching subjects found for student enrollment.');
+        } else {
+          const uniqueSubjects = Array.from(new Map(subjects.map((subject) => [subject.id, subject])).values());
+          const subjectIds = uniqueSubjects.map((subject) => subject.id);
+
+          const relatedAssignments = await this.prisma.teacherAssignment.findMany({
+            where: {
+              classId: classObj.id,
+              subjectId: {
+                in: subjectIds,
+              },
+              isActive: true,
+            },
+          });
+
+          const assignmentBySubject = new Map(relatedAssignments.map((assignment) => [assignment.subjectId, assignment]));
+
+          await this.prisma.studentSubjectEnrollment.createMany({
+            data: uniqueSubjects.map((subject) => ({
+              studentId: student.id,
+              classId: classObj.id,
+              subjectId: subject.id,
+              teacherAssignmentId: assignmentBySubject.get(subject.id)?.id,
+              academicYear: dto.academicYear,
+              isElective: false,
+            })),
+            skipDuplicates: true,
+          });
+
+          console.log('✅ [DEBUG] Student subject enrollments created for subjects:', subjectIds);
+        }
+      }
+
       // 6. Parent: link to existing or create
       console.log('🔵 [DEBUG] Step 6: Processing parent...');
       let parentUser;
