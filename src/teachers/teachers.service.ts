@@ -1,6 +1,17 @@
-import { Injectable, NotFoundException, ForbiddenException } from '@nestjs/common';
+import {
+  Injectable,
+  NotFoundException,
+  ForbiddenException,
+  BadRequestException,
+} from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
-import { Prisma, AttendanceStatus } from '@prisma/client';
+import {
+  Prisma,
+  AttendanceStatus,
+  AssignmentCategory,
+  AssignmentType,
+} from '@prisma/client';
+import { CreateAssignmentDto } from './dto/create-assignment.dto';
 
 interface AttendanceFilters {
   classId?: string;
@@ -57,6 +68,78 @@ export class TeachersService {
             city: teacher.school.city,
           }
         : null,
+    };
+  }
+
+  private mapAssignmentDetail(assignment: any) {
+    return {
+      id: assignment.id,
+      title: assignment.title,
+      description: assignment.description,
+      classId: assignment.classId,
+      subjectId: assignment.subjectId,
+      termId: assignment.termId,
+      dueDate: assignment.dueDate,
+      maxScore: assignment.maxScore,
+      weight: assignment.weight,
+      type: assignment.type,
+      category: assignment.category,
+      academicYear: assignment.term?.academicYear ?? null,
+      allowLateSubmission: assignment.allowLateSubmission,
+      latePenalty: assignment.latePenalty,
+      allowResubmission: assignment.allowResubmission,
+      maxResubmissions: assignment.maxResubmissions,
+      isGroupAssignment: assignment.isGroupAssignment,
+      groupSize: assignment.groupSize,
+      instructions: assignment.instructions,
+      learningObjectives: assignment.learningObjectives,
+      tags: assignment.tags,
+      class: assignment.class
+        ? {
+            id: assignment.class.id,
+            name: assignment.class.name,
+            shortName: assignment.class.shortName,
+            level: assignment.class.level
+              ? {
+                  id: assignment.class.level.id,
+                  name: assignment.class.level.name,
+                }
+              : null,
+          }
+        : null,
+      subject: assignment.subject
+        ? {
+            id: assignment.subject.id,
+            name: assignment.subject.name,
+            code: assignment.subject.code,
+          }
+        : null,
+      term: assignment.term
+        ? {
+            id: assignment.term.id,
+            name: assignment.term.name,
+            academicYear: assignment.term.academicYear,
+          }
+        : null,
+      assignees: assignment.assignees
+        ? assignment.assignees.map((assignee: any) => ({
+            id: assignee.id,
+            studentId: assignee.studentId,
+            assignedAt: assignee.assignedAt,
+            student: assignee.student
+              ? {
+                  id: assignee.student.id,
+                  studentNumber: assignee.student.studentNumber,
+                  fullName:
+                    assignee.student.user?.fullName ||
+                    `${assignee.student.user?.firstName ?? ''} ${assignee.student.user?.lastName ?? ''}`.trim(),
+                  firstName: assignee.student.user?.firstName,
+                  lastName: assignee.student.user?.lastName,
+                  email: assignee.student.user?.email,
+                }
+              : null,
+          }))
+        : [],
     };
   }
 
@@ -121,7 +204,11 @@ export class TeachersService {
         teacherId: teacher.id,
       },
       include: {
-        class: true,
+        class: {
+          include: {
+            level: true,
+          },
+        },
         subject: true,
         term: true,
       },
@@ -130,36 +217,201 @@ export class TeachersService {
       },
     });
 
-    return assignments.map((assignment) => ({
-      id: assignment.id,
-      title: assignment.title,
-      classId: assignment.classId,
-      subjectId: assignment.subjectId,
-      termId: assignment.termId,
-      dueDate: assignment.dueDate,
-      maxScore: assignment.maxScore,
-      weight: assignment.weight,
-      category: assignment.category,
-      class: assignment.class
-        ? {
-            id: assignment.class.id,
-            name: assignment.class.name,
-            shortName: assignment.class.shortName,
-          }
-        : null,
-      subject: assignment.subject
-        ? {
-            id: assignment.subject.id,
-            name: assignment.subject.name,
-          }
-        : null,
-      term: assignment.term
-        ? {
-            id: assignment.term.id,
-            name: assignment.term.name,
-          }
-        : null,
-    }));
+    const assignmentIds = assignments.map((assignment) => assignment.id);
+
+    const assigneeRecords = assignmentIds.length
+      ? await (this.prisma as any).assignmentAssignee.findMany({
+          where: {
+            assignmentId: {
+              in: assignmentIds,
+            },
+          },
+          include: {
+            student: {
+              include: {
+                user: true,
+              },
+            },
+          },
+        })
+      : [];
+
+    const assigneesByAssignment = (assigneeRecords as any[]).reduce(
+      (acc: Record<string, any[]>, assignee: any) => {
+        if (!acc[assignee.assignmentId]) {
+          acc[assignee.assignmentId] = [];
+        }
+        acc[assignee.assignmentId].push(assignee);
+        return acc;
+      },
+      {} as Record<string, any[]>,
+    );
+
+    return assignments.map((assignment) =>
+      this.mapAssignmentDetail({
+        ...assignment,
+        assignees: assigneesByAssignment[assignment.id] ?? [],
+      }),
+    );
+  }
+
+  async createAssignment(userId: string, createAssignmentDto: CreateAssignmentDto) {
+    const teacher = await this.getTeacherByUserId(userId);
+    const {
+      classId,
+      subjectId,
+      termId,
+      title,
+      description,
+      dueDate,
+      studentIds,
+      maxScore,
+      weight,
+      type,
+      category,
+      allowLateSubmission,
+      latePenalty,
+      allowResubmission,
+      maxResubmissions,
+      isGroupAssignment,
+      groupSize,
+      learningObjectives,
+      tags,
+    } = createAssignmentDto;
+
+    if (!studentIds || studentIds.length === 0) {
+      throw new BadRequestException('Select at least one student for this assignment.');
+    }
+
+    const uniqueStudentIds = Array.from(new Set(studentIds));
+
+    const teacherAssignment = await this.prisma.teacherAssignment.findFirst({
+      where: {
+        teacherId: teacher.id,
+        classId,
+        subjectId,
+        isActive: true,
+      },
+    });
+
+    if (!teacherAssignment) {
+      throw new ForbiddenException('You are not assigned to this class and subject.');
+    }
+
+    let resolvedTermId = termId ?? teacherAssignment.termId ?? null;
+
+    if (!resolvedTermId) {
+      const activeTerm = await this.prisma.academicTerm.findFirst({
+        where: {
+          schoolId: teacher.schoolId,
+          isActive: true,
+        },
+        orderBy: {
+          startDate: 'desc',
+        },
+      });
+
+      if (!activeTerm) {
+        throw new BadRequestException(
+          'No academic term available. Please contact your school administrator to configure academic terms.',
+        );
+      }
+
+      resolvedTermId = activeTerm.id;
+    }
+
+    const studentWhere: Prisma.StudentWhereInput = {
+      schoolId: teacher.schoolId,
+      currentClassId: classId,
+      id: {
+        in: uniqueStudentIds,
+      },
+    };
+
+    const eligibleStudents = await this.prisma.student.findMany({
+      where: studentWhere,
+      select: {
+        id: true,
+      },
+    });
+
+    if (eligibleStudents.length !== uniqueStudentIds.length) {
+      throw new BadRequestException(
+        'One or more selected students are not part of the chosen class or do not belong to your school.',
+      );
+    }
+
+    const parsedDueDate = dueDate ? new Date(dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    if (Number.isNaN(parsedDueDate.getTime())) {
+      throw new BadRequestException('Invalid due date provided.');
+    }
+
+    const assignment = await this.prisma.assignment.create({
+      data: {
+        title,
+        description: description ?? '',
+        instructions: description ?? 'No instructions provided.',
+        subjectId,
+        classId,
+        teacherId: teacher.id,
+        termId: resolvedTermId,
+        dueDate: parsedDueDate,
+        maxScore: maxScore ?? 100,
+        weight: weight ?? 1,
+        type: type ?? AssignmentType.HOMEWORK,
+        category: category ?? AssignmentCategory.FORMATIVE,
+        allowLateSubmission: allowLateSubmission ?? true,
+        latePenalty: latePenalty ?? 0,
+        allowResubmission: allowResubmission ?? false,
+        maxResubmissions: allowResubmission ? maxResubmissions ?? 0 : 0,
+        isGroupAssignment: isGroupAssignment ?? false,
+        groupSize: isGroupAssignment ? groupSize ?? null : null,
+        learningObjectives: learningObjectives ?? [],
+        tags: tags ?? [],
+        createdBy: teacher.user?.email || teacher.userId,
+      },
+    });
+
+    await (this.prisma as any).assignmentAssignee.createMany({
+      data: eligibleStudents.map((student) => ({
+        assignmentId: assignment.id,
+        studentId: student.id,
+      })),
+      skipDuplicates: true,
+    });
+
+    const assignmentRecord = await this.prisma.assignment.findUnique({
+      where: { id: assignment.id },
+      include: {
+        class: {
+          include: {
+            level: true,
+          },
+        },
+        subject: true,
+        term: true,
+      },
+    });
+
+    if (!assignmentRecord) {
+      throw new NotFoundException('Assignment not found after creation.');
+    }
+
+    const assignees = await (this.prisma as any).assignmentAssignee.findMany({
+      where: { assignmentId: assignment.id },
+      include: {
+        student: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    return this.mapAssignmentDetail({
+      ...assignmentRecord,
+      assignees,
+    });
   }
 
   async getTerms(userId: string) {

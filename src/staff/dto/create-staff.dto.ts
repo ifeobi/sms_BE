@@ -43,8 +43,8 @@ export class CreateStaffDto {
   department?: string;
 
   @IsString()
-  @IsNotEmpty()
-  employeeNumber: string;
+  @IsOptional()
+  employeeNumber?: string;
 
   @IsArray()
   @IsString({ each: true })
@@ -61,6 +61,7 @@ export class CreateStaffDto {
     classId: string;
     subjectId: string;
     academicYear: string;
+    termId?: string;
     isFormTeacher?: boolean;
   }>;
 

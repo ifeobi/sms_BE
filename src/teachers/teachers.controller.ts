@@ -1,7 +1,9 @@
 import {
+  Body,
   Controller,
   Get,
   Param,
+  Post,
   Query,
   Request,
   UseGuards,
@@ -10,6 +12,7 @@ import {
 import { TeachersService } from './teachers.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
+import { CreateAssignmentDto } from './dto/create-assignment.dto';
 
 @ApiTags('Teachers')
 @ApiBearerAuth()
@@ -35,6 +38,15 @@ export class TeachersController {
   async getAssignments(@Request() req: any) {
     this.ensureTeacherAccess(req);
     return this.teachersService.getAssignments(req.user.id);
+  }
+
+  @Post('me/assignments')
+  async createAssignment(
+    @Request() req: any,
+    @Body() createAssignmentDto: CreateAssignmentDto,
+  ) {
+    this.ensureTeacherAccess(req);
+    return this.teachersService.createAssignment(req.user.id, createAssignmentDto);
   }
 
   @Get('me/assignments/detail')

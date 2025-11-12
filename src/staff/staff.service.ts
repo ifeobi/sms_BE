@@ -61,16 +61,6 @@ export class StaffService {
       throw new ConflictException('Email already exists for this user type');
     }
 
-    // Check if employee number already exists
-    if (userType === 'TEACHER') {
-      const existingTeacher = await this.prisma.teacher.findUnique({
-        where: { employeeNumber: userData.employeeNumber },
-      });
-      if (existingTeacher) {
-        throw new ConflictException('Employee number already exists');
-      }
-    }
-
     // Use default password for now (can be changed later)
     const temporaryPassword = 'changeme123';
     const hashedPassword = await bcrypt.hash(temporaryPassword, 10);
@@ -81,7 +71,6 @@ export class StaffService {
     console.log('Name:', `${userData.firstName} ${userData.lastName}`);
     console.log('Email:', userData.email);
     console.log('Type:', userType);
-    console.log('Employee Number:', userData.employeeNumber);
     console.log('Default Password:', temporaryPassword);
     console.log('========================================');
     console.log('⚠️  IMPORTANT: Share this password with the staff member');
@@ -108,7 +97,7 @@ export class StaffService {
         data: {
           userId: user.id,
           schoolId,
-          employeeNumber: userData.employeeNumber,
+          ...(userData.employeeNumber && { employeeNumber: userData.employeeNumber }),
           department: userData.department,
         },
         include: {
@@ -142,6 +131,7 @@ export class StaffService {
                   classId: assignment.classId,
                   subjectId: assignment.subjectId,
                   academicYear: assignment.academicYear,
+                  ...(assignment.termId && { termId: assignment.termId }),
                   isFormTeacher: assignment.isFormTeacher ?? false,
                 },
               }),
@@ -183,7 +173,6 @@ export class StaffService {
         id: teacher.id,
         userId: teacher.userId,
         schoolId: teacher.schoolId,
-        employeeNumber: teacher.employeeNumber,
         department: teacher.department,
         user: teacher.user,
         school: teacher.school,
@@ -192,6 +181,7 @@ export class StaffService {
           include: {
             class: true,
             subject: true,
+            term: true,
           },
         }),
         temporaryPassword: temporaryPassword, // Explicitly add password
@@ -334,9 +324,6 @@ export class StaffService {
       await this.prisma.teacher.update({
         where: { id },
         data: {
-          ...(updateData.employeeNumber && {
-            employeeNumber: updateData.employeeNumber,
-          }),
           ...(updateData.department && { department: updateData.department }),
         },
       });

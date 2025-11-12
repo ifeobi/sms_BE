@@ -181,6 +181,7 @@ model Student {
   timelineEvents            TimelineEvent[]
   parentRelationships       ParentSchoolRelationship[] @relation("ParentSchoolRelationshipToStudent")
   subjectEnrollments        StudentSubjectEnrollment[]
+  assignmentAssignees       AssignmentAssignee[]
 
   @@map("students")
 }
@@ -250,7 +251,7 @@ model Teacher {
   id                 String              @id @default(cuid())
   userId             String              @unique
   schoolId           String
-  employeeNumber     String              @unique
+  employeeNumber     String?
   department         String?
   hireDate           DateTime            @default(now())
   isActive           Boolean             @default(true)
@@ -347,6 +348,7 @@ model TeacherAssignment {
   classId       String
   subjectId     String
   academicYear  String
+  termId        String?
   isFormTeacher Boolean  @default(false)
   isActive      Boolean  @default(true)
   createdAt     DateTime @default(now())
@@ -355,6 +357,7 @@ model TeacherAssignment {
   school        School   @relation(fields: [schoolId], references: [id])
   subject       Subject  @relation(fields: [subjectId], references: [id])
   teacher       Teacher  @relation(fields: [teacherId], references: [id])
+  term          AcademicTerm? @relation(fields: [termId], references: [id], onDelete: SetNull)
   studentEnrollments StudentSubjectEnrollment[]
 
   @@map("teacher_assignments")
@@ -442,6 +445,7 @@ model AcademicTerm {
   assignments       Assignment[]
   attendanceRecords AttendanceRecord[]
   studentEnrollments StudentSubjectEnrollment[]
+  teacherAssignments TeacherAssignment[]
 
   @@map("academic_terms")
 }
@@ -516,8 +520,21 @@ model Assignment {
   subject             Subject            @relation(fields: [subjectId], references: [id])
   teacher             Teacher            @relation(fields: [teacherId], references: [id])
   term                AcademicTerm       @relation(fields: [termId], references: [id])
+  assignees           AssignmentAssignee[]
 
   @@map("assignments")
+}
+
+model AssignmentAssignee {
+  id           String      @id @default(cuid())
+  assignmentId String
+  studentId    String
+  assignedAt   DateTime    @default(now())
+  assignment   Assignment  @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student      Student     @relation(fields: [studentId], references: [id], onDelete: Cascade)
+
+  @@unique([assignmentId, studentId])
+  @@map("assignment_assignees")
 }
 
 model AttendanceRecord {
