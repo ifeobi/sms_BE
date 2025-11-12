@@ -133,16 +133,39 @@ export class StaffService {
         }
 
         if (validAssignments.length > 0) {
-          await this.prisma.teacherAssignment.createMany({
-            data: validAssignments.map((assignment) => ({
-              teacherId: teacher.id,
-              schoolId,
-              classId: assignment.classId,
-              subjectId: assignment.subjectId,
-              academicYear: assignment.academicYear,
-              isFormTeacher: assignment.isFormTeacher ?? false,
-            })),
-          });
+          const createdAssignments = await Promise.all(
+            validAssignments.map((assignment) =>
+              this.prisma.teacherAssignment.create({
+                data: {
+                  teacherId: teacher.id,
+                  schoolId,
+                  classId: assignment.classId,
+                  subjectId: assignment.subjectId,
+                  academicYear: assignment.academicYear,
+                  isFormTeacher: assignment.isFormTeacher ?? false,
+                },
+              }),
+            ),
+          );
+
+          // Auto-link existing student enrollments to these new teacher assignments
+          for (const assignment of createdAssignments) {
+            await this.prisma.studentSubjectEnrollment.updateMany({
+              where: {
+                classId: assignment.classId,
+                subjectId: assignment.subjectId,
+                teacherAssignmentId: null, // Only update enrollments that aren't already linked
+                isActive: true,
+              },
+              data: {
+                teacherAssignmentId: assignment.id,
+              },
+            });
+          }
+
+          console.log(
+            `✅ Created ${createdAssignments.length} teacher assignments and linked existing student enrollments`,
+          );
         }
       }
 
