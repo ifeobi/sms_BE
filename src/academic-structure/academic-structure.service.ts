@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EducationSystemsService } from '../education-systems/education-systems.service';
@@ -799,11 +799,95 @@ export class AcademicStructureService {
     return subject;
   }
 
+  private parseDateInput(value: any, fieldName: string): Date | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+
+    let date: Date;
+    if (value instanceof Date) {
+      date = value;
+    } else if (typeof value === 'string') {
+      date = new Date(value);
+    } else if (typeof value === 'number') {
+      date = new Date(value);
+    } else {
+      throw new BadRequestException(
+        `${fieldName} must be a valid ISO date string (YYYY-MM-DD), timestamp, or JavaScript Date.`,
+      );
+    }
+
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException(
+        `${fieldName} must be a valid ISO date string (YYYY-MM-DD) or JavaScript Date.`,
+      );
+    }
+    return date;
+  }
+
+  private async ensureSingleActiveTerm(
+    schoolId: string,
+    currentTermId?: string,
+  ): Promise<void> {
+    await this.prisma.academicTerm.updateMany({
+      where: {
+        schoolId,
+        isActive: true,
+        ...(currentTermId && { id: { not: currentTermId } }),
+      },
+      data: {
+        isActive: false,
+      },
+    });
+  }
+
   async createAcademicTerm(termData: any) {
+    const {
+      name,
+      academicYear,
+      schoolId,
+      startDate,
+      endDate,
+      description,
+      isActive = true,
+    } = termData;
+
+    if (!name?.trim()) {
+      throw new BadRequestException('Term name is required.');
+    }
+
+    if (!academicYear?.trim()) {
+      throw new BadRequestException('Academic year is required.');
+    }
+
+    if (!schoolId) {
+      throw new BadRequestException('schoolId is required.');
+    }
+
+    const parsedStartDate = this.parseDateInput(startDate, 'startDate');
+    const parsedEndDate = this.parseDateInput(endDate, 'endDate');
+
+    if (!parsedStartDate || !parsedEndDate) {
+      throw new BadRequestException('startDate and endDate are required.');
+    }
+
+    if (parsedStartDate.getTime() > parsedEndDate.getTime()) {
+      throw new BadRequestException('startDate cannot be after endDate.');
+    }
+
+    if (isActive) {
+      await this.ensureSingleActiveTerm(schoolId);
+    }
+
     return this.prisma.academicTerm.create({
       data: {
-        ...termData,
-        isActive: true,
+        name: name.trim(),
+        academicYear: academicYear.trim(),
+        description: description?.trim() || null,
+        schoolId,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
+        isActive,
       },
     });
   }
@@ -868,9 +952,61 @@ export class AcademicStructureService {
   }
 
   async updateAcademicTerm(id: string, termData: any) {
+    const existing = await this.prisma.academicTerm.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new BadRequestException('Academic term not found.');
+    }
+
+    const updatePayload: Record<string, any> = {};
+
+    if (termData.name !== undefined) {
+      if (!termData.name?.trim()) {
+        throw new BadRequestException('Term name cannot be empty.');
+      }
+      updatePayload.name = termData.name.trim();
+    }
+
+    if (termData.academicYear !== undefined) {
+      if (!termData.academicYear?.trim()) {
+        throw new BadRequestException('Academic year cannot be empty.');
+      }
+      updatePayload.academicYear = termData.academicYear.trim();
+    }
+
+    if (termData.description !== undefined) {
+      updatePayload.description = termData.description?.trim() ?? null;
+    }
+
+    if (termData.startDate !== undefined) {
+      updatePayload.startDate = this.parseDateInput(termData.startDate, 'startDate');
+    }
+
+    if (termData.endDate !== undefined) {
+      updatePayload.endDate = this.parseDateInput(termData.endDate, 'endDate');
+    }
+
+    if (
+      updatePayload.startDate &&
+      updatePayload.endDate &&
+      updatePayload.startDate.getTime() > updatePayload.endDate.getTime()
+    ) {
+      throw new BadRequestException('startDate cannot be after endDate.');
+    }
+
+    if (termData.isActive !== undefined) {
+      updatePayload.isActive = Boolean(termData.isActive);
+    }
+
+    if (updatePayload.isActive) {
+      await this.ensureSingleActiveTerm(existing.schoolId, id);
+    }
+
     return this.prisma.academicTerm.update({
       where: { id },
-      data: termData,
+      data: updatePayload,
     });
   }
 

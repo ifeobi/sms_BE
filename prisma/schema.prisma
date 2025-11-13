@@ -438,6 +438,7 @@ model AcademicTerm {
   name              String
   startDate         DateTime
   endDate           DateTime
+  description       String?
   isActive          Boolean            @default(true)
   academicYear      String
   academicRecords   AcademicRecord[]
