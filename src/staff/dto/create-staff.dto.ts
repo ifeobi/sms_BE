@@ -56,6 +56,14 @@ export class CreateStaffDto {
   @IsOptional()
   assignedClasses?: string[];
 
+  @IsOptional()
+  teacherAssignments?: Array<{
+    classId: string;
+    subjectId: string;
+    academicYear: string;
+    isFormTeacher?: boolean;
+  }>;
+
   @IsBoolean()
   @IsOptional()
   isActive?: boolean;

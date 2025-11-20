@@ -24,6 +24,76 @@ export class BulkImportService {
     private emailService: EmailService,
   ) {}
 
+  private async resolveSubjects(
+    schoolId: string,
+    identifiers: string[],
+  ) {
+    const normalized = Array.from(
+      new Set(
+        identifiers
+          .map((identifier) => identifier?.trim())
+          .filter((identifier): identifier is string => Boolean(identifier)),
+      ),
+    );
+
+    if (normalized.length === 0) {
+      return [];
+    }
+
+    const subjectsById = await this.prisma.subject.findMany({
+      where: {
+        id: { in: normalized },
+        schoolId,
+        isActive: true,
+      },
+    });
+
+    const matchedSubjectIds = new Set(subjectsById.map((subject) => subject.id));
+    const remaining = normalized.filter(
+      (identifier) => !matchedSubjectIds.has(identifier),
+    );
+
+    if (remaining.length > 0) {
+      const subjectsByLabel = await this.prisma.subject.findMany({
+        where: {
+          schoolId,
+          isActive: true,
+          OR: remaining.map((identifier) => ({
+            OR: [
+              {
+                code: {
+                  equals: identifier,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                name: {
+                  equals: identifier,
+                  mode: 'insensitive',
+                },
+              },
+              {
+                name: {
+                  contains: identifier,
+                  mode: 'insensitive',
+                },
+              },
+            ],
+          })),
+        },
+      });
+
+      for (const subject of subjectsByLabel) {
+        if (!matchedSubjectIds.has(subject.id)) {
+          subjectsById.push(subject);
+          matchedSubjectIds.add(subject.id);
+        }
+      }
+    }
+
+    return subjectsById;
+  }
+
   async startBulkImport(
     schoolId: string,
     importedBy: string,
@@ -62,13 +132,14 @@ export class BulkImportService {
     let successfulRecords = 0;
     let failedRecords = 0;
     const errorLog: any[] = [];
+    const credentials: any[] = []; // Store passwords for successful imports
 
     try {
       for (let i = 0; i < importData.students.length; i++) {
         const studentData = importData.students[i];
 
         try {
-          await this.processStudentRecord(
+          const result = await this.processStudentRecord(
             bulkImportId,
             schoolId,
             studentData,
@@ -76,6 +147,18 @@ export class BulkImportService {
             i + 1,
           );
           successfulRecords++;
+          
+          // Store credentials for this student
+          if (result && result.password) {
+            credentials.push({
+              row: i + 1,
+              studentName: studentData.fullName,
+              email: studentData.email,
+              password: result.password,
+              parentEmail: studentData.parentEmail,
+              parentPassword: result.parentPassword || 'Existing parent account',
+            });
+          }
         } catch (error) {
           failedRecords++;
           errorLog.push({
@@ -99,13 +182,28 @@ export class BulkImportService {
         }
       }
 
-      // Final update
+      // Final update - include credentials in errorLog for frontend access
       await this.updateBulkImportProgress(
         bulkImportId,
         successfulRecords,
         failedRecords,
-        errorLog,
+        { errors: errorLog, credentials },
       );
+      
+      // Log credentials to console for easy access
+      if (credentials.length > 0) {
+        console.log('\n========================================');
+        console.log('📋 BULK IMPORT CREDENTIALS');
+        console.log('========================================');
+        credentials.forEach((cred) => {
+          console.log(`\n✅ Row ${cred.row}: ${cred.studentName}`);
+          console.log(`   Student Email: ${cred.email}`);
+          console.log(`   Student Password: ${cred.password}`);
+          console.log(`   Parent Email: ${cred.parentEmail}`);
+          console.log(`   Parent Password: ${cred.parentPassword}`);
+        });
+        console.log('========================================\n');
+      }
     } catch (error) {
       this.logger.error(`Bulk import ${bulkImportId} failed:`, error);
       await this.updateBulkImportStatus(bulkImportId, BulkImportStatus.FAILED);
@@ -122,24 +220,214 @@ export class BulkImportService {
     // Generate student number
     const studentNumber = await this.generateStudentNumber(schoolId);
 
-    // Create or get parent user
-    const parentUser = await this.createOrGetParentUser(studentData);
+    // Create or get parent user and ensure Parent record exists
+    const { user: parentUser, password: parentPassword } = await this.createOrGetParentUser(studentData);
+    
+    this.logger.log(`[BULK IMPORT] Parent user: ${parentUser.id} (${parentUser.email})`);
+    
+    // Get or create Parent record (required for ParentSchoolRelationship)
+    let parentRecord = await this.prisma.parent.findUnique({
+      where: { userId: parentUser.id },
+    });
+    
+    if (!parentRecord) {
+      this.logger.warn(`[BULK IMPORT] Parent record does NOT exist for user: ${parentUser.id}, creating...`);
+      try {
+        parentRecord = await this.prisma.parent.create({
+          data: {
+            userId: parentUser.id,
+          },
+        });
+        this.logger.log(`[BULK IMPORT] Parent record created: ${parentRecord.id}`);
+      } catch (error) {
+        this.logger.error(`[BULK IMPORT] Failed to create Parent record for user ${parentUser.id}:`, error);
+        throw new Error(`Failed to create Parent record: ${error.message}`);
+      }
+    } else {
+      this.logger.log(`[BULK IMPORT] Parent record exists: ${parentRecord.id}`);
+    }
+    
+    // Verify parentRecord is set before proceeding
+    if (!parentRecord || !parentRecord.id) {
+      throw new Error(`Failed to get or create Parent record for user ${parentUser.id}`);
+    }
+    
+    this.logger.log(`[BULK IMPORT] Using Parent ID for relationship: ${parentRecord.id}`);
 
     // Create student user
-    const studentUser = await this.createStudentUser(studentData, schoolId);
+    const { user: studentUser, password: studentPassword } = await this.createStudentUser(studentData, schoolId);
+
+    // Resolve levelId - map string values to actual Level IDs from database
+    let resolvedLevelId: string;
+    if (importData.levelId) {
+      // First check if it's already a valid UUID/ID
+      const levelById = await this.prisma.level.findFirst({
+        where: {
+          id: importData.levelId,
+          schoolId,
+          isActive: true,
+        },
+      });
+
+      if (levelById) {
+        resolvedLevelId = levelById.id;
+        this.logger.log(`Resolved levelId "${importData.levelId}" as direct ID`);
+      } else {
+        // Try to match by name patterns (case-insensitive)
+        const levelPatterns: Record<string, string[]> = {
+          'PRIMARY': ['Primary', 'Primary School'],
+          'JSS': ['Junior Secondary', 'JSS', 'Junior Secondary School'],
+          'SSS': ['Senior Secondary', 'SSS', 'Senior Secondary School'],
+          'NURSERY': ['Nursery', 'Nursery School'],
+        };
+
+        const matchingPattern = levelPatterns[importData.levelId.toUpperCase()];
+        if (matchingPattern) {
+          // Try each pattern name
+          let foundLevel: { id: string; name: string } | null = null;
+          for (const patternName of matchingPattern) {
+            foundLevel = await this.prisma.level.findFirst({
+              where: {
+                schoolId,
+                isActive: true,
+                name: {
+                  contains: patternName,
+                },
+              },
+            });
+            if (foundLevel) break;
+          }
+
+          if (foundLevel) {
+            resolvedLevelId = foundLevel.id;
+            this.logger.log(`Resolved levelId "${importData.levelId}" to ${resolvedLevelId} (${foundLevel.name})`);
+          } else {
+            resolvedLevelId = await this.getDefaultLevelId(schoolId);
+            this.logger.warn(`Could not resolve levelId "${importData.levelId}", using default`);
+          }
+        } else {
+          // Try fuzzy match by name
+          const fuzzyLevel = await this.prisma.level.findFirst({
+            where: {
+              schoolId,
+              isActive: true,
+              name: {
+                contains: importData.levelId,
+              },
+            },
+          });
+
+          if (fuzzyLevel) {
+            resolvedLevelId = fuzzyLevel.id;
+            this.logger.log(`Resolved levelId "${importData.levelId}" via fuzzy match to ${resolvedLevelId}`);
+          } else {
+            resolvedLevelId = await this.getDefaultLevelId(schoolId);
+            this.logger.warn(`Could not resolve levelId "${importData.levelId}", using default`);
+          }
+        }
+      }
+    } else {
+      resolvedLevelId = await this.getDefaultLevelId(schoolId);
+    }
+
+    // Resolve classId - map string values to actual Class IDs from database
+    let resolvedClassId: string;
+    if (importData.classId) {
+      // First check if it's already a valid UUID/ID
+      const classById = await this.prisma.class.findFirst({
+        where: {
+          id: importData.classId,
+          schoolId,
+          isActive: true,
+        },
+      });
+
+      if (classById) {
+        resolvedClassId = classById.id;
+        this.logger.log(`Resolved classId "${importData.classId}" as direct ID`);
+      } else {
+        // Try to match by name patterns (e.g., "PRIMARY_2" -> "Primary 2")
+        const classPattern = importData.classId.replace(/_/g, ' ').replace(/-/g, ' ');
+        
+        // Try exact match first
+        let foundClass = await this.prisma.class.findFirst({
+          where: {
+            schoolId,
+            isActive: true,
+            name: classPattern,
+          },
+        });
+
+        // If not found, try contains match
+        if (!foundClass) {
+          foundClass = await this.prisma.class.findFirst({
+            where: {
+              schoolId,
+              isActive: true,
+              name: {
+                contains: classPattern,
+              },
+            },
+          });
+        }
+
+        // If still not found, try matching "Primary 2" style
+        if (!foundClass) {
+          const normalizedPattern = classPattern
+            .split(' ')
+            .map(word => word.charAt(0).toUpperCase() + word.slice(1).toLowerCase())
+            .join(' ');
+          
+          foundClass = await this.prisma.class.findFirst({
+            where: {
+              schoolId,
+              isActive: true,
+              name: {
+                contains: normalizedPattern,
+              },
+            },
+          });
+        }
+
+        if (foundClass) {
+          resolvedClassId = foundClass.id;
+          this.logger.log(`Resolved classId "${importData.classId}" to ${resolvedClassId} (${foundClass.name})`);
+        } else {
+          // Try to find a class within the resolved level
+          const classInLevel = await this.prisma.class.findFirst({
+            where: {
+              schoolId,
+              levelId: resolvedLevelId,
+              isActive: true,
+            },
+            orderBy: { order: 'asc' },
+          });
+
+          if (classInLevel) {
+            resolvedClassId = classInLevel.id;
+            this.logger.warn(`Could not resolve classId "${importData.classId}", using first class in level: ${classInLevel.name}`);
+          } else {
+            resolvedClassId = await this.getDefaultClassId(schoolId);
+            this.logger.warn(`Could not resolve classId "${importData.classId}", using default`);
+          }
+        }
+      }
+    } else {
+      resolvedClassId = await this.getDefaultClassId(schoolId);
+    }
 
     // Create student record
+    const academicYear =
+      importData.academicYear || new Date().getFullYear().toString();
+
     const student = await this.prisma.student.create({
       data: {
         userId: studentUser.id,
         schoolId,
         studentNumber,
-        currentLevelId:
-          importData.levelId || (await this.getDefaultLevelId(schoolId)),
-        currentClassId:
-          importData.classId || (await this.getDefaultClassId(schoolId)),
-        academicYear:
-          importData.academicYear || new Date().getFullYear().toString(),
+        currentLevelId: resolvedLevelId,
+        currentClassId: resolvedClassId,
+        academicYear,
         dateOfBirth: new Date(studentData.dateOfBirth),
         gender: studentData.sex,
         nationality: 'Nigerian', // Default, can be updated later
@@ -150,67 +438,192 @@ export class BulkImportService {
       },
     });
 
+    const subjectIdentifiers = Array.isArray(studentData.subjects)
+      ? studentData.subjects
+      : [];
+
+    if (subjectIdentifiers.length > 0) {
+      const resolvedSubjects = await this.resolveSubjects(
+        schoolId,
+        subjectIdentifiers,
+      );
+
+      if (resolvedSubjects.length > 0) {
+        const subjectIds = resolvedSubjects.map((subject) => subject.id);
+        const relatedAssignments = await this.prisma.teacherAssignment.findMany({
+          where: {
+            classId: resolvedClassId,
+            subjectId: {
+              in: subjectIds,
+            },
+            isActive: true,
+          },
+        });
+
+        const assignmentBySubject = new Map(
+          relatedAssignments.map((assignment) => [
+            assignment.subjectId,
+            assignment,
+          ]),
+        );
+
+        await this.prisma.studentSubjectEnrollment.createMany({
+          data: subjectIds.map((subjectId) => ({
+            studentId: student.id,
+            classId: resolvedClassId,
+            subjectId,
+            academicYear,
+            teacherAssignmentId:
+              assignmentBySubject.get(subjectId)?.id ?? null,
+            isElective: false,
+          })),
+          skipDuplicates: true,
+        });
+      } else {
+        this.logger.warn(
+          `[BULK IMPORT] No matching subjects found for row ${rowNumber}: ${subjectIdentifiers.join(
+            ', ',
+          )}`,
+        );
+      }
+    } else {
+      this.logger.warn(
+        `[BULK IMPORT] No subject identifiers provided for row ${rowNumber}`,
+      );
+    }
+
     // Create parent-school relationship
-    const parentRelationship =
-      await this.prisma.parentSchoolRelationship.create({
+    this.logger.log(`[BULK IMPORT] Creating ParentSchoolRelationship with parentRecord.id: ${parentRecord.id}, schoolId: ${schoolId}`);
+    
+    // Double-check parentRecord exists in DB before creating relationship
+    const verifiedParentRecord = await this.prisma.parent.findUnique({
+      where: { id: parentRecord.id },
+    });
+    
+    if (!verifiedParentRecord) {
+      this.logger.error(`[BULK IMPORT] Parent record NOT found in DB: ${parentRecord.id}`);
+      throw new Error(`Parent record ${parentRecord.id} does not exist in database`);
+    }
+    
+    this.logger.log(`[BULK IMPORT] Verified Parent record exists: ${verifiedParentRecord.id}`);
+    
+    try {
+      const parentRelationship =
+        await this.prisma.parentSchoolRelationship.create({
+          data: {
+            parentUserId: parentRecord.id, // Use Parent.id, not User.id
+            schoolId,
+            relationshipType: ParentRelationshipType.FATHER, // Default, can be updated
+            verificationCode: this.generateVerificationCode(),
+            verificationExpiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours
+          },
+        });
+      
+      this.logger.log(`[BULK IMPORT] ParentSchoolRelationship created successfully: ${parentRelationship.id}`);
+      
+      // Link student to parent relationship
+      await this.prisma.student.update({
+        where: { id: student.id },
         data: {
-          parentUserId: parentUser.id,
-          schoolId,
-          relationshipType: ParentRelationshipType.FATHER, // Default, can be updated
-          verificationCode: this.generateVerificationCode(),
-          verificationExpiresAt: new Date(Date.now() + 48 * 60 * 60 * 1000), // 48 hours
+          parentRelationships: {
+            connect: { id: parentRelationship.id },
+          },
         },
       });
 
-    // Link student to parent relationship
-    await this.prisma.student.update({
-      where: { id: student.id },
-      data: {
-        parentRelationships: {
-          connect: { id: parentRelationship.id },
+      // Create bulk import record
+      await this.prisma.bulkImportRecord.create({
+        data: {
+          bulkImportId,
+          studentId: student.id,
+          status: BulkImportRecordStatus.SUCCESS,
         },
-      },
-    });
+      });
 
-    // Create bulk import record
-    await this.prisma.bulkImportRecord.create({
-      data: {
-        bulkImportId,
-        studentId: student.id,
-        status: BulkImportRecordStatus.SUCCESS,
-      },
-    });
+      // Send emails (non-blocking - don't fail if email fails)
+      try {
+        await this.sendStudentWelcomeEmail(studentUser, studentData, schoolId);
+      } catch (error) {
+        this.logger.warn(`Failed to send student welcome email: ${error.message}`);
+      }
+      
+      try {
+        await this.sendParentInvitationEmail(
+          parentUser,
+          studentData,
+          parentRelationship.verificationCode!,
+        );
+      } catch (error) {
+        this.logger.warn(`Failed to send parent invitation email: ${error.message}`);
+      }
 
-    // Send emails
-    await this.sendStudentWelcomeEmail(studentUser, studentData);
-    await this.sendParentInvitationEmail(
-      parentUser,
-      studentData,
-      parentRelationship.verificationCode!,
-    );
-
-    this.logger.log(
-      `Successfully processed student ${studentData.fullName} (Row ${rowNumber})`,
-    );
+      this.logger.log(
+        `✅ Successfully processed student ${studentData.fullName} (Row ${rowNumber})`,
+      );
+      
+      // Log to console for better visibility
+      console.log(`\n✅ [BULK IMPORT] Row ${rowNumber}: ${studentData.fullName}`);
+      console.log(`   📧 Student: ${studentData.email} | 🔑 Password: ${studentPassword}`);
+      if (parentPassword) {
+        console.log(`   👨‍👩‍👧 Parent: ${studentData.parentEmail} | 🔑 Password: ${parentPassword}`);
+      }
+      
+      return {
+        password: studentPassword,
+        parentPassword: parentPassword || undefined,
+      };
+    } catch (error) {
+      this.logger.error(`[BULK IMPORT] Failed to create ParentSchoolRelationship:`, error);
+      if (error.code === 'P2003') {
+        this.logger.error(`[BULK IMPORT] Foreign key constraint violation - parentRecord.id: ${parentRecord.id}, parentUserId field expected: Parent.id`);
+        // Try to get more info about the Parent record
+        const debugParent = await this.prisma.parent.findUnique({
+          where: { id: parentRecord.id },
+        });
+        this.logger.error(`[BULK IMPORT] Debug - Parent record lookup result:`, debugParent);
+        throw new Error(`Foreign key constraint violation: Parent record ${parentRecord.id} may not exist or parentUserId field is incorrect`);
+      }
+      throw error;
+    }
   }
 
-  private async createOrGetParentUser(studentData: BulkStudentDataDto) {
-    // Check if parent user already exists
+  private async createOrGetParentUser(studentData: BulkStudentDataDto): Promise<{ user: any; password?: string }> {
+    // Normalize email (trim and lowercase for consistent matching)
+    const normalizedEmail = studentData.parentEmail.trim().toLowerCase();
+    
+    this.logger.log(`[BULK IMPORT] Looking up parent user with email: ${studentData.parentEmail} (normalized: ${normalizedEmail})`);
+    
+    // Check if parent user already exists (case-insensitive search)
     let parentUser = await this.prisma.user.findFirst({
       where: {
-        email: studentData.parentEmail,
+        email: {
+          equals: normalizedEmail,
+          mode: 'insensitive', // Case-insensitive match
+        },
         type: UserType.PARENT,
       },
     });
 
     if (!parentUser) {
+      // Try one more time with exact match (in case of edge cases)
+      parentUser = await this.prisma.user.findFirst({
+        where: {
+          email: studentData.parentEmail.trim(),
+          type: UserType.PARENT,
+        },
+      });
+    }
+
+    if (!parentUser) {
+      this.logger.log(`[BULK IMPORT] Creating NEW parent user for: ${studentData.parentEmail}`);
+      console.log(`🟢 [BULK IMPORT] No existing parent found, creating new parent user`);
       // Create new parent user
       const parentPassword = this.generateParentPassword();
 
       const hashedParentPassword = await bcrypt.hash(parentPassword, 10);
       parentUser = await this.prisma.user.create({
         data: {
-          email: studentData.parentEmail,
+          email: studentData.parentEmail.trim(), // Store normalized email
           password: hashedParentPassword,
           type: UserType.PARENT,
           firstName:
@@ -223,18 +636,57 @@ export class BulkImportService {
         },
       });
 
-      // Create parent record
-      await this.prisma.parent.create({
-        data: {
-          userId: parentUser.id,
-        },
+      console.log(`✅ [BULK IMPORT] PARENT PASSWORD for ${studentData.parentFullName} (${studentData.parentEmail}): ${parentPassword}`);
+
+      // Create parent record for new user
+      this.logger.log(`[BULK IMPORT] Creating Parent record for new user: ${parentUser.id}`);
+      try {
+        const newParentRecord = await this.prisma.parent.create({
+          data: {
+            userId: parentUser.id,
+          },
+        });
+        this.logger.log(`[BULK IMPORT] Parent record created for new user: ${newParentRecord.id}`);
+      } catch (error) {
+        this.logger.error(`[BULK IMPORT] Failed to create Parent record for new user ${parentUser.id}:`, error);
+        throw new Error(`Failed to create Parent record: ${error.message}`);
+      }
+
+      // Send parent welcome email (non-blocking)
+      try {
+        await this.sendParentWelcomeEmail(parentUser, parentPassword);
+      } catch (error) {
+        this.logger.warn(`Failed to send parent welcome email: ${error.message}`);
+      }
+      
+      return { user: parentUser, password: parentPassword };
+    } else {
+      console.log(`✅ [BULK IMPORT] EXISTING parent user found: ${parentUser.id} (${parentUser.email})`);
+      this.logger.log(`[BULK IMPORT] EXISTING parent user found: ${parentUser.id} (${parentUser.email})`);
+      // For existing parent user, ensure Parent record exists (might have been created elsewhere)
+      const existingParentRecord = await this.prisma.parent.findUnique({
+        where: { userId: parentUser.id },
       });
-
-      // Send parent welcome email
-      await this.sendParentWelcomeEmail(parentUser, parentPassword);
+      
+      if (!existingParentRecord) {
+        this.logger.warn(`[BULK IMPORT] Existing parent user does NOT have Parent record, creating...`);
+        try {
+          const newParentRecord = await this.prisma.parent.create({
+            data: {
+              userId: parentUser.id,
+            },
+          });
+          this.logger.log(`[BULK IMPORT] Parent record created for existing user: ${newParentRecord.id}`);
+        } catch (error) {
+          this.logger.error(`[BULK IMPORT] Failed to create Parent record for existing user ${parentUser.id}:`, error);
+          throw new Error(`Failed to create Parent record: ${error.message}`);
+        }
+      } else {
+        this.logger.log(`[BULK IMPORT] Existing parent user already has Parent record: ${existingParentRecord.id}`);
+      }
+      
+      return { user: parentUser }; // No password for existing parent
     }
-
-    return parentUser;
   }
 
   private async createStudentUser(
@@ -258,7 +710,9 @@ export class BulkImportService {
       },
     });
 
-    return studentUser;
+    this.logger.log(`[BULK IMPORT] ✅ STUDENT PASSWORD for ${studentData.fullName} (${studentData.email}): ${studentPassword}`);
+
+    return { user: studentUser, password: studentPassword };
   }
 
   private async generateStudentNumber(schoolId: string): Promise<string> {
@@ -327,12 +781,22 @@ export class BulkImportService {
     bulkImportId: string,
     successfulRecords: number,
     failedRecords: number,
-    errorLog?: any[],
+    errorLog?: any[] | { errors?: any[]; credentials?: any[] },
   ) {
     const status =
       failedRecords === 0
         ? BulkImportStatus.COMPLETED
         : BulkImportStatus.COMPLETED;
+
+    // Handle both array and object formats
+    let errorLogData: any;
+    if (Array.isArray(errorLog)) {
+      errorLogData = errorLog;
+    } else if (errorLog && typeof errorLog === 'object') {
+      errorLogData = errorLog;
+    } else {
+      errorLogData = null;
+    }
 
     await this.prisma.bulkImport.update({
       where: { id: bulkImportId },
@@ -340,7 +804,7 @@ export class BulkImportService {
         successfulRecords,
         failedRecords,
         status,
-        errorLog: errorLog ? JSON.stringify(errorLog) : undefined,
+        errorLog: errorLogData ? JSON.stringify(errorLogData) : undefined,
         completedAt:
           status === BulkImportStatus.COMPLETED ? new Date() : undefined,
       },
@@ -360,8 +824,9 @@ export class BulkImportService {
   private async sendStudentWelcomeEmail(
     user: any,
     studentData: BulkStudentDataDto,
+    schoolId: string,
   ) {
-    const password = await this.generateStudentPassword(user.schoolId);
+    const password = await this.generateStudentPassword(schoolId);
 
     await this.emailService.sendStudentWelcomeEmail({
       to: studentData.email,

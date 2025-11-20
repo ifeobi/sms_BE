@@ -5,6 +5,8 @@ import { StudentsController } from './students.controller';
 import { StudentsService } from './students.service';
 import { PrismaModule } from '../prisma/prisma.module';
 import { EmailModule } from '../email/email.module';
+import { StudentsController } from './students.controller';
+import { StudentsService } from './students.service';
 
 @Module({
   imports: [PrismaModule, EmailModule],

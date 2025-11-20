@@ -20,8 +20,10 @@ export class StaffController {
   constructor(private readonly staffService: StaffService) {}
 
   @Post()
-  create(@Body() createStaffDto: CreateStaffDto) {
-    return this.staffService.create(createStaffDto);
+  async create(@Body() createStaffDto: CreateStaffDto) {
+    const result = await this.staffService.create(createStaffDto);
+    console.log('🎯 [CONTROLLER] Returning result with temporaryPassword:', (result as any)?.temporaryPassword);
+    return result;
   }
 
   @Get()

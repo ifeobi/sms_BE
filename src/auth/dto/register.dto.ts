@@ -9,7 +9,8 @@ import {
   IsObject,
 } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
-import { Type, Exclude, Expose } from 'class-transformer';
+import { Type, Exclude, Expose, Transform } from 'class-transformer';
+import { ValidateIf } from 'class-validator';
 
 export enum UserType {
   PARENT = 'PARENT',
@@ -93,7 +94,7 @@ export class RegisterDto {
 
   @Expose()
   @ApiProperty({ enum: Gender, example: Gender.MALE, required: false })
-  @IsOptional()
+  @ValidateIf((o) => o.gender !== undefined && o.gender !== null)
   @IsEnum(Gender)
   gender?: Gender;
 
@@ -103,19 +104,22 @@ export class RegisterDto {
     description: 'Role in school: principal, vice_principal, admin, etc.',
     required: false,
   })
-  @IsOptional()
+  @ValidateIf((o) => o.userType === UserType.SCHOOL_ADMIN)
   @IsString()
   role?: string;
 
   @Expose()
   @ApiProperty({ enum: UserType, example: UserType.SCHOOL_ADMIN })
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.toUpperCase() : value,
+  )
   @IsEnum(UserType)
   userType: UserType;
 
-  // School Information (optional for non-school users)
+  // Optional Contact Information
   @Expose()
   @ApiProperty({ example: 'Academeka International School', required: false })
-  @IsOptional()
+  @ValidateIf((o) => o.userType === UserType.SCHOOL_ADMIN)
   @IsString()
   schoolName?: string;
 
@@ -133,7 +137,7 @@ export class RegisterDto {
 
   @Expose()
   @ApiProperty({ example: 'NG', description: 'Country code', required: false })
-  @IsOptional()
+  @ValidateIf((o) => o.userType === UserType.SCHOOL_ADMIN)
   @IsString()
   country?: string;
 
@@ -144,7 +148,7 @@ export class RegisterDto {
     description: 'Array of school types',
     required: false,
   })
-  @IsOptional()
+  @ValidateIf((o) => o.userType === UserType.SCHOOL_ADMIN)
   @IsArray()
   @IsString({ each: true })
   schoolTypes?: string[];
@@ -155,7 +159,7 @@ export class RegisterDto {
     description: 'Array of school addresses',
     required: false,
   })
-  @IsOptional()
+  @ValidateIf((o) => o.userType === UserType.SCHOOL_ADMIN)
   @IsArray()
   @ValidateNested({ each: true })
   @Type(() => AddressDto)
@@ -166,6 +170,29 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   profilePicture?: string;
+
+  // Creator-specific fields
+  @Expose()
+  @ApiProperty({
+    type: [String],
+    example: ['mathematics', 'science', 'english'],
+    description: 'Content categories the creator specializes in',
+    required: false,
+  })
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  categories?: string[];
+
+  @Expose()
+  @ApiProperty({
+    example: 'free',
+    description: 'Creator plan: free, premium, pro',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  plan?: string;
 
   // Exclude fields that shouldn't be sent to backend
   @Exclude()

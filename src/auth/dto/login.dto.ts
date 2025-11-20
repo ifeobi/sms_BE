@@ -1,5 +1,6 @@
 import { IsEmail, IsString, MinLength } from 'class-validator';
 import { ApiProperty } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 
 export class LoginDto {
   @ApiProperty({ example: 'user@example.com' })
@@ -16,5 +17,8 @@ export class LoginDto {
     enum: ['SCHOOL_ADMIN', 'PARENT', 'TEACHER', 'STUDENT', 'CREATOR'],
   })
   @IsString()
+  @Transform(({ value }) =>
+    typeof value === 'string' ? value.toUpperCase() : value,
+  )
   userType: string;
 }

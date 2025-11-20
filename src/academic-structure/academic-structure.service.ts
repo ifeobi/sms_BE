@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EducationSystemsService } from '../education-systems/education-systems.service';
 import { EducationSystem } from '../education-systems/interfaces/education-system.interface';
@@ -6,6 +7,8 @@ import { SectionManagementService } from '../section-management/section-manageme
 
 @Injectable()
 export class AcademicStructureService {
+  private readonly logger = new Logger(AcademicStructureService.name);
+
   constructor(
     private prisma: PrismaService,
     private educationSystemsService: EducationSystemsService,
@@ -21,16 +24,22 @@ export class AcademicStructureService {
     educationSystemId: string,
     selectedLevels: string[],
     availableLevels: string[],
-    prismaInstance?: any,
+    prismaClient?: any,
   ) {
+    this.logger.log(
+      `[GENERATE] Initialising academic structure | schoolId=${schoolId} educationSystemId=${educationSystemId} selectedLevels=${JSON.stringify(
+        selectedLevels,
+      )}`,
+    );
+
     const educationSystem =
       this.educationSystemsService.getEducationSystemById(educationSystemId);
     if (!educationSystem) {
       throw new Error(`Education system ${educationSystemId} not found`);
     }
 
-    // Use the passed Prisma instance or fall back to this.prisma
-    const prisma = prismaInstance || this.prisma;
+    // Use provided Prisma client or fall back to this.prisma
+    const prisma = prismaClient || this.prisma;
 
     // Create school academic config
     const schoolConfig = await prisma.schoolAcademicConfig.create({
@@ -45,44 +54,59 @@ export class AcademicStructureService {
       },
     });
 
-    // Generate levels, classes, and subjects for selected levels
-    for (const levelId of selectedLevels) {
+    // Create ALL levels from the education system with proper active status
+    // Use all levels from the education system, not just selected + available
+    const allLevels = educationSystem.levels.map(level => level.id);
+
+    for (const levelId of allLevels) {
       const level = educationSystem.levels.find((l) => l.id === levelId);
       if (!level) continue;
 
-      // Create level
+      this.logger.debug(
+        `[GENERATE] Processing level "${level.name}" (${levelId}) | active=${
+          selectedLevels.includes(levelId)
+        }`,
+      );
+
+      const isActive = selectedLevels.includes(levelId);
+
+      // Create level with proper active status
       const levelRecord = await prisma.level.create({
         data: {
           name: level.name,
           order: level.order,
           schoolId,
-          isActive: true,
+          isActive,
         },
       });
 
-      // Create classes for this level
-      for (const classLevel of level.classLevels) {
-        const classRecord = await prisma.class.create({
-          data: {
-            name: classLevel.name,
-            order: classLevel.order,
-            levelId: levelRecord.id,
-            schoolId,
-            isActive: true,
-          },
-        });
-
-        // Create subjects for this class
-        for (const subjectName of classLevel.subjects) {
-          await prisma.subject.create({
+      // Only create classes and subjects for ACTIVE levels
+      if (isActive) {
+        // Create classes for this level first
+        for (const classLevel of level.classLevels) {
+          await prisma.class.create({
             data: {
-              name: subjectName,
-              code: subjectName.toUpperCase().replace(/\s+/g, '_'),
-              description: `${subjectName} for ${classLevel.name}`,
+              name: classLevel.name,
+              order: classLevel.order,
+              levelId: levelRecord.id,
               schoolId,
               isActive: true,
             },
           });
+        }
+
+        // Create subjects at education level
+        for (const subjectName of level.subjects) {
+          this.logger.debug(
+            `[GENERATE] Ensuring subject "${subjectName}" for level "${level.name}"`,
+          );
+          await this.ensureSubjectRecord(
+            prisma,
+            schoolId,
+            subjectName,
+            this.buildSchoolWideDescription(subjectName),
+            subjectName,
+          );
         }
       }
     }
@@ -197,32 +221,12 @@ export class AcademicStructureService {
           const customSubjectName =
             customSubjectNames?.[subjectName] || subjectName;
 
-          const existingSubject = await this.prisma.subject.findFirst({
-            where: {
-              schoolId,
-              name: customSubjectName,
-            },
-          });
-
-          if (existingSubject) {
-            await this.prisma.subject.update({
-              where: { id: existingSubject.id },
-              data: {
-                isActive: true,
-                description: `${customSubjectName} for ${className}`,
-              },
-            });
-          } else {
-            await this.prisma.subject.create({
-              data: {
-                name: customSubjectName,
-                code: customSubjectName.toUpperCase().replace(/\s+/g, '_'),
-                description: `${customSubjectName} for ${className}`,
-                schoolId,
-                isActive: true,
-              },
-            });
-          }
+          await this.ensureSubjectRecord(
+            this.prisma,
+            schoolId,
+            customSubjectName,
+            this.buildSchoolWideDescription(customSubjectName),
+          );
         }
       }
     }
@@ -231,6 +235,8 @@ export class AcademicStructureService {
   }
 
   async getSchoolAcademicStructure(schoolId: string) {
+    await this.deduplicateSubjectsForSchool(schoolId);
+
     const config = await this.prisma.schoolAcademicConfig.findFirst({
       where: { schoolId },
       include: {
@@ -363,7 +369,7 @@ export class AcademicStructureService {
 
   async getLevels(schoolId: string) {
     return this.prisma.level.findMany({
-      where: { schoolId, isActive: true },
+      where: { schoolId }, // Remove isActive filter to get ALL levels
       orderBy: { order: 'asc' },
       include: {
         classes: {
@@ -374,23 +380,365 @@ export class AcademicStructureService {
     });
   }
 
+  async toggleLevelStatus(levelId: string, isActive: boolean) {
+    const level = await this.prisma.level.findUnique({
+      where: { id: levelId },
+      include: { school: true },
+    });
+
+    if (!level) {
+      throw new Error('Level not found');
+    }
+
+    // Update level status
+    const updatedLevel = await this.prisma.level.update({
+      where: { id: levelId },
+      data: { isActive },
+    });
+
+    if (isActive) {
+      // Level is being activated - create classes and ensure school-level subjects exist
+      await this.createClassesAndSubjectsForLevel(levelId, level.schoolId);
+    } else {
+      // Level is being deactivated - remove classes; subjects remain school-scoped
+      await this.removeClassesAndSubjectsForLevel(levelId);
+    }
+
+    return updatedLevel;
+  }
+
+  async getLevelClassCount(levelId: string, getExpectedCount: boolean = false) {
+    if (getExpectedCount) {
+      // Get expected count from education system template
+      const level = await this.prisma.level.findUnique({
+        where: { id: levelId },
+        include: { school: true },
+      });
+
+      if (!level) {
+        throw new Error('Level not found');
+      }
+
+      // Get school's education system
+      const config = await this.prisma.schoolAcademicConfig.findFirst({
+        where: { schoolId: level.schoolId },
+      });
+
+      if (!config) {
+        throw new Error('School academic config not found');
+      }
+
+      const educationSystem = this.educationSystemsService.getEducationSystemById(
+        config.educationSystemId,
+      );
+
+      if (!educationSystem) {
+        throw new Error('Education system not found');
+      }
+
+      // Find matching level in education system
+      const systemLevel = educationSystem.levels.find(
+        (l) => l.name.toLowerCase() === level.name.toLowerCase(),
+      );
+
+      if (!systemLevel) {
+        throw new Error('Level not found in education system');
+      }
+
+      return { count: systemLevel.classLevels.length };
+    } else {
+      // Get current count from database
+      const count = await this.prisma.class.count({
+        where: {
+          levelId,
+          isActive: true,
+        },
+      });
+
+      return { count };
+    }
+  }
+
+  private async deduplicateSubjectsForSchool(schoolId: string) {
+    const subjects = await this.prisma.subject.findMany({
+      where: { schoolId },
+    });
+
+    const grouped = new Map<string, typeof subjects>();
+    const hasStudentSubjectTable = await this.tableExists(
+      'student_subject_enrollments',
+    );
+
+    for (const subject of subjects) {
+      const key = subject.name.trim().toLowerCase();
+      const existingGroup = grouped.get(key) ?? [];
+      existingGroup.push(subject);
+      grouped.set(key, existingGroup);
+    }
+
+    for (const group of grouped.values()) {
+      if (group.length <= 1) {
+        continue;
+      }
+
+      const sortedGroup = [...group].sort((a, b) => {
+        if (a.isActive !== b.isActive) {
+          return a.isActive ? -1 : 1;
+        }
+        return a.id.localeCompare(b.id);
+      });
+
+      const [primary, ...duplicates] = sortedGroup;
+
+      const descriptions = new Set<string>();
+      const categories = new Set<string>();
+
+      for (const subject of group) {
+        if (subject.description?.trim()) {
+          descriptions.add(subject.description.trim());
+        }
+        if (subject.category?.trim()) {
+          categories.add(subject.category.trim());
+        }
+      }
+
+      await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const transaction = tx as any;
+        if (!primary.isActive) {
+          await tx.subject.update({
+            where: { id: primary.id },
+            data: { isActive: true },
+          });
+        }
+
+        for (const duplicate of duplicates) {
+          await tx.assignment.updateMany({
+            where: { subjectId: duplicate.id },
+            data: { subjectId: primary.id },
+          });
+
+          await tx.academicRecord.updateMany({
+            where: { subjectId: duplicate.id },
+            data: { subjectId: primary.id },
+          });
+
+          await tx.teacherAssignment.updateMany({
+            where: { subjectId: duplicate.id },
+            data: { subjectId: primary.id },
+          });
+
+          if (hasStudentSubjectTable) {
+            await transaction.studentSubjectEnrollment.updateMany({
+              where: { subjectId: duplicate.id },
+              data: { subjectId: primary.id },
+            });
+          }
+
+          await tx.subject.delete({
+            where: { id: duplicate.id },
+          });
+        }
+
+        const combinedDescription =
+          descriptions.size > 0
+            ? Array.from(descriptions).join(' | ')
+            : null;
+        const primaryCategory =
+          categories.size > 0 ? Array.from(categories)[0] : null;
+        const normalizedCode = this.generateSubjectCode(primary.name);
+        const updateData: Record<string, any> = {};
+
+        if (combinedDescription !== null) {
+          updateData.description = combinedDescription;
+        }
+
+        if (primaryCategory) {
+          updateData.category = primaryCategory;
+        }
+
+        if (primary.code !== normalizedCode) {
+          updateData.code = normalizedCode;
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await tx.subject.update({
+            where: { id: primary.id },
+            data: updateData,
+          });
+        }
+      });
+    }
+  }
+
+  private async createClassesAndSubjectsForLevel(levelId: string, schoolId: string) {
+    // Get the school's academic config to find education system
+    const config = await this.prisma.schoolAcademicConfig.findFirst({
+      where: { schoolId },
+    });
+
+    if (!config) {
+      throw new Error('School academic config not found');
+    }
+
+    // Get education system data
+    const educationSystem = this.educationSystemsService.getEducationSystemById(
+      config.educationSystemId,
+    );
+
+    if (!educationSystem) {
+      throw new Error('Education system not found');
+    }
+
+    // Find the level in education system
+    const level = await this.prisma.level.findUnique({
+      where: { id: levelId },
+    });
+
+    if (!level) {
+      throw new Error('Level not found');
+    }
+
+    // Find matching level in education system
+    const systemLevel = educationSystem.levels.find(
+      (l) => l.name.toLowerCase() === level.name.toLowerCase(),
+    );
+
+    if (!systemLevel) {
+      throw new Error('Level not found in education system');
+    }
+
+    // Create classes for this level first (check if they already exist)
+    for (const classLevel of systemLevel.classLevels) {
+      // Check if class already exists
+      const existingClass = await this.prisma.class.findFirst({
+        where: {
+          name: classLevel.name,
+          levelId: levelId,
+          schoolId,
+        },
+      });
+
+      let classRecord;
+      if (existingClass) {
+        // Update existing class to be active
+        classRecord = await this.prisma.class.update({
+          where: { id: existingClass.id },
+          data: { isActive: true, order: classLevel.order },
+        });
+      } else {
+        // Create new class
+        classRecord = await this.prisma.class.create({
+          data: {
+            name: classLevel.name,
+            order: classLevel.order,
+            levelId: levelId,
+            schoolId,
+            isActive: true,
+          },
+        });
+      }
+    }
+
+    // Ensure subjects exist at the school level for this education stage
+    for (const subjectName of systemLevel.subjects) {
+      await this.ensureSubjectRecord(
+        this.prisma,
+        schoolId,
+        subjectName,
+        this.buildSchoolWideDescription(subjectName),
+        subjectName,
+      );
+    }
+  }
+
+  private async removeClassesAndSubjectsForLevel(levelId: string) {
+    // Get the level to find schoolId
+    const level = await this.prisma.level.findUnique({
+      where: { id: levelId },
+    });
+
+    if (!level) {
+      throw new Error('Level not found');
+    }
+
+    // Get all classes for this level
+    const classes = await this.prisma.class.findMany({
+      where: { levelId },
+    });
+
+    // Subjects remain managed at the school level, so we only deactivate the classes here.
+    // Remove classes for this level
+    await this.prisma.class.deleteMany({
+      where: { levelId },
+    });
+
+    // Note: Subjects are not automatically removed because they don't have a direct
+    // relationship to classes in the current schema. This would need to be handled
+    // differently in a production system.
+  }
+
   async getClasses(schoolId: string) {
     return this.prisma.class.findMany({
       where: { schoolId, isActive: true },
       orderBy: { order: 'asc' },
       include: {
         level: true,
-        subjects: {
+        sections: {
           where: { isActive: true },
+          include: {
+            teacher: {
+              include: {
+                user: true,
+              },
+            },
+          },
         },
       },
     });
   }
 
   async getSubjects(schoolId: string) {
-    return this.prisma.subject.findMany({
-      where: { schoolId, isActive: true },
+    await this.deduplicateSubjectsForSchool(schoolId);
+
+    const subjects = await this.prisma.subject.findMany({
+      where: {
+        schoolId,
+        isActive: true,
+      },
+      include: {
+        classes: {
+          where: { isActive: true },
+          include: {
+            level: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+      },
       orderBy: { name: 'asc' },
+    });
+
+    return subjects.map((subject) => {
+      const levelNames = Array.from(
+        new Set(
+          subject.classes
+            .map((cls) => cls.level?.name?.trim())
+            .filter((name): name is string => Boolean(name)),
+        ),
+      );
+
+      const fallbackDescription =
+        subject.description?.trim() ||
+        (levelNames.length > 0 ? `Offered in: ${levelNames.join(', ')}` : null);
+
+      return {
+        ...subject,
+        levelNames,
+        description: fallbackDescription,
+      };
     });
   }
 
@@ -440,12 +788,15 @@ export class AcademicStructureService {
   }
 
   async createSubject(subjectData: any) {
-    return this.prisma.subject.create({
-      data: {
-        ...subjectData,
-        isActive: true,
-      },
-    });
+    const subject = await this.ensureSubjectRecord(
+      this.prisma,
+      subjectData.schoolId,
+      subjectData.name,
+      subjectData.description,
+      subjectData.category,
+    );
+
+    return subject;
   }
 
   async createAcademicTerm(termData: any) {
@@ -480,9 +831,39 @@ export class AcademicStructureService {
   }
 
   async updateSubject(id: string, subjectData: any) {
+    const existing = await this.prisma.subject.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new Error('Subject not found');
+    }
+
+    const normalizedName = subjectData.name?.trim();
+    if (normalizedName) {
+      const duplicate = await this.prisma.subject.findFirst({
+        where: {
+          schoolId: existing.schoolId,
+          name: { equals: normalizedName, mode: 'insensitive' },
+          NOT: { id },
+        },
+      });
+      if (duplicate) {
+        throw new Error(
+          `Subject "${normalizedName}" already exists for this school.`,
+        );
+      }
+    }
+
     return this.prisma.subject.update({
       where: { id },
-      data: subjectData,
+      data: {
+        ...subjectData,
+        name: normalizedName ?? subjectData.name,
+        code: normalizedName
+          ? normalizedName.toUpperCase().replace(/\s+/g, '_')
+          : subjectData.code ?? existing.code,
+      },
     });
   }
 
@@ -560,5 +941,182 @@ export class AcademicStructureService {
     return this.prisma.teacherAssignment.createMany({
       data: assignments,
     });
+  }
+
+  // ==================== SECTION/ARM MANAGEMENT ====================
+
+  async getSectionsByClass(classId: string) {
+    return this.prisma.section.findMany({
+      where: {
+        classId,
+        isActive: true,
+      },
+      include: {
+        teacher: {
+          include: {
+            user: true,
+          },
+        },
+      },
+      orderBy: { name: 'asc' },
+    });
+  }
+
+  async createSection(sectionData: any) {
+    const section = await this.prisma.section.create({
+      data: {
+        ...sectionData,
+        isActive: true,
+      },
+    });
+
+    // If teacherId is provided, fetch the teacher data
+    if (section.teacherId) {
+      return this.prisma.section.findUnique({
+        where: { id: section.id },
+        include: {
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+    }
+
+    return section;
+  }
+
+  async updateSectionArm(id: string, sectionData: any) {
+    // Convert empty string teacherId to null
+    const cleanData = {
+      ...sectionData,
+      teacherId: sectionData.teacherId === '' ? null : sectionData.teacherId
+    };
+
+    const section = await this.prisma.section.update({
+      where: { id },
+      data: cleanData,
+    });
+
+    // If teacherId is provided, fetch the teacher data
+    if (section.teacherId) {
+      return this.prisma.section.findUnique({
+        where: { id: section.id },
+        include: {
+          teacher: {
+            include: {
+              user: true,
+            },
+          },
+        },
+      });
+    }
+
+    return section;
+  }
+
+  async deleteSection(id: string) {
+    return this.prisma.section.update({
+      where: { id },
+      data: { isActive: false },
+    });
+  }
+
+  async getAvailableTeachers(schoolId: string) {
+    return this.prisma.teacher.findMany({
+      where: {
+        schoolId,
+        isActive: true,
+      },
+      include: {
+        user: true,
+      },
+      orderBy: {
+        user: {
+          firstName: 'asc',
+        },
+      },
+    });
+  }
+
+  private formatSubjectName(name: string) {
+    return name.trim();
+  }
+
+  private generateSubjectCode(name: string) {
+    return this.formatSubjectName(name).toUpperCase().replace(/\s+/g, '_');
+  }
+
+  private buildSchoolWideDescription(name: string) {
+    return `${name} (School-wide subject)`;
+  }
+
+  private async ensureSubjectRecord(
+    prisma: any,
+    schoolId: string,
+    name: string,
+    description?: string,
+    category?: string,
+  ) {
+    const formattedName = this.formatSubjectName(name);
+
+    const existingSubject = await prisma.subject.findFirst({
+      where: {
+        schoolId,
+        name: { equals: formattedName, mode: 'insensitive' },
+      },
+    });
+
+    if (existingSubject) {
+      this.logger.verbose(
+        `[SUBJECT] Reusing existing subject "${formattedName}" (${existingSubject.id}) for school ${schoolId}`,
+      );
+      const needsUpdate =
+        !existingSubject.isActive ||
+        (description && existingSubject.description !== description) ||
+        (category &&
+          existingSubject.category?.toLowerCase() !== category.toLowerCase());
+
+      if (needsUpdate) {
+        return prisma.subject.update({
+          where: { id: existingSubject.id },
+          data: {
+            isActive: true,
+            description: description ?? existingSubject.description,
+            category: category ?? existingSubject.category,
+          },
+        });
+      }
+
+      return existingSubject;
+    }
+
+    this.logger.log(
+      `[SUBJECT] Creating new subject "${formattedName}" for school ${schoolId}`,
+    );
+    return prisma.subject.create({
+      data: {
+        schoolId,
+        name: formattedName,
+        code: this.generateSubjectCode(formattedName),
+        description,
+        category: category ?? formattedName,
+        isActive: true,
+      },
+    });
+  }
+
+  private async tableExists(tableName: string): Promise<boolean> {
+    const result = await this.prisma.$queryRaw<
+      Array<{ exists: boolean }>
+    >`SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = ${tableName}
+    ) as "exists"`;
+
+    return result?.[0]?.exists ?? false;
   }
 }

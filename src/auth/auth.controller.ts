@@ -5,13 +5,16 @@ import {
   UseGuards,
   Get,
   Request,
+  Patch,
+  Logger,
 } from '@nestjs/common';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
+import { SchoolAdminRegisterDto } from './dto/school-admin-register.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
 import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import {
@@ -26,6 +29,7 @@ import { plainToClass } from 'class-transformer';
 @Controller('auth')
 export class AuthController {
   constructor(private authService: AuthService) {}
+  private readonly logger = new Logger(AuthController.name);
 
   @Post('login')
   @ApiOperation({ summary: 'User login' })
@@ -39,7 +43,7 @@ export class AuthController {
   @ApiOperation({ summary: 'User registration' })
   @ApiResponse({ status: 201, description: 'Registration successful' })
   @ApiResponse({ status: 409, description: 'User already exists' })
-  async register(@Body() registerDto: RegisterDto) {
+  async register(@Body() registerDto: any) {
     console.log('=== REGISTRATION REQUEST ===');
     console.log('Received registration request');
     console.log('Request body:', JSON.stringify(registerDto, null, 2));
@@ -47,15 +51,31 @@ export class AuthController {
     console.log('Request body keys:', Object.keys(registerDto));
     console.log('================================');
 
+    // Pre-sanitize payload: normalize casing, drop school-only fields for non-school admins, coerce empty strings
+    const payload: any = { ...registerDto } as any;
+    if (typeof payload.userType === 'string') {
+      payload.userType = payload.userType.toUpperCase();
+    }
+    if (payload.gender === '') {
+      payload.gender = undefined;
+    }
+    if (payload.userType !== 'SCHOOL_ADMIN') {
+      delete payload.role;
+      delete payload.schoolName;
+      delete payload.country;
+      delete payload.schoolTypes;
+      delete payload.addresses;
+    }
+
     // Transform and exclude unwanted fields
-    const cleanRegisterDto = plainToClass(RegisterDto, registerDto, {
+    const cleanRegisterDto = plainToClass(RegisterDto, payload, {
       excludeExtraneousValues: true,
     });
 
     console.log('=== CLEANED DATA ===');
     console.log('Cleaned data:', JSON.stringify(cleanRegisterDto, null, 2));
     console.log('Cleaned data keys:', Object.keys(cleanRegisterDto));
-    console.log('===============================');
+    console.log('================================');
 
     return this.authService.register(cleanRegisterDto);
   }
@@ -74,6 +94,15 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Profile retrieved successfully' })
   getProfile(@Request() req) {
     return this.authService.getUserProfile(req.user);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Patch('profile')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Update user profile' })
+  @ApiResponse({ status: 200, description: 'Profile updated successfully' })
+  updateProfile(@Request() req, @Body() updateDto: UpdateProfileDto) {
+    return this.authService.updateProfile(req.user, updateDto);
   }
 
   @Post('create-master')
@@ -109,6 +138,9 @@ export class AuthController {
   async resendVerificationEmail(
     @Body() data: { email: string; userType: string; userName?: string },
   ) {
+    this.logger.log(
+      `Resend verification requested | email=${data.email} userType=${data.userType}`,
+    );
     return this.authService.sendVerificationEmail(
       data.email,
       data.userType,
@@ -132,14 +164,14 @@ export class AuthController {
     return this.authService.resetPassword(resetPasswordDto);
   }
 
-  @Post('change-password')
-  @UseGuards(JwtAuthGuard)
-  @ApiBearerAuth()
-  @ApiOperation({ summary: 'Change password for authenticated user' })
-  @ApiResponse({ status: 200, description: 'Password changed successfully' })
-  @ApiResponse({ status: 400, description: 'Invalid current password or passwords do not match' })
-  @ApiResponse({ status: 401, description: 'Unauthorized' })
-  async changePassword(@Request() req, @Body() changePasswordDto: ChangePasswordDto) {
-    return this.authService.changePassword(req.user.id, changePasswordDto);
+  @Post('verify-creator-email')
+  @ApiOperation({ summary: 'Verify creator email with code' })
+  @ApiResponse({ status: 200, description: 'Email verified successfully' })
+  @ApiResponse({
+    status: 401,
+    description: 'Invalid or expired verification code',
+  })
+  async verifyCreatorEmail(@Body() data: { email: string; code: string }) {
+    return this.authService.verifyCreatorEmail(data.email, data.code);
   }
 }

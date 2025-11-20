@@ -8,12 +8,14 @@ import { PrismaModule } from './prisma/prisma.module';
 import { SchoolModule } from './school/school.module';
 import { StudentsModule } from './students/students.module';
 import { StaffModule } from './staff/staff.module';
-import { CommunicationsModule } from './communications/communications.module';
 import { EducationSystemsModule } from './education-systems/education-systems.module';
 import { SectionManagementModule } from './section-management/section-management.module';
 import { AcademicStructureModule } from './academic-structure/academic-structure.module';
-import { TeacherGradesModule } from './teacher-grades/teacher-grades.module';
-import { TeacherAttendanceModule } from './teacher-attendance/teacher-attendance.module';
+import { ImageKitModule } from './imagekit/imagekit.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
+import { ContentModule } from './content/content.module';
+import { DigitalPurchasesModule } from './digital-purchases/digital-purchases.module';
+import { TeachersModule } from './teachers/teachers.module';
 
 @Module({
   imports: [
@@ -26,12 +28,14 @@ import { TeacherAttendanceModule } from './teacher-attendance/teacher-attendance
     SchoolModule,
     StudentsModule,
     StaffModule,
-    CommunicationsModule,
     EducationSystemsModule,
     SectionManagementModule,
     AcademicStructureModule,
-    TeacherGradesModule,
-    TeacherAttendanceModule,
+    ImageKitModule,
+    MarketplaceModule,
+    ContentModule,
+    DigitalPurchasesModule,
+    TeachersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

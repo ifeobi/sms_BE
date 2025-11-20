@@ -2,6 +2,7 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  Logger,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
@@ -13,7 +14,7 @@ import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { ChangePasswordDto } from './dto/change-password.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { UserType } from '../users/dto/create-user.dto';
 
 @Injectable()
@@ -26,60 +27,159 @@ export class AuthService {
     private academicStructureService: AcademicStructureService,
   ) {}
 
+  private readonly logger = new Logger(AuthService.name);
+
   async validateUser(
     email: string,
     password: string,
     userType?: string,
   ): Promise<any> {
-    const user = await this.usersService.findByEmail(email, userType);
-    if (user && (await bcrypt.compare(password, user.password))) {
-      const { password, ...result } = user;
-      return result;
+    try {
+      // Trim email and password to handle any whitespace issues
+      const trimmedEmail = email.trim();
+      const trimmedPassword = password.trim();
+      
+      this.logger.log(`Validating user: ${trimmedEmail} (type: ${userType || 'NOT SPECIFIED'})`);
+      console.log(`🔍 [AUTH DEBUG] Email: ${trimmedEmail}, UserType: ${userType || 'NOT SPECIFIED'}, Password length: ${trimmedPassword.length}`);
+      
+      // First try to find user with the specified type
+      let user = await this.usersService.findByEmail(trimmedEmail, userType);
+      
+      if (!user && userType) {
+        this.logger.log(`User not found with type ${userType}, checking without type filter...`);
+        console.log(`⚠️ [AUTH DEBUG] User not found with type ${userType}, checking all users...`);
+        // Check if user exists with any type
+        user = await this.usersService.findByEmail(trimmedEmail);
+        if (user) {
+          console.log(`⚠️ [AUTH DEBUG] User found but with type: ${user.type}, expected: ${userType}`);
+          this.logger.warn(`User found but with different type: ${user.type} (expected: ${userType})`);
+        }
+      }
+      
+      // If not found and a userType was specified, check if it's a MASTER account
+      // Master accounts can login with any userType
+      if (!user && userType) {
+        this.logger.log(`User not found with type ${userType}, checking for MASTER account...`);
+        user = await this.usersService.findByEmail(trimmedEmail, 'MASTER');
+        
+        if (user && user.type === 'MASTER') {
+          this.logger.log(`Found MASTER account, allowing login with any userType`);
+        }
+      }
+      
+      if (!user) {
+        this.logger.warn(`User not found: ${trimmedEmail} (type: ${userType || 'any'})`);
+        console.error(`❌ [AUTH DEBUG] User not found in database`);
+        return null;
+      }
+
+      this.logger.log(`User found, checking password...`);
+      console.log(`✅ [AUTH DEBUG] User found: ${user.email}, Type: ${user.type}`);
+      console.log(`🔑 [AUTH DEBUG] Comparing password...`);
+      
+      const passwordMatch = await bcrypt.compare(trimmedPassword, user.password);
+      
+      if (passwordMatch) {
+        this.logger.log(`Password match successful for: ${trimmedEmail}`);
+        console.log(`✅ [AUTH DEBUG] Password match successful!`);
+        const { password, ...result } = user;
+        return result;
+      }
+      
+      this.logger.warn(`Password mismatch for: ${trimmedEmail}`);
+      console.error(`❌ [AUTH DEBUG] Password mismatch!`);
+      console.log(`🔍 [AUTH DEBUG] Provided password (trimmed): "${trimmedPassword}"`);
+      console.log(`🔍 [AUTH DEBUG] Password length: ${trimmedPassword.length}`);
+      return null;
+    } catch (error) {
+      this.logger.error(`Error in validateUser for ${email}:`, error);
+      console.error(`❌ [AUTH DEBUG] Error:`, error);
+      throw error;
     }
-    return null;
   }
 
   async login(loginDto: LoginDto) {
-    const user = await this.validateUser(
-      loginDto.email,
-      loginDto.password,
-      loginDto.userType,
-    );
-    if (!user) {
-      throw new UnauthorizedException('Invalid credentials');
-    }
+    try {
+      this.logger.log(`Login attempt: ${loginDto.email} (${loginDto.userType})`);
+      
+      const user = await this.validateUser(
+        loginDto.email,
+        loginDto.password,
+        loginDto.userType,
+      );
+      
+      if (!user) {
+        this.logger.warn(`Failed login attempt: ${loginDto.email} - Invalid credentials`);
+        throw new UnauthorizedException('Invalid credentials');
+      }
 
-    // Get schoolId for school admin users
-    let schoolId: string | null = null;
-    if (user.type === 'SCHOOL_ADMIN') {
-      const schoolAdmin = await this.prisma.schoolAdmin.findFirst({
-        where: { userId: user.id },
-        select: { schoolId: true },
-      });
-      schoolId = schoolAdmin?.schoolId || null;
-    }
+      this.logger.log(`Successful login: ${loginDto.email}`);
+      console.log('🟢 [LOGIN DEBUG] User type:', user.type);
+      console.log('🟢 [LOGIN DEBUG] User ID:', user.id);
 
-    const payload = {
-      email: user.email,
-      sub: user.id,
-      type: user.type.toLowerCase(), // Store lowercase in JWT for consistency
-      firstName: user.firstName,
-      lastName: user.lastName,
-      schoolId: schoolId,
-    };
+      // Fetch schoolId for school admin users
+      let schoolId: string | undefined;
+      if (user.type === 'SCHOOL_ADMIN') {
+        console.log('🟢 [LOGIN DEBUG] User is SCHOOL_ADMIN, fetching schoolId...');
+        const schoolAdmin = await this.prisma.schoolAdmin.findUnique({
+          where: { userId: user.id },
+          select: { schoolId: true },
+        });
+        
+        console.log('🟢 [LOGIN DEBUG] SchoolAdmin lookup result:', schoolAdmin);
+        
+        if (schoolAdmin) {
+          schoolId = schoolAdmin.schoolId;
+          this.logger.log(`Found schoolId for school admin: ${schoolId}`);
+          console.log('✅ [LOGIN DEBUG] Found schoolId:', schoolId);
+        } else {
+          this.logger.warn(`School admin ${user.id} does not have a school assigned`);
+          console.warn('⚠️ [LOGIN DEBUG] No SchoolAdmin record found for user:', user.id);
+        }
+      } else {
+        console.log('🟢 [LOGIN DEBUG] User is NOT SCHOOL_ADMIN, type:', user.type);
+      }
 
-    return {
-      access_token: this.jwtService.sign(payload),
-      user: {
+      const payload: any = {
+        email: user.email,
+        sub: user.id,
+        type: user.type.toLowerCase(), // Store lowercase in JWT for consistency
+        firstName: user.firstName,
+        lastName: user.lastName,
+      };
+
+      // Include schoolId in JWT payload if user is a school admin
+      if (schoolId) {
+        payload.schoolId = schoolId;
+        console.log('✅ [LOGIN DEBUG] Added schoolId to JWT payload:', schoolId);
+      } else {
+        console.warn('⚠️ [LOGIN DEBUG] schoolId is undefined, NOT adding to payload');
+      }
+
+      console.log('🟢 [LOGIN DEBUG] Final JWT payload:', JSON.stringify(payload, null, 2));
+
+      const userResponse: any = {
         id: user.id,
         email: user.email,
         type: user.type.toLowerCase(), // Return lowercase for frontend consistency
         firstName: user.firstName,
         lastName: user.lastName,
         profilePicture: user.profilePicture,
-        schoolId: schoolId,
-      },
-    };
+      };
+
+      // Include schoolId in user response if user is a school admin
+      if (schoolId) {
+        userResponse.schoolId = schoolId;
+      }
+
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: userResponse,
+      };
+    } catch (error) {
+      this.logger.error(`Login error for ${loginDto.email}:`, error);
+      throw error;
+    }
   }
 
   async register(registerDto: RegisterDto) {
@@ -120,15 +220,15 @@ export class AuthService {
         return await this.registerSchoolAdmin(registerDto, hashedPassword);
       }
 
-      // Handle other user types (PARENT, STUDENT, TEACHER, CREATOR)
+      // Handle other user types (existing logic)
       const userData = {
         email: registerDto.email,
         password: hashedPassword,
         firstName: registerDto.firstName,
         lastName: registerDto.lastName,
         type: registerDto.userType,
-        phone: registerDto.phone || undefined,
-        profilePicture: registerDto.profilePicture || undefined,
+        phone: registerDto.phone,
+        profilePicture: registerDto.profilePicture,
       };
 
       console.log('User data to create:', JSON.stringify(userData, null, 2));
@@ -137,15 +237,27 @@ export class AuthService {
       const user = await this.usersService.create(userData);
       console.log('✅ User created successfully:', user.id);
 
-      // Create specific user type record if needed
+      // If parent self-registration, send verification code to their email
+      let parentVerificationCode: string | undefined;
       if (registerDto.userType === UserType.PARENT) {
-        await this.prisma.parent.create({
-          data: {
-            userId: user.id,
-            isActive: true,
-          },
-        });
-        console.log('✅ Parent record created');
+        try {
+          const code = Math.floor(100000 + Math.random() * 900000).toString();
+          parentVerificationCode = code;
+          // Log the code explicitly so you can see it in your terminal during development
+          console.log(`Parent verification code for ${user.email}: ${code}`);
+          this.logger.log(`Parent verification code for ${user.email}: ${code}`);
+          await this.emailService.sendVerificationEmail(
+            user.email,
+            code,
+            `${user.firstName} ${user.lastName}`,
+            'PARENT',
+          );
+          console.log(`✅ Sent parent verification code to ${user.email}`);
+          this.logger.log(`✅ Sent parent verification code to ${user.email}`);
+        } catch (emailError) {
+          console.error('❌ Failed to send parent verification email:', emailError);
+          this.logger.error('❌ Failed to send parent verification email:', emailError as any);
+        }
       }
 
       const payload = {
@@ -169,6 +281,12 @@ export class AuthService {
           lastName: user.lastName,
           profilePicture: user.profilePicture,
         },
+        // Expose the code only in non-production for quick testing
+        devVerificationCode:
+          process.env.NODE_ENV !== 'production' &&
+          registerDto.userType === UserType.PARENT
+            ? parentVerificationCode
+            : undefined,
       };
     } catch (error) {
       console.error('❌ Registration failed:', error);
@@ -208,18 +326,31 @@ export class AuthService {
       console.log('✅ User created:', user.id);
 
       // 2. Create the school
-      const primaryAddress = registerDto.addresses?.[0];
+      if (!registerDto.schoolName) {
+        throw new ConflictException('School name is required for school admins');
+      }
+      if (!registerDto.country) {
+        throw new ConflictException('Country is required for school admins');
+      }
+      if (!registerDto.schoolTypes || registerDto.schoolTypes.length === 0) {
+        throw new ConflictException('At least one school type is required');
+      }
+
+      const primaryAddress =
+        registerDto.addresses && registerDto.addresses.length > 0
+          ? registerDto.addresses[0]
+          : undefined;
 
       const schoolData = {
-        name: registerDto.schoolName || 'Unnamed School',
-        type: registerDto.schoolTypes?.[0] || 'ELEMENTARY', // Use first school type or default to ELEMENTARY
-        country: registerDto.country || 'NG',
-        street: primaryAddress?.street || '',
-        city: primaryAddress?.city || '',
-        state: primaryAddress?.state || '',
-        postalCode: primaryAddress?.postalCode || undefined,
-        landmark: primaryAddress?.landmark || undefined,
-        logo: registerDto.profilePicture || undefined,
+        name: registerDto.schoolName as string,
+        type: registerDto.schoolTypes[0] as string, // Use the frontend value directly
+        country: registerDto.country as string,
+        street: primaryAddress?.street,
+        city: primaryAddress?.city,
+        state: primaryAddress?.state,
+        postalCode: primaryAddress?.postalCode,
+        landmark: primaryAddress?.landmark,
+        logo: registerDto.profilePicture,
       };
 
       console.log(
@@ -235,7 +366,7 @@ export class AuthService {
       const schoolAdminData = {
         userId: user.id,
         schoolId: school.id,
-        role: registerDto.role || 'admin', // principal, vice_principal, admin, etc.
+        role: (registerDto.role ?? 'admin') as string, // principal, vice_principal, admin, etc.
       };
 
       console.log('=== ROLE MAPPING ===');
@@ -255,18 +386,18 @@ export class AuthService {
       // 4. Generate academic structure for the school
       console.log('Generating academic structure...');
       const educationSystemId = this.getEducationSystemIdByCountry(
-        registerDto.country || 'NG',
+        registerDto.country,
       );
       const availableLevels = this.getAvailableLevelsForCountry(
-        registerDto.country || 'NG',
+        registerDto.country,
       );
 
       await this.academicStructureService.generateAcademicStructureForSchool(
         school.id,
         educationSystemId,
-        registerDto.schoolTypes || ['ELEMENTARY'], // All selected school types
+        registerDto.schoolTypes, // All selected school types
         availableLevels, // All available levels for future expansion
-        prisma, // Pass the transaction's Prisma instance
+        prisma, // Pass the transaction Prisma client
       );
       console.log('✅ Academic structure generated');
 
@@ -345,17 +476,11 @@ export class AuthService {
     try {
       // Generate a 6-digit verification code
       const code = Math.floor(100000 + Math.random() * 900000).toString();
-      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes
 
-      // Store verification code in database
-      await this.prisma.verificationCode.create({
-        data: {
-          email,
-          code,
-          type: 'EMAIL_VERIFICATION',
-          expiresAt,
-        },
-      });
+      // Log server-side for visibility
+      this.logger.log(
+        `Preparing verification email | email=${email} userType=${userType} code=${code}`,
+      );
 
       // Send the verification email
       const emailSent = await this.emailService.sendVerificationEmail(
@@ -366,7 +491,10 @@ export class AuthService {
       );
 
       if (emailSent) {
-        console.log(`✅ Verification email sent to ${email}`);
+        // In production, store the code in database with expiration
+        console.log(`Verification code for ${email}: ${code}`);
+        this.logger.log(`Verification code for ${email}: ${code}`);
+
         return {
           success: true,
           message: 'Verification email sent successfully',
@@ -374,51 +502,99 @@ export class AuthService {
           userType,
         };
       } else {
+        this.logger.error(
+          `Failed to send verification email to ${email} (userType=${userType})`,
+        );
         throw new Error('Failed to send verification email');
       }
     } catch (error) {
-      console.error('❌ Email sending error:', error);
+      console.error('Email sending error:', error);
+      this.logger.error('Email sending error', error as any);
       throw new Error('Failed to send verification email');
     }
   }
 
   async verifyEmail(email: string, code: string) {
-    try {
-      // Find the verification code in database
-      const verificationCode = await this.prisma.verificationCode.findFirst({
-        where: {
-          email,
-          code,
-          type: 'EMAIL_VERIFICATION',
-          usedAt: null, // Not used yet
-          expiresAt: {
-            gt: new Date(), // Not expired
-          },
-        },
-      });
-
-      if (!verificationCode) {
-        throw new UnauthorizedException('Invalid or expired verification code');
-      }
-
-      // Mark the code as used
-      await this.prisma.verificationCode.update({
-        where: { id: verificationCode.id },
-        data: { usedAt: new Date() },
-      });
-
-      console.log(`✅ Email verified successfully for ${email}`);
+    // For now, accept any 6-digit code for development
+    // In production, this would validate against stored codes
+    if (code.length === 6 && /^\d+$/.test(code)) {
       return {
         success: true,
         message: 'Email verified successfully',
         email,
       };
-    } catch (error) {
-      console.error('❌ Email verification error:', error);
-      if (error instanceof UnauthorizedException) {
-        throw error;
+    } else {
+      throw new UnauthorizedException('Invalid verification code');
+    }
+  }
+
+  async verifyCreatorEmail(email: string, code: string) {
+    // Verify creator email with code (similar to verifyEmail but for creators)
+    // For now, accept any 6-digit code for development
+    // In production, this would validate against stored codes
+    if (code.length === 6 && /^\d+$/.test(code)) {
+      // Update user's email verification status if needed
+      const user = await this.usersService.findByEmail(email, UserType.CREATOR);
+      if (user) {
+        await this.prisma.user.update({
+          where: { id: user.id },
+          data: { isEmailVerified: true },
+        });
       }
-      throw new UnauthorizedException('Failed to verify email');
+      
+      return {
+        success: true,
+        message: 'Creator email verified successfully',
+        email,
+      };
+    } else {
+      throw new UnauthorizedException('Invalid or expired verification code');
+    }
+  }
+
+  async updateProfile(user: any, updateDto: UpdateProfileDto) {
+    try {
+      const updateData: any = {};
+      
+      if (updateDto.firstName !== undefined) {
+        updateData.firstName = updateDto.firstName;
+      }
+      if (updateDto.lastName !== undefined) {
+        updateData.lastName = updateDto.lastName;
+      }
+      if (updateDto.phone !== undefined) {
+        updateData.phone = updateDto.phone;
+      }
+      if (updateDto.profilePicture !== undefined) {
+        updateData.profilePicture = updateDto.profilePicture;
+      }
+      if (updateDto.bio !== undefined) {
+        updateData.bio = updateDto.bio;
+      }
+      if (updateDto.website !== undefined) {
+        updateData.website = updateDto.website;
+      }
+      if (updateDto.country !== undefined) {
+        updateData.country = updateDto.country;
+      }
+
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user.id },
+        data: updateData,
+      });
+
+      const { password, ...result } = updatedUser;
+      return {
+        success: true,
+        message: 'Profile updated successfully',
+        user: {
+          ...result,
+          type: result.type.toLowerCase(),
+        },
+      };
+    } catch (error) {
+      this.logger.error(`Error updating profile for user ${user.id}:`, error);
+      throw new Error('Failed to update profile');
     }
   }
 
@@ -477,11 +653,31 @@ export class AuthService {
             'If an account with this email exists, a password reset link has been sent.',
         };
       } else {
-        throw new Error('Failed to send password reset email');
+        // Log the reset token for development when email fails
+        if (process.env.NODE_ENV !== 'production') {
+          console.log('⚠️ Email sending failed, but reset token generated:');
+          console.log('Reset Token:', resetToken);
+          console.log('This token is valid for 15 minutes');
+          console.log('You can use this token directly in the reset password endpoint');
+        }
+        
+        const errorMessage = process.env.NODE_ENV === 'production'
+          ? 'Failed to send password reset email. Please check your email configuration or contact support.'
+          : 'Failed to send password reset email. Check console for SMTP configuration details.';
+        
+        throw new Error(errorMessage);
       }
     } catch (error) {
       console.error('❌ Forgot password error:', error);
-      throw new Error('Failed to process password reset request');
+      console.error('Error message:', error.message);
+      console.error('Error stack:', error.stack);
+      
+      // Re-throw with original error message if it's already formatted
+      if (error.message && error.message.includes('Failed to send')) {
+        throw error;
+      }
+      
+      throw new Error(error.message || 'Failed to process password reset request');
     }
   }
 
@@ -564,75 +760,6 @@ export class AuthService {
     return result;
   }
 
-  async changePassword(userId: string, changePasswordDto: ChangePasswordDto) {
-    try {
-      console.log('=== CHANGE PASSWORD DEBUG ===');
-      console.log('User ID:', userId);
-
-      // Validate passwords match
-      if (changePasswordDto.newPassword !== changePasswordDto.confirmPassword) {
-        throw new Error('New passwords do not match');
-      }
-
-      // Find the user
-      const user = await this.prisma.user.findUnique({
-        where: { id: userId },
-      });
-
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      console.log('✅ User found');
-
-      // Verify current password
-      const isCurrentPasswordValid = await bcrypt.compare(
-        changePasswordDto.currentPassword,
-        user.password,
-      );
-
-      if (!isCurrentPasswordValid) {
-        throw new Error('Current password is incorrect');
-      }
-
-      console.log('✅ Current password verified');
-
-      // Check if new password is different from current password
-      const isSamePassword = await bcrypt.compare(
-        changePasswordDto.newPassword,
-        user.password,
-      );
-
-      if (isSamePassword) {
-        throw new Error('New password must be different from current password');
-      }
-
-      console.log('✅ New password is different');
-
-      // Hash the new password
-      const hashedPassword = await bcrypt.hash(
-        changePasswordDto.newPassword,
-        10,
-      );
-
-      // Update user password
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { password: hashedPassword },
-      });
-
-      console.log('✅ Password updated successfully');
-
-      return {
-        success: true,
-        message: 'Password changed successfully',
-      };
-    } catch (error) {
-      console.error('❌ Change password error:', error);
-      throw new Error(error.message || 'Failed to change password');
-    }
-  }
-
   async getSchoolAdminProfile(userId: string) {
     return this.prisma.schoolAdmin.findUnique({
       where: { userId },
@@ -645,23 +772,10 @@ export class AuthService {
   }
 
   async getUserProfile(user: any) {
-    // Fetch fresh user data from database instead of using JWT payload
-    const freshUser = await this.usersService.findById(user.id);
-    if (!freshUser) {
-      throw new UnauthorizedException('User not found');
-    }
-
     // Get basic user data with lowercase type for frontend consistency
     const userData = {
-      id: freshUser.id,
-      email: freshUser.email,
-      type: freshUser.type.toLowerCase(),
-      firstName: freshUser.firstName,
-      lastName: freshUser.lastName,
-      profilePicture: freshUser.profilePicture,
-      phone: freshUser.phone,
-      isActive: freshUser.isActive,
-      createdAt: freshUser.createdAt,
+      ...user,
+      type: user.type.toLowerCase(),
     };
 
     // If user is a school admin, fetch the role information
