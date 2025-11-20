@@ -1,5 +1,5 @@
 import { Injectable, Logger, BadRequestException } from '@nestjs/common';
-import { Prisma } from '@prisma/client';
+import { Prisma, GradingScaleType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EducationSystemsService } from '../education-systems/education-systems.service';
 import { EducationSystem } from '../education-systems/interfaces/education-system.interface';
@@ -1254,5 +1254,118 @@ export class AcademicStructureService {
     ) as "exists"`;
 
     return result?.[0]?.exists ?? false;
+  }
+
+  // ==================== GRADING SCALE METHODS ====================
+
+  async getGradingScales(schoolId: string) {
+    return this.prisma.gradingScale.findMany({
+      where: { schoolId, isActive: true },
+      orderBy: { isDefault: 'desc' },
+    });
+  }
+
+  async getDefaultGradingScale(schoolId: string) {
+    const defaultScale = await this.prisma.gradingScale.findFirst({
+      where: { schoolId, isDefault: true, isActive: true },
+    });
+
+    if (defaultScale) {
+      return defaultScale;
+    }
+
+    // Return first active scale if no default exists
+    return this.prisma.gradingScale.findFirst({
+      where: { schoolId, isActive: true },
+    });
+  }
+
+  async createGradingScale(schoolId: string, data: {
+    name: string;
+    type: string;
+    scale: any;
+    isDefault?: boolean;
+    isActive?: boolean;
+  }) {
+    // Convert string type to enum (handle both uppercase and lowercase)
+    const typeUpper = data.type.toUpperCase();
+    let gradingScaleType: GradingScaleType;
+    
+    if (typeUpper === 'PERCENTAGE') {
+      gradingScaleType = GradingScaleType.PERCENTAGE;
+    } else if (typeUpper === 'LETTER') {
+      gradingScaleType = GradingScaleType.LETTER;
+    } else if (typeUpper === 'GPA') {
+      gradingScaleType = GradingScaleType.GPA;
+    } else if (typeUpper === 'CUSTOM') {
+      gradingScaleType = GradingScaleType.CUSTOM;
+    } else {
+      // Default to PERCENTAGE if invalid
+      gradingScaleType = GradingScaleType.PERCENTAGE;
+    }
+
+    // If this is set as default, unset other defaults
+    if (data.isDefault) {
+      await this.prisma.gradingScale.updateMany({
+        where: { schoolId, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
+    return this.prisma.gradingScale.create({
+      data: {
+        schoolId,
+        name: data.name,
+        type: gradingScaleType,
+        scale: data.scale,
+        isDefault: data.isDefault || false,
+        isActive: data.isActive !== undefined ? data.isActive : true,
+      },
+    });
+  }
+
+  async updateGradingScale(id: string, schoolId: string, data: {
+    name?: string;
+    type?: string;
+    scale?: any;
+    isDefault?: boolean;
+    isActive?: boolean;
+  }) {
+    // Convert string type to enum if provided
+    let gradingScaleType: GradingScaleType | undefined;
+    if (data.type) {
+      const typeUpper = data.type.toUpperCase();
+      if (typeUpper === 'PERCENTAGE') {
+        gradingScaleType = GradingScaleType.PERCENTAGE;
+      } else if (typeUpper === 'LETTER') {
+        gradingScaleType = GradingScaleType.LETTER;
+      } else if (typeUpper === 'GPA') {
+        gradingScaleType = GradingScaleType.GPA;
+      } else if (typeUpper === 'CUSTOM') {
+        gradingScaleType = GradingScaleType.CUSTOM;
+      } else {
+        // Default to PERCENTAGE if invalid
+        gradingScaleType = GradingScaleType.PERCENTAGE;
+      }
+    }
+
+    // If this is set as default, unset other defaults
+    if (data.isDefault) {
+      await this.prisma.gradingScale.updateMany({
+        where: { schoolId, isDefault: true, id: { not: id } },
+        data: { isDefault: false },
+      });
+    }
+
+    return this.prisma.gradingScale.update({
+      where: { id },
+      data: {
+        ...(data.name && { name: data.name }),
+        ...(gradingScaleType && { type: gradingScaleType }),
+        ...(data.scale && { scale: data.scale }),
+        ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
+      },
+    });
   }
 }

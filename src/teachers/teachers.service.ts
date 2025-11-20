@@ -12,6 +12,8 @@ import {
   AssignmentType,
 } from '@prisma/client';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
+import { CreateAttendanceDto } from './dto/create-attendance.dto';
+import { CreateContinuousAssessmentDto } from './dto/create-continuous-assessment.dto';
 
 interface AttendanceFilters {
   classId?: string;
@@ -279,12 +281,6 @@ export class TeachersService {
       tags,
     } = createAssignmentDto;
 
-    if (!studentIds || studentIds.length === 0) {
-      throw new BadRequestException('Select at least one student for this assignment.');
-    }
-
-    const uniqueStudentIds = Array.from(new Set(studentIds));
-
     const teacherAssignment = await this.prisma.teacherAssignment.findFirst({
       where: {
         teacherId: teacher.id,
@@ -320,25 +316,42 @@ export class TeachersService {
       resolvedTermId = activeTerm.id;
     }
 
-    const studentWhere: Prisma.StudentWhereInput = {
-      schoolId: teacher.schoolId,
-      currentClassId: classId,
-      id: {
-        in: uniqueStudentIds,
-      },
-    };
+    // If studentIds are provided, validate them; otherwise, fetch all students in the class
+    let eligibleStudents: { id: string }[];
+    
+    if (studentIds && studentIds.length > 0) {
+      const uniqueStudentIds = Array.from(new Set(studentIds));
+      const studentWhere: Prisma.StudentWhereInput = {
+        schoolId: teacher.schoolId,
+        currentClassId: classId,
+        id: {
+          in: uniqueStudentIds,
+        },
+      };
 
-    const eligibleStudents = await this.prisma.student.findMany({
-      where: studentWhere,
-      select: {
-        id: true,
-      },
-    });
+      eligibleStudents = await this.prisma.student.findMany({
+        where: studentWhere,
+        select: {
+          id: true,
+        },
+      });
 
-    if (eligibleStudents.length !== uniqueStudentIds.length) {
-      throw new BadRequestException(
-        'One or more selected students are not part of the chosen class or do not belong to your school.',
-      );
+      if (eligibleStudents.length !== uniqueStudentIds.length) {
+        throw new BadRequestException(
+          'One or more selected students are not part of the chosen class or do not belong to your school.',
+        );
+      }
+    } else {
+      // Automatically assign to all students in the class
+      eligibleStudents = await this.prisma.student.findMany({
+        where: {
+          schoolId: teacher.schoolId,
+          currentClassId: classId,
+        },
+        select: {
+          id: true,
+        },
+      });
     }
 
     const parsedDueDate = dueDate ? new Date(dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
@@ -631,6 +644,94 @@ export class TeachersService {
     };
   }
 
+  async recordAttendance(userId: string, dto: CreateAttendanceDto) {
+    if (!dto.records?.length) {
+      throw new BadRequestException('Please provide at least one attendance record.');
+    }
+
+    const teacher = await this.getTeacherByUserId(userId);
+
+    const assignment = await this.prisma.teacherAssignment.findFirst({
+      where: {
+        teacherId: teacher.id,
+        classId: dto.classId,
+        isActive: true,
+        ...(dto.subjectId ? { subjectId: dto.subjectId } : {}),
+      },
+    });
+
+    if (!assignment) {
+      throw new ForbiddenException('You are not assigned to this class or subject.');
+    }
+
+    const term = await this.prisma.academicTerm.findUnique({
+      where: { id: dto.termId },
+    });
+
+    if (!term) {
+      throw new BadRequestException('Invalid term selected.');
+    }
+
+    const attendanceDate = new Date(dto.date);
+    if (Number.isNaN(attendanceDate.getTime())) {
+      throw new BadRequestException('Invalid attendance date.');
+    }
+
+    const startOfDay = new Date(attendanceDate);
+    startOfDay.setUTCHours(0, 0, 0, 0);
+    const endOfDay = new Date(startOfDay);
+    endOfDay.setUTCDate(endOfDay.getUTCDate() + 1);
+
+    const studentIds = dto.records.map((record) => record.studentId);
+    const students = await this.prisma.student.findMany({
+      where: {
+        id: { in: studentIds },
+        currentClassId: dto.classId,
+      },
+      select: { id: true },
+    });
+
+    if (students.length !== studentIds.length) {
+      throw new BadRequestException('One or more students are not part of this class.');
+    }
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.attendanceRecord.deleteMany({
+        where: {
+          teacherId: teacher.id,
+          classId: dto.classId,
+          studentId: { in: studentIds },
+          date: {
+            gte: startOfDay,
+            lt: endOfDay,
+          },
+        },
+      });
+
+      for (const record of dto.records) {
+        await tx.attendanceRecord.create({
+          data: {
+            studentId: record.studentId,
+            classId: dto.classId,
+            teacherId: teacher.id,
+            termId: dto.termId,
+            date: attendanceDate,
+            status: record.status,
+            reason: record.reason?.trim() || null,
+            recordedBy: teacher.userId,
+          },
+        });
+      }
+    });
+
+    return this.getAttendance(userId, {
+      classId: dto.classId,
+      termId: dto.termId,
+      startDate: startOfDay,
+      endDate: endOfDay,
+    });
+  }
+
   async getGrades(userId: string, filters: GradeFilters) {
     const teacher = await this.getTeacherByUserId(userId);
 
@@ -713,6 +814,7 @@ export class TeachersService {
         ? {
             id: record.student.id,
             studentNumber: record.student.studentNumber,
+            currentClassId: record.student.currentClassId,
             firstName: record.student.user.firstName,
             lastName: record.student.user.lastName,
             fullName:
@@ -866,6 +968,297 @@ export class TeachersService {
       recentActivity,
       upcomingDeadlines,
     };
+  }
+
+  async getContinuousAssessment(
+    userId: string,
+    classId: string,
+    subjectId: string,
+    termId: string,
+  ) {
+    const teacher = await this.getTeacherByUserId(userId);
+
+    // Verify teacher assignment
+    const assignment = await this.prisma.teacherAssignment.findFirst({
+      where: {
+        teacherId: teacher.id,
+        classId,
+        subjectId,
+        isActive: true,
+      },
+    });
+
+    if (!assignment) {
+      throw new ForbiddenException(
+        'You are not assigned to this class and subject.',
+      );
+    }
+
+    // Fetch all CA-related academic records for this class/subject/term
+    // Using a special pattern: assignmentId starting with "CA_" for continuous assessment
+    const records = await this.prisma.academicRecord.findMany({
+      where: {
+        teacherId: teacher.id,
+        classId,
+        subjectId,
+        termId,
+        OR: [
+          { assignmentId: { startsWith: 'CA_' } },
+          { assignmentId: null },
+        ],
+        isActive: true,
+      },
+      include: {
+        student: {
+          include: {
+            user: true,
+          },
+        },
+      },
+      orderBy: {
+        studentId: 'asc',
+      },
+    });
+
+    // Group records by student
+    const studentGrades: Record<
+      string,
+      {
+        studentId: string;
+        studentName: string;
+        ca1?: number;
+        ca2?: number;
+        ca3?: number;
+        ca4?: number;
+        exam?: number;
+        grade?: string;
+      }
+    > = {};
+
+    records.forEach((record) => {
+      const studentId = record.studentId;
+      if (!studentGrades[studentId]) {
+        studentGrades[studentId] = {
+          studentId,
+          studentName:
+            record.student.user?.fullName ||
+            `${record.student.user?.firstName || ''} ${
+              record.student.user?.lastName || ''
+            }`.trim() ||
+            'Unknown',
+        };
+      }
+
+      // Extract CA type from assignmentId (e.g., "CA_CA1", "CA_CA2", etc.)
+      const caType = record.assignmentId?.replace('CA_', '');
+      const score = record.score;
+      const grade = record.grade;
+
+      if (caType === 'CA1') {
+        studentGrades[studentId].ca1 = score;
+      } else if (caType === 'CA2') {
+        studentGrades[studentId].ca2 = score;
+      } else if (caType === 'CA3') {
+        studentGrades[studentId].ca3 = score;
+      } else if (caType === 'CA4') {
+        studentGrades[studentId].ca4 = score;
+      } else if (caType === 'EXAM') {
+        studentGrades[studentId].exam = score;
+        studentGrades[studentId].grade = grade;
+      }
+    });
+
+    return Object.values(studentGrades);
+  }
+
+  async saveContinuousAssessment(
+    userId: string,
+    dto: CreateContinuousAssessmentDto,
+  ) {
+    const teacher = await this.getTeacherByUserId(userId);
+
+    // Verify teacher assignment
+    const assignment = await this.prisma.teacherAssignment.findFirst({
+      where: {
+        teacherId: teacher.id,
+        classId: dto.classId,
+        subjectId: dto.subjectId,
+        isActive: true,
+      },
+    });
+
+    if (!assignment) {
+      throw new ForbiddenException(
+        'You are not assigned to this class and subject.',
+      );
+    }
+
+    // Verify students belong to the class
+    const students = await this.prisma.student.findMany({
+      where: {
+        schoolId: teacher.schoolId,
+        currentClassId: dto.classId,
+        id: {
+          in: dto.records.map((r) => r.studentId),
+        },
+      },
+      select: {
+        id: true,
+      },
+    });
+
+    if (students.length !== dto.records.length) {
+      throw new BadRequestException(
+        'One or more students are not part of the chosen class.',
+      );
+    }
+
+    const results: any[] = [];
+
+    // Process each student's grades
+    for (const record of dto.records) {
+      const caTypes = [
+        { key: 'ca1', assignmentId: 'CA_CA1' },
+        { key: 'ca2', assignmentId: 'CA_CA2' },
+        { key: 'ca3', assignmentId: 'CA_CA3' },
+        { key: 'ca4', assignmentId: 'CA_CA4' },
+        { key: 'exam', assignmentId: 'CA_EXAM' },
+      ];
+
+      for (const caType of caTypes) {
+        const score = record[caType.key as keyof typeof record] as
+          | number
+          | undefined;
+
+        if (score !== undefined && score !== null) {
+          // Calculate percentage and grade
+          const maxScore = 100;
+          const percentage = (score / maxScore) * 100;
+          const grade = this.calculateGrade(percentage);
+
+          // Delete existing record if any
+          await this.prisma.academicRecord.deleteMany({
+            where: {
+              teacherId: teacher.id,
+              studentId: record.studentId,
+              classId: dto.classId,
+              subjectId: dto.subjectId,
+              termId: dto.termId,
+              assignmentId: caType.assignmentId,
+            },
+          });
+
+          // Create new record
+          const academicRecord = await this.prisma.academicRecord.create({
+            data: {
+              studentId: record.studentId,
+              teacherId: teacher.id,
+              subjectId: dto.subjectId,
+              classId: dto.classId,
+              termId: dto.termId,
+              assignmentId: caType.assignmentId,
+              score,
+              maxScore,
+              grade: caType.key === 'exam' ? record.grade || grade : grade,
+              percentage,
+              gpa: this.calculateGPA(grade),
+              recordedBy: teacher.userId,
+              modifiedBy: teacher.userId,
+            },
+          });
+
+          results.push(academicRecord);
+        }
+      }
+
+      // If grade is provided separately, update the exam record's grade
+      if (record.grade) {
+        await this.prisma.academicRecord.updateMany({
+          where: {
+            teacherId: teacher.id,
+            studentId: record.studentId,
+            classId: dto.classId,
+            subjectId: dto.subjectId,
+            termId: dto.termId,
+            assignmentId: 'CA_EXAM',
+          },
+          data: {
+            grade: record.grade,
+          },
+        });
+      }
+    }
+
+    return {
+      message: 'Continuous assessment grades saved successfully',
+      saved: results.length,
+    };
+  }
+
+  async deleteContinuousAssessment(
+    userId: string,
+    studentId: string,
+    classId: string,
+    subjectId: string,
+    termId: string,
+  ) {
+    const teacher = await this.getTeacherByUserId(userId);
+
+    // Verify teacher assignment
+    const assignment = await this.prisma.teacherAssignment.findFirst({
+      where: {
+        teacherId: teacher.id,
+        classId,
+        subjectId,
+        isActive: true,
+      },
+    });
+
+    if (!assignment) {
+      throw new ForbiddenException(
+        'You are not assigned to this class and subject.',
+      );
+    }
+
+    // Delete all CA records for this student
+    const deleted = await this.prisma.academicRecord.deleteMany({
+      where: {
+        teacherId: teacher.id,
+        studentId,
+        classId,
+        subjectId,
+        termId,
+        assignmentId: {
+          startsWith: 'CA_',
+        },
+      },
+    });
+
+    return {
+      message: 'Continuous assessment grades deleted successfully',
+      deleted: deleted.count,
+    };
+  }
+
+  private calculateGrade(percentage: number): string {
+    if (percentage >= 90) return 'A';
+    if (percentage >= 80) return 'B';
+    if (percentage >= 70) return 'C';
+    if (percentage >= 60) return 'D';
+    if (percentage >= 50) return 'E';
+    return 'F';
+  }
+
+  private calculateGPA(grade: string): number {
+    const gradeMap: Record<string, number> = {
+      A: 5.0,
+      B: 4.0,
+      C: 3.0,
+      D: 2.0,
+      E: 1.0,
+      F: 0.0,
+    };
+    return gradeMap[grade.toUpperCase()] || 0.0;
   }
 }
 

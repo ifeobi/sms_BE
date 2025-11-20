@@ -351,4 +351,53 @@ export class AcademicStructureController {
   async deleteSection(@Param('id') id: string) {
     return this.academicStructureService.deleteSection(id);
   }
+
+  // ==================== GRADING SCALE ENDPOINTS ====================
+
+  @Get('schools/:schoolId/grading-scales')
+  @ApiOperation({ summary: 'Get all grading scales for a school' })
+  @ApiResponse({
+    status: 200,
+    description: 'Grading scales retrieved successfully',
+  })
+  async getGradingScales(@Param('schoolId') schoolId: string) {
+    return this.academicStructureService.getGradingScales(schoolId);
+  }
+
+  @Get('schools/:schoolId/grading-scales/default')
+  @ApiOperation({ summary: 'Get default grading scale for a school' })
+  @ApiResponse({
+    status: 200,
+    description: 'Default grading scale retrieved successfully',
+  })
+  async getDefaultGradingScale(@Param('schoolId') schoolId: string) {
+    return this.academicStructureService.getDefaultGradingScale(schoolId);
+  }
+
+  @Post('schools/:schoolId/grading-scales')
+  @ApiOperation({ summary: 'Create a new grading scale' })
+  @ApiResponse({
+    status: 201,
+    description: 'Grading scale created successfully',
+  })
+  async createGradingScale(
+    @Param('schoolId') schoolId: string,
+    @Body() data: any,
+  ) {
+    return this.academicStructureService.createGradingScale(schoolId, data);
+  }
+
+  @Put('schools/:schoolId/grading-scales/:id')
+  @ApiOperation({ summary: 'Update a grading scale' })
+  @ApiResponse({
+    status: 200,
+    description: 'Grading scale updated successfully',
+  })
+  async updateGradingScale(
+    @Param('schoolId') schoolId: string,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
+    return this.academicStructureService.updateGradingScale(id, schoolId, data);
+  }
 }

@@ -1,6 +1,7 @@
 import {
   Body,
   Controller,
+  Delete,
   Get,
   Param,
   Post,
@@ -13,6 +14,8 @@ import { TeachersService } from './teachers.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
+import { CreateAttendanceDto } from './dto/create-attendance.dto';
+import { CreateContinuousAssessmentDto } from './dto/create-continuous-assessment.dto';
 
 @ApiTags('Teachers')
 @ApiBearerAuth()
@@ -85,6 +88,15 @@ export class TeachersController {
     return this.teachersService.getAttendance(req.user.id, filters);
   }
 
+  @Post('me/attendance')
+  async recordAttendance(
+    @Request() req: any,
+    @Body() dto: CreateAttendanceDto,
+  ) {
+    this.ensureTeacherAccess(req);
+    return this.teachersService.recordAttendance(req.user.id, dto);
+  }
+
   @Get('me/grades')
   async getGrades(
     @Request() req: any,
@@ -115,6 +127,49 @@ export class TeachersController {
   async getDashboard(@Request() req: any) {
     this.ensureTeacherAccess(req);
     return this.teachersService.getDashboard(req.user.id);
+  }
+
+  @Get('me/continuous-assessment')
+  async getContinuousAssessment(
+    @Request() req: any,
+    @Query('classId') classId: string,
+    @Query('subjectId') subjectId: string,
+    @Query('termId') termId: string,
+  ) {
+    this.ensureTeacherAccess(req);
+    return this.teachersService.getContinuousAssessment(
+      req.user.id,
+      classId,
+      subjectId,
+      termId,
+    );
+  }
+
+  @Post('me/continuous-assessment')
+  async saveContinuousAssessment(
+    @Request() req: any,
+    @Body() dto: CreateContinuousAssessmentDto,
+  ) {
+    this.ensureTeacherAccess(req);
+    return this.teachersService.saveContinuousAssessment(req.user.id, dto);
+  }
+
+  @Delete('me/continuous-assessment/:studentId')
+  async deleteContinuousAssessment(
+    @Request() req: any,
+    @Param('studentId') studentId: string,
+    @Query('classId') classId: string,
+    @Query('subjectId') subjectId: string,
+    @Query('termId') termId: string,
+  ) {
+    this.ensureTeacherAccess(req);
+    return this.teachersService.deleteContinuousAssessment(
+      req.user.id,
+      studentId,
+      classId,
+      subjectId,
+      termId,
+    );
   }
 }
 
