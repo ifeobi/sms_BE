@@ -95,9 +95,10 @@ model School {
   academicTerms      AcademicTerm[]
   bulkImports        BulkImport[]
   classes            Class[]
-  gradingScales      GradingScale[]
-  levels             Level[]
-  parents            ParentSchoolRelationship[]
+  gradingScales         GradingScale[]
+  levels                Level[]
+  assessmentStructures  AssessmentStructure[]
+  parents                ParentSchoolRelationship[]
   schoolAdmins       SchoolAdmin[]
   students           Student[]
   subjects           Subject[]
@@ -187,14 +188,15 @@ model Student {
 }
 
 model Level {
-  id       String    @id @default(cuid())
-  schoolId String
-  name     String
-  order    Int
-  isActive Boolean   @default(true)
-  classes  Class[]
-  school   School    @relation(fields: [schoolId], references: [id])
-  students Student[] @relation("StudentCurrentLevel")
+  id                   String                @id @default(cuid())
+  schoolId             String
+  name                 String
+  order                Int
+  isActive             Boolean               @default(true)
+  classes              Class[]
+  school               School               @relation(fields: [schoolId], references: [id])
+  students             Student[]             @relation("StudentCurrentLevel")
+  assessmentStructures AssessmentStructure[]
 
   @@map("levels")
 }
@@ -459,9 +461,10 @@ model AcademicRecord {
   classId            String
   termId             String
   assignmentId       String?
-  score              Float
-  maxScore           Float
+  caScore            Float        @map("score")
+  maxcaScore         Float        @map("maxScore")
   grade              String
+  status             String       @default("Pending")
   percentage         Float
   gpa                Float
   comments           String?
@@ -740,6 +743,25 @@ model GradingScale {
   school    School           @relation(fields: [schoolId], references: [id])
 
   @@map("grading_scales")
+}
+
+model AssessmentStructure {
+  id                String   @id @default(cuid())
+  levelId           String
+  schoolId          String
+  caComponents      Json     // Array of CA component configs: [{name: "CA1", maxScore: 10}, ...]
+  examConfig        Json?    // Exam configuration: {maxScore: 60, isRequired: true}
+  calculationMethod String   @default("sum") // "sum" or "weighted"
+  totalMaxScore     Int?     // Total possible score
+  isActive          Boolean  @default(true)
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+  
+  level             Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  school            School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+
+  @@unique([levelId, schoolId]) // One assessment structure per level per school
+  @@map("assessment_structures")
 }
 
 model Creator {

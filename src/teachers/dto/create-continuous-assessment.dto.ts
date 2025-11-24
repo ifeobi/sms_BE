@@ -13,29 +13,9 @@ class ContinuousAssessmentRecordInput {
   @IsString()
   studentId: string;
 
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  ca1?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  ca2?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  ca3?: number;
-
-  @IsOptional()
-  @IsNumber()
-  @Min(0)
-  @Max(100)
-  ca4?: number;
+  // Support dynamic CA fields (ca1, ca2, ca3, ..., ca20, etc.)
+  // Using index signature to allow any ca* field
+  [key: string]: any;
 
   @IsOptional()
   @IsNumber()

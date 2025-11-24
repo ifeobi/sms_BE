@@ -14,6 +14,7 @@ import {
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { CreateContinuousAssessmentDto } from './dto/create-continuous-assessment.dto';
+import { CreateAssignmentGradeDto } from './dto/create-assignment-grade.dto';
 
 interface AttendanceFilters {
   classId?: string;
@@ -142,6 +143,72 @@ export class TeachersService {
               : null,
           }))
         : [],
+    };
+  }
+
+  private mapAcademicRecord(record: any) {
+    if (!record) {
+      return null;
+    }
+
+    return {
+      id: record.id,
+      assignmentId: record.assignmentId,
+      classId: record.classId,
+      subjectId: record.subjectId,
+      termId: record.termId,
+      score: record.caScore,
+      maxScore: record.maxcaScore,
+      grade: record.grade,
+      status: record.status,
+      percentage: record.percentage,
+      gpa: record.gpa,
+      comments: record.comments,
+      feedback: record.feedback,
+      gradedAt: record.gradedAt,
+      assignment: record.assignment
+        ? {
+            id: record.assignment.id,
+            title: record.assignment.title,
+            dueDate: record.assignment.dueDate,
+            maxScore: record.assignment.maxScore,
+            weight: record.assignment.weight,
+            category: record.assignment.category,
+          }
+        : null,
+      subject: record.subject
+        ? {
+            id: record.subject.id,
+            name: record.subject.name,
+          }
+        : null,
+      class: record.class
+        ? {
+            id: record.class.id,
+            name: record.class.name,
+            shortName: record.class.shortName,
+          }
+        : null,
+      term: record.term
+        ? {
+            id: record.term.id,
+            name: record.term.name,
+          }
+        : null,
+      student: record.student
+        ? {
+            id: record.student.id,
+            studentNumber: record.student.studentNumber,
+            currentClassId: record.student.currentClassId,
+            firstName: record.student.user?.firstName,
+            lastName: record.student.user?.lastName,
+            fullName:
+              record.student.user?.fullName ||
+              `${record.student.user?.firstName || ''} ${
+                record.student.user?.lastName || ''
+              }`.trim(),
+          }
+        : null,
     };
   }
 
@@ -771,58 +838,7 @@ export class TeachersService {
       take: 500,
     });
 
-    return records.map((record) => ({
-      id: record.id,
-      score: record.score,
-      maxScore: record.maxScore,
-      grade: record.grade,
-      percentage: record.percentage,
-      gpa: record.gpa,
-      comments: record.comments,
-      feedback: record.feedback,
-      gradedAt: record.gradedAt,
-      assignment: record.assignment
-        ? {
-            id: record.assignment.id,
-            title: record.assignment.title,
-            dueDate: record.assignment.dueDate,
-            maxScore: record.assignment.maxScore,
-            weight: record.assignment.weight,
-            category: record.assignment.category,
-          }
-        : null,
-      subject: record.subject
-        ? {
-            id: record.subject.id,
-            name: record.subject.name,
-          }
-        : null,
-      class: record.class
-        ? {
-            id: record.class.id,
-            name: record.class.name,
-            shortName: record.class.shortName,
-          }
-        : null,
-      term: record.term
-        ? {
-            id: record.term.id,
-            name: record.term.name,
-          }
-        : null,
-      student: record.student
-        ? {
-            id: record.student.id,
-            studentNumber: record.student.studentNumber,
-            currentClassId: record.student.currentClassId,
-            firstName: record.student.user.firstName,
-            lastName: record.student.user.lastName,
-            fullName:
-              record.student.user.fullName ||
-              `${record.student.user.firstName} ${record.student.user.lastName}`.trim(),
-          }
-        : null,
-    }));
+    return records.map((record) => this.mapAcademicRecord(record));
   }
 
   async getDashboard(userId: string) {
@@ -995,7 +1011,8 @@ export class TeachersService {
     }
 
     // Fetch all CA-related academic records for this class/subject/term
-    // Using a special pattern: assignmentId starting with "CA_" for continuous assessment
+    // Using comments field to identify CA type (CA_CA1, CA_CA2, CA_EXAM, etc.)
+    // Also handle legacy records that used assignmentId with CA_ prefix
     const records = await this.prisma.academicRecord.findMany({
       where: {
         teacherId: teacher.id,
@@ -1003,8 +1020,19 @@ export class TeachersService {
         subjectId,
         termId,
         OR: [
-          { assignmentId: { startsWith: 'CA_' } },
-          { assignmentId: null },
+          // New format: assignmentId is null, CA type in comments
+          {
+            assignmentId: null,
+            comments: {
+              startsWith: 'CA_',
+            },
+          },
+          // Legacy format: assignmentId starts with CA_
+          {
+            assignmentId: {
+              startsWith: 'CA_',
+            },
+          },
         ],
         isActive: true,
       },
@@ -1020,20 +1048,8 @@ export class TeachersService {
       },
     });
 
-    // Group records by student
-    const studentGrades: Record<
-      string,
-      {
-        studentId: string;
-        studentName: string;
-        ca1?: number;
-        ca2?: number;
-        ca3?: number;
-        ca4?: number;
-        exam?: number;
-        grade?: string;
-      }
-    > = {};
+    // Group records by student - dynamically handle all CA fields
+    const studentGrades: Record<string, any> = {};
 
     records.forEach((record) => {
       const studentId = record.studentId;
@@ -1049,22 +1065,20 @@ export class TeachersService {
         };
       }
 
-      // Extract CA type from assignmentId (e.g., "CA_CA1", "CA_CA2", etc.)
-      const caType = record.assignmentId?.replace('CA_', '');
-      const score = record.score;
+      // Extract CA type from comments field (new format) or assignmentId (legacy format)
+      // e.g., "CA_CA1", "CA_CA2", "CA_CA5", "CA_EXAM", etc.
+      const caType = (record.comments || record.assignmentId)?.replace('CA_', '');
+      const score = record.caScore;
       const grade = record.grade;
 
-      if (caType === 'CA1') {
-        studentGrades[studentId].ca1 = score;
-      } else if (caType === 'CA2') {
-        studentGrades[studentId].ca2 = score;
-      } else if (caType === 'CA3') {
-        studentGrades[studentId].ca3 = score;
-      } else if (caType === 'CA4') {
-        studentGrades[studentId].ca4 = score;
-      } else if (caType === 'EXAM') {
+      if (caType === 'EXAM') {
         studentGrades[studentId].exam = score;
         studentGrades[studentId].grade = grade;
+      } else if (caType && caType.match(/^CA\d+$/i)) {
+        // Dynamically handle any CA field (CA1, CA2, CA3, ..., CA20, etc.)
+        // Convert to lowercase for consistency (CA1 -> ca1, CA5 -> ca5)
+        const caKey = caType.toLowerCase();
+        studentGrades[studentId][caKey] = score;
       }
     });
 
@@ -1117,26 +1131,28 @@ export class TeachersService {
 
     // Process each student's grades
     for (const record of dto.records) {
-      const caTypes = [
-        { key: 'ca1', assignmentId: 'CA_CA1' },
-        { key: 'ca2', assignmentId: 'CA_CA2' },
-        { key: 'ca3', assignmentId: 'CA_CA3' },
-        { key: 'ca4', assignmentId: 'CA_CA4' },
-        { key: 'exam', assignmentId: 'CA_EXAM' },
-      ];
+      // Dynamically process all CA fields (ca1, ca2, ca3, ..., ca20, etc.)
+      // Extract all keys that start with 'ca' followed by a number
+      const caFields = Object.keys(record).filter(
+        (key) => key.match(/^ca\d+$/i) && typeof record[key] === 'number'
+      );
 
-      for (const caType of caTypes) {
-        const score = record[caType.key as keyof typeof record] as
-          | number
-          | undefined;
+      // Process all CA fields dynamically
+      for (const caKey of caFields) {
+        const score = record[caKey] as number;
 
-        if (score !== undefined && score !== null) {
+        if (score !== undefined && score !== null && !isNaN(score)) {
+          // Extract CA number (e.g., 'ca1' -> 'CA1', 'ca5' -> 'CA5')
+          const caNumber = caKey.toUpperCase();
+          const caType = `CA_${caNumber}`;
+
           // Calculate percentage and grade
           const maxScore = 100;
           const percentage = (score / maxScore) * 100;
           const grade = this.calculateGrade(percentage);
 
-          // Delete existing record if any
+          // Delete existing record if any - handle both new format (comments) and legacy format (assignmentId)
+          // Legacy format used assignmentId like "CA_CA1", new format uses comments
           await this.prisma.academicRecord.deleteMany({
             where: {
               teacherId: teacher.id,
@@ -1144,11 +1160,21 @@ export class TeachersService {
               classId: dto.classId,
               subjectId: dto.subjectId,
               termId: dto.termId,
-              assignmentId: caType.assignmentId,
+              OR: [
+                // New format: assignmentId is null, CA type in comments
+                {
+                  assignmentId: null,
+                  comments: caType,
+                },
+                // Legacy format: assignmentId with CA_ prefix (e.g., "CA_CA1")
+                {
+                  assignmentId: caType,
+                },
+              ],
             },
           });
 
-          // Create new record
+          // Create new record with assignmentId as null and CA type in comments
           const academicRecord = await this.prisma.academicRecord.create({
             data: {
               studentId: record.studentId,
@@ -1156,22 +1182,78 @@ export class TeachersService {
               subjectId: dto.subjectId,
               classId: dto.classId,
               termId: dto.termId,
-              assignmentId: caType.assignmentId,
-              score,
-              maxScore,
-              grade: caType.key === 'exam' ? record.grade || grade : grade,
+              assignmentId: null,
+              comments: caType,
+              caScore: score,
+              maxcaScore: maxScore,
+              grade,
               percentage,
+              status: 'Completed',
               gpa: this.calculateGPA(grade),
               recordedBy: teacher.userId,
               modifiedBy: teacher.userId,
-            },
+            } as Prisma.AcademicRecordUncheckedCreateInput,
           });
 
           results.push(academicRecord);
         }
       }
 
+      // Process exam field separately
+      if (record.exam !== undefined && record.exam !== null && !isNaN(record.exam)) {
+        const score = record.exam as number;
+        const maxScore = 100;
+        const percentage = (score / maxScore) * 100;
+        const grade = this.calculateGrade(percentage);
+
+        // Delete existing exam record if any - handle both new format (comments) and legacy format (assignmentId)
+        await this.prisma.academicRecord.deleteMany({
+          where: {
+            teacherId: teacher.id,
+            studentId: record.studentId,
+            classId: dto.classId,
+            subjectId: dto.subjectId,
+            termId: dto.termId,
+            OR: [
+              // New format: assignmentId is null, exam type in comments
+              {
+                assignmentId: null,
+                comments: 'CA_EXAM',
+              },
+              // Legacy format: assignmentId is CA_EXAM
+              {
+                assignmentId: 'CA_EXAM',
+              },
+            ],
+          },
+        });
+
+        // Create new exam record with assignmentId as null and exam type in comments
+        const academicRecord = await this.prisma.academicRecord.create({
+          data: {
+            studentId: record.studentId,
+            teacherId: teacher.id,
+            subjectId: dto.subjectId,
+            classId: dto.classId,
+            termId: dto.termId,
+            assignmentId: null,
+            comments: 'CA_EXAM',
+            caScore: score,
+            maxcaScore: maxScore,
+            grade: record.grade || grade,
+            percentage,
+            status: 'Completed',
+            gpa: this.calculateGPA(record.grade || grade),
+            recordedBy: teacher.userId,
+            modifiedBy: teacher.userId,
+          } as Prisma.AcademicRecordUncheckedCreateInput,
+        });
+
+        results.push(academicRecord);
+      }
+
       // If grade is provided separately, update the exam record's grade
+      // Handle both new format (comments) and legacy format (assignmentId)
       if (record.grade) {
         await this.prisma.academicRecord.updateMany({
           where: {
@@ -1180,7 +1262,17 @@ export class TeachersService {
             classId: dto.classId,
             subjectId: dto.subjectId,
             termId: dto.termId,
-            assignmentId: 'CA_EXAM',
+            OR: [
+              // New format: assignmentId is null, exam type in comments
+              {
+                assignmentId: null,
+                comments: 'CA_EXAM',
+              },
+              // Legacy format: assignmentId is CA_EXAM
+              {
+                assignmentId: 'CA_EXAM',
+              },
+            ],
           },
           data: {
             grade: record.grade,
@@ -1220,7 +1312,7 @@ export class TeachersService {
       );
     }
 
-    // Delete all CA records for this student
+    // Delete all CA records for this student - using comments field to identify CA records
     const deleted = await this.prisma.academicRecord.deleteMany({
       where: {
         teacherId: teacher.id,
@@ -1228,7 +1320,8 @@ export class TeachersService {
         classId,
         subjectId,
         termId,
-        assignmentId: {
+        assignmentId: null,
+        comments: {
           startsWith: 'CA_',
         },
       },
@@ -1238,6 +1331,109 @@ export class TeachersService {
       message: 'Continuous assessment grades deleted successfully',
       deleted: deleted.count,
     };
+  }
+
+  async saveAssignmentGrade(userId: string, dto: CreateAssignmentGradeDto) {
+    const teacher = await this.getTeacherByUserId(userId);
+
+    const assignment = await this.prisma.assignment.findUnique({
+      where: { id: dto.assignmentId },
+      include: {
+        class: true,
+        subject: true,
+        term: true,
+      },
+    });
+
+    if (!assignment || assignment.teacherId !== teacher.id) {
+      throw new ForbiddenException('You are not assigned to this assignment.');
+    }
+
+    const student = await this.prisma.student.findFirst({
+      where: {
+        id: dto.studentId,
+        schoolId: teacher.schoolId,
+      },
+    });
+
+    if (!student) {
+      throw new BadRequestException('Student not found for this school.');
+    }
+
+    const classId = dto.classId || assignment.classId;
+    const subjectId = dto.subjectId || assignment.subjectId;
+    const termId = dto.termId || assignment.termId;
+
+    if (!classId || !subjectId || !termId) {
+      throw new BadRequestException(
+        'Class, subject, and term information are required to record grades.',
+      );
+    }
+
+    const maxScoreValue = dto.maxScore ?? assignment.maxScore ?? 100;
+    const safeMaxScore = maxScoreValue > 0 ? maxScoreValue : 100;
+    const rawScore = dto.score ?? 0;
+    const safeScore = Math.min(Math.max(rawScore, 0), safeMaxScore);
+    const percentage = safeMaxScore > 0 ? (safeScore / safeMaxScore) * 100 : 0;
+    const computedGrade = dto.grade || this.calculateGrade(percentage);
+    const status = dto.status || 'Completed';
+
+    const existingRecord = await this.prisma.academicRecord.findFirst({
+      where: {
+        assignmentId: dto.assignmentId,
+        studentId: dto.studentId,
+      },
+    });
+
+    let savedRecord;
+    if (existingRecord) {
+      savedRecord = await this.prisma.academicRecord.update({
+        where: { id: existingRecord.id },
+        data: {
+          caScore: safeScore,
+          maxcaScore: safeMaxScore,
+          grade: computedGrade,
+          percentage,
+          status,
+          comments: dto.comments || null,
+          gpa: this.calculateGPA(computedGrade),
+          modifiedBy: teacher.userId,
+        } as Prisma.AcademicRecordUncheckedUpdateInput,
+      });
+    } else {
+      savedRecord = await this.prisma.academicRecord.create({
+        data: {
+          studentId: dto.studentId,
+          teacherId: teacher.id,
+          subjectId,
+          classId,
+          termId,
+          assignmentId: dto.assignmentId,
+          caScore: safeScore,
+          maxcaScore: safeMaxScore,
+          grade: computedGrade,
+          percentage,
+          status,
+          comments: dto.comments || null,
+          gpa: this.calculateGPA(computedGrade),
+          recordedBy: teacher.userId,
+          modifiedBy: teacher.userId,
+        } as Prisma.AcademicRecordUncheckedCreateInput,
+      });
+    }
+
+    const hydratedRecord = await this.prisma.academicRecord.findUnique({
+      where: { id: savedRecord.id },
+      include: {
+        student: { include: { user: true } },
+        assignment: true,
+        subject: true,
+        class: true,
+        term: true,
+      },
+    });
+
+    return this.mapAcademicRecord(hydratedRecord);
   }
 
   private calculateGrade(percentage: number): string {

@@ -16,6 +16,7 @@ import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
 import { CreateContinuousAssessmentDto } from './dto/create-continuous-assessment.dto';
+import { CreateAssignmentGradeDto } from './dto/create-assignment-grade.dto';
 
 @ApiTags('Teachers')
 @ApiBearerAuth()
@@ -152,6 +153,15 @@ export class TeachersController {
   ) {
     this.ensureTeacherAccess(req);
     return this.teachersService.saveContinuousAssessment(req.user.id, dto);
+  }
+
+  @Post('me/assignment-grades')
+  async saveAssignmentGrade(
+    @Request() req: any,
+    @Body() dto: CreateAssignmentGradeDto,
+  ) {
+    this.ensureTeacherAccess(req);
+    return this.teachersService.saveAssignmentGrade(req.user.id, dto);
   }
 
   @Delete('me/continuous-assessment/:studentId')

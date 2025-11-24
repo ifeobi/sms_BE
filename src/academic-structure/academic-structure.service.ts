@@ -1368,4 +1368,166 @@ export class AcademicStructureService {
       },
     });
   }
+
+  // ==================== ASSESSMENT STRUCTURE METHODS ====================
+
+  async getAssessmentStructures(schoolId: string) {
+    return this.prisma.assessmentStructure.findMany({
+      where: { schoolId, isActive: true },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+      orderBy: {
+        level: {
+          order: 'asc',
+        },
+      },
+    });
+  }
+
+  async getAssessmentStructureByLevel(levelId: string, schoolId: string) {
+    return this.prisma.assessmentStructure.findUnique({
+      where: {
+        levelId_schoolId: {
+          levelId,
+          schoolId,
+        },
+      },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+    });
+  }
+
+  async createAssessmentStructure(
+    schoolId: string,
+    data: {
+      levelId: string;
+      caComponents: any;
+      examConfig?: any;
+      calculationMethod?: string;
+      totalMaxScore?: number;
+    },
+  ) {
+    // Validate that level belongs to school
+    const level = await this.prisma.level.findFirst({
+      where: {
+        id: data.levelId,
+        schoolId,
+      },
+    });
+
+    if (!level) {
+      throw new BadRequestException('Level not found or does not belong to school');
+    }
+
+    // Check if assessment structure already exists for this level
+    const existing = await this.prisma.assessmentStructure.findUnique({
+      where: {
+        levelId_schoolId: {
+          levelId: data.levelId,
+          schoolId,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Assessment structure already exists for this level');
+    }
+
+    return this.prisma.assessmentStructure.create({
+      data: {
+        levelId: data.levelId,
+        schoolId,
+        caComponents: data.caComponents,
+        examConfig: data.examConfig || null,
+        calculationMethod: data.calculationMethod || 'sum',
+        totalMaxScore: data.totalMaxScore || null,
+        isActive: true,
+      },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+    });
+  }
+
+  async updateAssessmentStructure(
+    id: string,
+    schoolId: string,
+    data: {
+      caComponents?: any;
+      examConfig?: any;
+      calculationMethod?: string;
+      totalMaxScore?: number;
+      isActive?: boolean;
+    },
+  ) {
+    // Verify the assessment structure belongs to the school
+    const existing = await this.prisma.assessmentStructure.findFirst({
+      where: {
+        id,
+        schoolId,
+      },
+    });
+
+    if (!existing) {
+      throw new BadRequestException('Assessment structure not found');
+    }
+
+    return this.prisma.assessmentStructure.update({
+      where: { id },
+      data: {
+        ...(data.caComponents && { caComponents: data.caComponents }),
+        ...(data.examConfig !== undefined && { examConfig: data.examConfig }),
+        ...(data.calculationMethod && { calculationMethod: data.calculationMethod }),
+        ...(data.totalMaxScore !== undefined && { totalMaxScore: data.totalMaxScore }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
+      },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+    });
+  }
+
+  async deleteAssessmentStructure(id: string, schoolId: string) {
+    // Verify the assessment structure belongs to the school
+    const existing = await this.prisma.assessmentStructure.findFirst({
+      where: {
+        id,
+        schoolId,
+      },
+    });
+
+    if (!existing) {
+      throw new BadRequestException('Assessment structure not found');
+    }
+
+    return this.prisma.assessmentStructure.delete({
+      where: { id },
+    });
+  }
 }
