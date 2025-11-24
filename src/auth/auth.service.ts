@@ -343,7 +343,6 @@ export class AuthService {
 
       const schoolData = {
         name: registerDto.schoolName as string,
-        type: registerDto.schoolTypes[0] as string, // Use the frontend value directly
         country: registerDto.country as string,
         street: primaryAddress?.street,
         city: primaryAddress?.city,
