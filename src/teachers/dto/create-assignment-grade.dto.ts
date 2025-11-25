@@ -31,13 +31,5 @@ export class CreateAssignmentGradeDto {
   @IsOptional()
   @IsString()
   grade?: string;
-
-  @IsOptional()
-  @IsString()
-  status?: string;
-
-  @IsOptional()
-  @IsString()
-  comments?: string;
 }
 
