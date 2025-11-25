@@ -74,6 +74,7 @@ export class TeachersController {
     @Request() req: any,
     @Query('classId') classId?: string,
     @Query('termId') termId?: string,
+    @Query('subjectId') subjectId?: string,
     @Query('startDate') startDate?: string,
     @Query('endDate') endDate?: string,
   ) {
@@ -82,6 +83,7 @@ export class TeachersController {
     const filters = {
       classId: classId || undefined,
       termId: termId || undefined,
+      subjectId: subjectId || undefined,
       startDate: startDate ? new Date(startDate) : undefined,
       endDate: endDate ? new Date(endDate) : undefined,
     };
@@ -180,6 +182,15 @@ export class TeachersController {
       subjectId,
       termId,
     );
+  }
+
+  @Delete('me/assignments/:id')
+  async deleteAssignment(
+    @Request() req: any,
+    @Param('id') assignmentId: string,
+  ) {
+    this.ensureTeacherAccess(req);
+    return this.teachersService.deleteAssignment(req.user.id, assignmentId);
   }
 }
 
