@@ -109,12 +109,23 @@ export class DigitalPurchasesController {
       return this.digitalPurchasesService.getStudentLibrary(student.id);
     }
 
-    // Check if user is parent
+    // Check if user is parent - first check Parent table, then fallback to User type
     const parent = await this.prisma.parent.findUnique({
       where: { userId: req.user.id },
     });
 
     if (parent) {
+      return this.digitalPurchasesService.getParentPurchases(req.user.id);
+    }
+
+    // Fallback: Check User's type field (case-insensitive)
+    // This handles cases where Parent record doesn't exist yet but User type is "parent"
+    const user = await this.prisma.user.findUnique({
+      where: { id: req.user.id },
+      select: { type: true },
+    });
+
+    if (user && user.type?.toLowerCase() === 'parent') {
       return this.digitalPurchasesService.getParentPurchases(req.user.id);
     }
 

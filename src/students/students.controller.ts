@@ -54,7 +54,7 @@ export class StudentsController {
   @ApiOperation({ summary: 'Get logged-in parent\'s children' })
   @ApiResponse({ status: 200, description: 'List of children returned' })
   async getMyChildren(@Request() req: any) {
-    if (req.user?.type !== 'parent') {
+    if (req.user?.type?.toLowerCase() !== 'parent') {
       throw new ForbiddenException('Only parents can access their children');
     }
     return this.studentsService.getChildrenForParent(req.user.id);
