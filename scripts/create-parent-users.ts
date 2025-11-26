@@ -91,4 +91,5 @@ async function createParentUsers() {
 
 createParentUsers();
 
+export {};
 
