@@ -147,24 +147,170 @@ export class TeachersService {
     };
   }
 
+  private mapAssignmentGrade(grade: any) {
+    if (!grade) {
+      return null;
+    }
+
+    return {
+      id: grade.id,
+      assignmentId: grade.assignmentId,
+      studentId: grade.studentId,
+      teacherId: grade.teacherId,
+      classId: grade.classId,
+      subjectId: grade.subjectId,
+      termId: grade.termId,
+      score: grade.score ?? null,
+      maxScore: grade.maxScore ?? null,
+      percentage: grade.percentage,
+      // Note: grade, gpa, feedback, and comments are handled by CAComponentGrade
+      isLate: grade.isLate,
+      latePenaltyApplied: grade.latePenaltyApplied,
+      resubmissionCount: grade.resubmissionCount,
+      attemptNumber: grade.attemptNumber,
+      gradedAt: grade.gradedAt,
+      submittedAt: grade.submittedAt,
+      recordedAt: grade.recordedAt,
+      recordedBy: grade.recordedBy,
+      lastModified: grade.lastModified,
+      modifiedBy: grade.modifiedBy,
+      isActive: grade.isActive,
+      isPublished: grade.isPublished,
+      publishedAt: grade.publishedAt,
+      assignment: grade.assignment
+        ? {
+            id: grade.assignment.id,
+            title: grade.assignment.title,
+            dueDate: grade.assignment.dueDate,
+            maxScore: grade.assignment.maxScore,
+            weight: grade.assignment.weight,
+            category: grade.assignment.category,
+            type: grade.assignment.type,
+          }
+        : null,
+      student: grade.student
+        ? {
+            id: grade.student.id,
+            studentNumber: grade.student.studentNumber,
+            fullName: grade.student.user?.fullName || 
+              `${grade.student.user?.firstName || ''} ${grade.student.user?.lastName || ''}`.trim(),
+            firstName: grade.student.user?.firstName,
+            lastName: grade.student.user?.lastName,
+            email: grade.student.user?.email,
+          }
+        : null,
+      subject: grade.subject
+        ? {
+            id: grade.subject.id,
+            name: grade.subject.name,
+            code: grade.subject.code,
+          }
+        : null,
+      class: grade.class
+        ? {
+            id: grade.class.id,
+            name: grade.class.name,
+            shortName: grade.class.shortName,
+          }
+        : null,
+      term: grade.term
+        ? {
+            id: grade.term.id,
+            name: grade.term.name,
+            academicYear: grade.term.academicYear,
+          }
+        : null,
+    };
+  }
+
+  private mapCAComponentGrade(grade: any) {
+    if (!grade) {
+      return null;
+    }
+
+    return {
+      id: grade.id,
+      studentId: grade.studentId,
+      teacherId: grade.teacherId,
+      subjectId: grade.subjectId,
+      classId: grade.classId,
+      termId: grade.termId,
+      componentType: grade.componentType,
+      componentName: grade.componentName,
+      score: grade.score ?? null,
+      maxScore: grade.maxScore ?? null,
+      grade: grade.grade,
+      percentage: grade.percentage,
+      gpa: grade.gpa,
+      feedback: grade.feedback,
+      notes: grade.notes,
+      gradedAt: grade.gradedAt,
+      recordedAt: grade.recordedAt,
+      recordedBy: grade.recordedBy,
+      lastModified: grade.lastModified,
+      modifiedBy: grade.modifiedBy,
+      isActive: grade.isActive,
+      isPublished: grade.isPublished,
+      publishedAt: grade.publishedAt,
+      student: grade.student
+        ? {
+            id: grade.student.id,
+            studentNumber: grade.student.studentNumber,
+            fullName: grade.student.user?.fullName || 
+              `${grade.student.user?.firstName || ''} ${grade.student.user?.lastName || ''}`.trim(),
+            firstName: grade.student.user?.firstName,
+            lastName: grade.student.user?.lastName,
+            email: grade.student.user?.email,
+          }
+        : null,
+      subject: grade.subject
+        ? {
+            id: grade.subject.id,
+            name: grade.subject.name,
+            code: grade.subject.code,
+          }
+        : null,
+      class: grade.class
+        ? {
+            id: grade.class.id,
+            name: grade.class.name,
+            shortName: grade.class.shortName,
+          }
+        : null,
+      term: grade.term
+        ? {
+            id: grade.term.id,
+            name: grade.term.name,
+            academicYear: grade.term.academicYear,
+          }
+        : null,
+    };
+  }
+
+  /**
+   * @deprecated This function is deprecated. Use mapAssignmentGrade() or mapCAComponentGrade() instead.
+   * Kept for backward compatibility during migration period.
+   */
   private mapAcademicRecord(record: any) {
     if (!record) {
       return null;
     }
 
+    // Legacy function - AcademicRecord fields have been moved to AssignmentGrade and CAComponentGrade
+    // This function is kept for backward compatibility only
     return {
       id: record.id,
-      assignmentId: record.assignmentId,
+      assignmentId: record.assignmentId || null,
       classId: record.classId,
       subjectId: record.subjectId,
       termId: record.termId,
-      score: record.caScore,
-      maxScore: record.maxcaScore,
-      grade: record.grade,
-      percentage: record.percentage,
-      gpa: record.gpa,
-      feedback: record.feedback,
-      gradedAt: record.gradedAt,
+      score: null, // Moved to AssignmentGrade.score or CAComponentGrade.score
+      maxScore: null, // Moved to AssignmentGrade.maxScore or CAComponentGrade.maxScore
+      grade: null, // Moved to AssignmentGrade.grade or CAComponentGrade.grade
+      percentage: null, // Moved to AssignmentGrade.percentage or CAComponentGrade.percentage
+      gpa: null, // Moved to AssignmentGrade.gpa or CAComponentGrade.gpa
+      feedback: null, // No longer used
+      gradedAt: null, // Moved to AssignmentGrade.gradedAt or CAComponentGrade.gradedAt
       assignment: record.assignment
         ? {
             id: record.assignment.id,
@@ -812,25 +958,15 @@ export class TeachersService {
   async getGrades(userId: string, filters: GradeFilters) {
     const teacher = await this.getTeacherByUserId(userId);
 
-    const where: Prisma.AcademicRecordWhereInput = {
-      teacherId: teacher.id,
-    };
-
-    if (filters.classId) {
-      where.classId = filters.classId;
-    }
-    if (filters.subjectId) {
-      where.subjectId = filters.subjectId;
-    }
-    if (filters.termId) {
-      where.termId = filters.termId;
-    }
-    if (filters.assignmentId) {
-      where.assignmentId = filters.assignmentId;
-    }
-
-    const records = await this.prisma.academicRecord.findMany({
-      where,
+    // Read from AssignmentGrade table (NEW: separate table for assignment grades)
+    const assignmentGrades = await this.prisma.assignmentGrade.findMany({
+      where: {
+        teacherId: teacher.id,
+        ...(filters.classId && { classId: filters.classId }),
+        ...(filters.subjectId && { subjectId: filters.subjectId }),
+        ...(filters.termId && { termId: filters.termId }),
+        ...(filters.assignmentId && { assignmentId: filters.assignmentId }),
+      },
       include: {
         student: {
           include: {
@@ -841,6 +977,7 @@ export class TeachersService {
         subject: true,
         class: true,
         term: true,
+        teacher: true,
       },
       orderBy: {
         gradedAt: 'desc',
@@ -848,7 +985,7 @@ export class TeachersService {
       take: 500,
     });
 
-    return records.map((record) => this.mapAcademicRecord(record));
+    return assignmentGrades.map((grade) => this.mapAssignmentGrade(grade));
   }
 
   async getDashboard(userId: string) {
@@ -869,8 +1006,9 @@ export class TeachersService {
         where: {
           teacherId: teacher.id,
           dueDate: {
-            gte: new Date(),
+            gte: new Date(), // Only get assignments with future due dates
           },
+          isActive: true, // Only active assignments
         },
         orderBy: {
           dueDate: 'asc',
@@ -919,7 +1057,8 @@ export class TeachersService {
       ? (attendanceSummary.present / attendanceSummary.total) * 100
       : 0;
 
-    const academicRecords = await this.prisma.academicRecord.findMany({
+    // Get percentages from both AssignmentGrade and CAComponentGrade (NEW: separate tables)
+    const assignmentGrades = await this.prisma.assignmentGrade.findMany({
       where: { teacherId: teacher.id },
       select: {
         percentage: true,
@@ -927,29 +1066,64 @@ export class TeachersService {
       take: 1000,
     });
 
-    const averagePerformance = academicRecords.length
-      ? academicRecords.reduce((sum, record) => sum + record.percentage, 0) / academicRecords.length
+    const caGrades = await this.prisma.cAComponentGrade.findMany({
+      where: { teacherId: teacher.id },
+      select: {
+        percentage: true,
+      },
+      take: 1000,
+    });
+
+    // Combine all grades for statistics
+    const allGrades = [
+      ...assignmentGrades.map((g) => g.percentage),
+      ...caGrades.map((g) => g.percentage),
+    ].filter((p) => p !== null && p !== undefined) as number[];
+
+    const averagePerformance = allGrades.length
+      ? allGrades.reduce((sum, p) => sum + p, 0) / allGrades.length
       : 0;
 
-    const atRiskStudents = await this.prisma.academicRecord.count({
-      where: {
-        teacherId: teacher.id,
-        percentage: {
-          lt: 60,
+    const atRiskStudents = await Promise.all([
+      this.prisma.assignmentGrade.count({
+        where: {
+          teacherId: teacher.id,
+          percentage: {
+            lt: 60,
+          },
         },
-      },
-    });
-
-    const excellingStudents = await this.prisma.academicRecord.count({
-      where: {
-        teacherId: teacher.id,
-        percentage: {
-          gte: 90,
+      }),
+      this.prisma.cAComponentGrade.count({
+        where: {
+          teacherId: teacher.id,
+          percentage: {
+            lt: 60,
+          },
         },
-      },
-    });
+      }),
+    ]).then(([assignmentCount, caCount]) => assignmentCount + caCount);
 
-    const recentGrades = await this.prisma.academicRecord.findMany({
+    const excellingStudents = await Promise.all([
+      this.prisma.assignmentGrade.count({
+        where: {
+          teacherId: teacher.id,
+          percentage: {
+            gte: 90,
+          },
+        },
+      }),
+      this.prisma.cAComponentGrade.count({
+        where: {
+          teacherId: teacher.id,
+          percentage: {
+            gte: 90,
+          },
+        },
+      }),
+    ]).then(([assignmentCount, caCount]) => assignmentCount + caCount);
+
+    // Get recent grades from both tables
+    const recentAssignmentGrades = await this.prisma.assignmentGrade.findMany({
       where: { teacherId: teacher.id },
       orderBy: { gradedAt: 'desc' },
       take: 5,
@@ -963,44 +1137,88 @@ export class TeachersService {
       },
     });
 
+    const recentCAGrades = await this.prisma.cAComponentGrade.findMany({
+      where: { teacherId: teacher.id },
+      orderBy: { gradedAt: 'desc' },
+      take: 5,
+      include: {
+        student: {
+          include: {
+            user: true,
+          },
+        },
+      },
+    });
+
+    // Combine and sort recent grades
+    const recentGrades = [
+      ...recentAssignmentGrades.map((g) => ({
+        ...g,
+        type: 'assignment' as const,
+      })),
+      ...recentCAGrades.map((g) => ({
+        ...g,
+        type: 'ca' as const,
+      })),
+    ]
+      .sort((a, b) => {
+        const aDate = a.gradedAt || a.recordedAt;
+        const bDate = b.gradedAt || b.recordedAt;
+        return bDate.getTime() - aDate.getTime();
+      })
+      .slice(0, 5);
+
     const recentActivity = recentGrades.map((record) => ({
       type: 'grade_entered',
-      description: record.assignment
-        ? `Entered grades for ${record.assignment.title}`
-        : 'Recorded grades',
-      timestamp: record.gradedAt,
+      description:
+        record.type === 'assignment' && record.assignment
+          ? `Entered grades for ${record.assignment.title}`
+          : record.type === 'ca'
+            ? `Recorded ${record.componentType || 'CA'} grade`
+            : 'Recorded grades',
+      timestamp: record.gradedAt || record.recordedAt,
       student: record.student
         ? {
             id: record.student.id,
-            firstName: record.student.user.firstName,
-            lastName: record.student.user.lastName,
+            firstName: record.student.user?.firstName,
+            lastName: record.student.user?.lastName,
           }
         : null,
     }));
 
     const upcomingAssignmentIds = upcomingAssignments.map((assignment) => assignment.id);
 
+    // Get all graded students for upcoming assignments
+    // A student is considered "graded" if they have an AssignmentGrade record with a non-null score
+    // Note: Using Set in the reduce function ensures each student is only counted once per assignment
     const upcomingAssignmentGrades = upcomingAssignmentIds.length
-      ? await this.prisma.academicRecord.findMany({
+      ? await this.prisma.assignmentGrade.findMany({
           where: {
             assignmentId: {
               in: upcomingAssignmentIds,
             },
+            score: {
+              not: null, // Student has been scored
+            },
+            isActive: true, // Only count active grades
           },
           select: {
             assignmentId: true,
             studentId: true,
-            caScore: true,
+            score: true,
           },
         })
       : [];
 
+    // Group graded students by assignment ID
+    // Use Set to ensure each student is only counted once (even if they have multiple attempts)
     const submittedByAssignment = upcomingAssignmentGrades.reduce(
       (acc, record) => {
         if (
           !record.assignmentId ||
-          record.caScore === null ||
-          record.caScore === undefined
+          !record.studentId ||
+          record.score === null ||
+          record.score === undefined
         ) {
           return acc;
         }
@@ -1013,38 +1231,58 @@ export class TeachersService {
       {} as Record<string, Set<string>>,
     );
 
-    const upcomingDeadlines = upcomingAssignments.map((assignment) => {
-      const submittedStudents = submittedByAssignment[assignment.id] ?? new Set<string>();
-      const pendingAssignees = (assignment.assignees ?? []).filter(
-        (assignee) => !submittedStudents.has(assignee.studentId),
-      );
+    // Filter assignments: only show those with pending (ungraded) students
+    const upcomingDeadlines = upcomingAssignments
+      .map((assignment) => {
+        const gradedStudents = submittedByAssignment[assignment.id] ?? new Set<string>();
+        const totalAssignees = assignment.assignees?.length ?? 0;
+        const gradedCount = gradedStudents.size;
+        
+        // If assignment has no students assigned, skip it
+        if (totalAssignees === 0) {
+          return null;
+        }
+        
+        // Check if ALL students have been graded (score exists)
+        // If all students are graded, exclude from deadlines regardless of due date
+        const allStudentsGraded = gradedCount >= totalAssignees;
+        
+        if (allStudentsGraded) {
+          return null; // Don't show in deadlines - all students are done
+        }
+        
+        // Find students who haven't been graded yet
+        const pendingAssignees = (assignment.assignees ?? []).filter(
+          (assignee) => !gradedStudents.has(assignee.studentId),
+        );
 
-      const pendingStudents = pendingAssignees.map((assignee) => {
-        const fullName =
-          assignee.student?.user?.fullName ||
-          `${assignee.student?.user?.firstName || ''} ${assignee.student?.user?.lastName || ''}`.trim();
+        const pendingStudents = pendingAssignees.map((assignee) => {
+          const fullName =
+            assignee.student?.user?.fullName ||
+            `${assignee.student?.user?.firstName || ''} ${assignee.student?.user?.lastName || ''}`.trim();
+          return {
+            id: assignee.student?.id ?? assignee.studentId,
+            studentNumber: assignee.student?.studentNumber,
+            fullName: fullName || 'Unknown student',
+          };
+        });
+
         return {
-          id: assignee.student?.id ?? assignee.studentId,
-          studentNumber: assignee.student?.studentNumber,
-          fullName: fullName || 'Unknown student',
+          id: assignment.id,
+          title: assignment.title,
+          dueDate: assignment.dueDate,
+          class: assignment.class
+            ? {
+                id: assignment.class.id,
+                name: assignment.class.name,
+                shortName: assignment.class.shortName,
+              }
+            : null,
+          pendingStudents,
+          pendingCount: pendingStudents.length,
         };
-      });
-
-      return {
-        id: assignment.id,
-        title: assignment.title,
-        dueDate: assignment.dueDate,
-        class: assignment.class
-          ? {
-              id: assignment.class.id,
-              name: assignment.class.name,
-              shortName: assignment.class.shortName,
-            }
-          : null,
-        pendingStudents,
-        pendingCount: pendingStudents.length,
-      };
-    });
+      })
+      .filter((deadline) => deadline !== null); // Remove assignments where all students are graded
 
     return {
       stats: {
@@ -1084,18 +1322,13 @@ export class TeachersService {
       );
     }
 
-    // Fetch all CA-related academic records for this class/subject/term
-    // CA records have null assignmentId and store type identifier in feedback field (CA_CA1, CA_CA2, CA_EXAM, etc.)
-    const records = await this.prisma.academicRecord.findMany({
+    // Fetch all CA component grades from CAComponentGrade table (NEW: separate table)
+    const caGrades = await this.prisma.cAComponentGrade.findMany({
       where: {
         teacherId: teacher.id,
         classId,
         subjectId,
         termId,
-        assignmentId: null, // CA records don't reference assignments
-        feedback: {
-          startsWith: 'CA_', // CA type identifier stored in feedback field
-        },
         isActive: true,
       },
       include: {
@@ -1110,36 +1343,35 @@ export class TeachersService {
       },
     });
 
-    // Group records by student - dynamically handle all CA fields
+    // Group grades by student - dynamically handle all CA fields
     const studentGrades: Record<string, any> = {};
 
-    records.forEach((record) => {
-      const studentId = record.studentId;
+    caGrades.forEach((grade) => {
+      const studentId = grade.studentId;
       if (!studentGrades[studentId]) {
         studentGrades[studentId] = {
           studentId,
           studentName:
-            record.student.user?.fullName ||
-            `${record.student.user?.firstName || ''} ${
-              record.student.user?.lastName || ''
+            grade.student.user?.fullName ||
+            `${grade.student.user?.firstName || ''} ${
+              grade.student.user?.lastName || ''
             }`.trim() ||
             'Unknown',
         };
       }
 
-      // Extract CA type from feedback field
-      // e.g., "CA_CA1", "CA_CA2", "CA_CA5", "CA_EXAM", etc.
-      const caType = record.feedback?.replace('CA_', '');
-      const score = record.caScore;
-      const grade = record.grade;
+      // Use componentType directly (e.g., "CA1", "CA2", "EXAM")
+      const componentType = grade.componentType;
+      const score = grade.score ?? null;
+      const gradeLetter = grade.grade;
 
-      if (caType === 'EXAM') {
+      if (componentType === 'EXAM' || componentType.toUpperCase() === 'EXAM') {
         studentGrades[studentId].exam = score;
-        studentGrades[studentId].grade = grade;
-      } else if (caType && caType.match(/^CA\d+$/i)) {
+        studentGrades[studentId].grade = gradeLetter;
+      } else if (componentType && componentType.match(/^CA\d+$/i)) {
         // Dynamically handle any CA field (CA1, CA2, CA3, ..., CA20, etc.)
         // Convert to lowercase for consistency (CA1 -> ca1, CA5 -> ca5)
-        const caKey = caType.toLowerCase();
+        const caKey = componentType.toLowerCase();
         studentGrades[studentId][caKey] = score;
       }
     });
@@ -1189,6 +1421,24 @@ export class TeachersService {
       );
     }
 
+    // Get AssessmentStructure to validate component types and get max scores
+    const classData = await this.prisma.class.findUnique({
+      where: { id: dto.classId },
+      include: { level: true },
+    });
+
+    let assessmentStructure: any = null;
+    if (classData?.levelId) {
+      assessmentStructure = await this.prisma.assessmentStructure.findUnique({
+        where: {
+          levelId_schoolId: {
+            levelId: classData.levelId,
+            schoolId: teacher.schoolId,
+          },
+        },
+      });
+    }
+
     const results: any[] = [];
 
     // Process each student's grades
@@ -1206,109 +1456,141 @@ export class TeachersService {
         if (score !== undefined && score !== null && !isNaN(score)) {
           // Extract CA number (e.g., 'ca1' -> 'CA1', 'ca5' -> 'CA5')
           const caNumber = caKey.toUpperCase();
-          const caType = `CA_${caNumber}`;
+          const componentType = caNumber; // e.g., "CA1", "CA2"
+
+          // Get max score from AssessmentStructure if available
+          let maxScore = 10; // Default
+          let componentName = null;
+          if (assessmentStructure?.caComponents && Array.isArray(assessmentStructure.caComponents)) {
+            const componentIndex = parseInt(caNumber.replace('CA', '')) - 1;
+            const component = assessmentStructure.caComponents[componentIndex];
+            if (component) {
+              maxScore = component.maxScore || 10;
+              componentName = component.name || componentType;
+            }
+          }
 
           // Calculate percentage and grade
-          const maxScore = 100;
           const percentage = (score / maxScore) * 100;
           const grade = this.calculateGrade(percentage);
 
-          // Delete existing record if any - CA records use null assignmentId and store type in feedback
-          await this.prisma.academicRecord.deleteMany({
+          // Upsert CAComponentGrade (NEW: separate table for CA component grades)
+          const caGrade = await this.prisma.cAComponentGrade.upsert({
             where: {
-              teacherId: teacher.id,
-              studentId: record.studentId,
-              classId: dto.classId,
-              subjectId: dto.subjectId,
-              termId: dto.termId,
-              assignmentId: null,
-              feedback: caType, // Use feedback field to store CA type identifier
+              studentId_subjectId_classId_termId_componentType: {
+                studentId: record.studentId,
+                subjectId: dto.subjectId,
+                classId: dto.classId,
+                termId: dto.termId,
+                componentType: componentType,
+              },
             },
-          });
-
-          // Create new record with null assignmentId (CA records aren't tied to assignments)
-          // Store CA type in feedback field for identification
-          const academicRecord = await this.prisma.academicRecord.create({
-            data: {
+            update: {
+              score,
+              maxScore,
+              grade,
+              percentage,
+              gpa: this.calculateGPA(grade),
+              componentName,
+              modifiedBy: teacher.userId,
+              gradedAt: new Date(),
+            },
+            create: {
               studentId: record.studentId,
               teacherId: teacher.id,
               subjectId: dto.subjectId,
               classId: dto.classId,
               termId: dto.termId,
-              assignmentId: null, // CA records don't reference assignments
-              feedback: caType, // Store CA type (CA_CA1, CA_CA2, etc.) in feedback field
-              caScore: score,
-              maxcaScore: maxScore,
+              componentType: componentType,
+              componentName,
+              score,
+              maxScore,
               grade,
               percentage,
               gpa: this.calculateGPA(grade),
               recordedBy: teacher.userId,
               modifiedBy: teacher.userId,
-            } as Prisma.AcademicRecordUncheckedCreateInput,
+              gradedAt: new Date(),
+            },
           });
 
-          results.push(academicRecord);
+          results.push(caGrade);
         }
       }
 
       // Process exam field separately
       if (record.exam !== undefined && record.exam !== null && !isNaN(record.exam)) {
         const score = record.exam as number;
-        const maxScore = 100;
+        
+        // Get exam max score from AssessmentStructure if available
+        let maxScore = 60; // Default
+        let componentName = 'EXAM';
+        if (assessmentStructure?.examConfig) {
+          maxScore = assessmentStructure.examConfig.maxScore || 60;
+          componentName = 'EXAM';
+        }
+
         const percentage = (score / maxScore) * 100;
         const grade = this.calculateGrade(percentage);
 
-        // Delete existing exam record if any - exam records use null assignmentId and store type in feedback
-        await this.prisma.academicRecord.deleteMany({
+        // Upsert CAComponentGrade for EXAM (NEW: separate table)
+        const examGrade = await this.prisma.cAComponentGrade.upsert({
           where: {
-            teacherId: teacher.id,
-            studentId: record.studentId,
-            classId: dto.classId,
-            subjectId: dto.subjectId,
-            termId: dto.termId,
-            assignmentId: null,
-            feedback: 'CA_EXAM', // Use feedback field to store exam identifier
+            studentId_subjectId_classId_termId_componentType: {
+              studentId: record.studentId,
+              subjectId: dto.subjectId,
+              classId: dto.classId,
+              termId: dto.termId,
+              componentType: 'EXAM',
+            },
           },
-        });
-
-        // Create new exam record with null assignmentId (exam records aren't tied to assignments)
-        // Store exam type in feedback field for identification
-        const academicRecord = await this.prisma.academicRecord.create({
-          data: {
+          update: {
+            score,
+            maxScore,
+            grade: record.grade || grade,
+            percentage,
+            gpa: this.calculateGPA(record.grade || grade),
+            componentName,
+            modifiedBy: teacher.userId,
+            gradedAt: new Date(),
+          },
+          create: {
             studentId: record.studentId,
             teacherId: teacher.id,
             subjectId: dto.subjectId,
             classId: dto.classId,
             termId: dto.termId,
-            assignmentId: null, // Exam records don't reference assignments
-            feedback: 'CA_EXAM', // Store exam identifier in feedback field
-            caScore: score,
-            maxcaScore: maxScore,
+            componentType: 'EXAM',
+            componentName,
+            score,
+            maxScore,
             grade: record.grade || grade,
             percentage,
             gpa: this.calculateGPA(record.grade || grade),
             recordedBy: teacher.userId,
             modifiedBy: teacher.userId,
-          } as Prisma.AcademicRecordUncheckedCreateInput,
+            gradedAt: new Date(),
+          },
         });
 
-        results.push(academicRecord);
+        results.push(examGrade);
       }
 
       // If grade is provided separately, update the exam record's grade
       if (record.grade) {
-        await this.prisma.academicRecord.updateMany({
+        await this.prisma.cAComponentGrade.updateMany({
           where: {
             teacherId: teacher.id,
             studentId: record.studentId,
             classId: dto.classId,
             subjectId: dto.subjectId,
             termId: dto.termId,
-            assignmentId: null,
-            feedback: 'CA_EXAM', // Identify exam record by feedback field
+            componentType: 'EXAM',
           },
           data: {
             grade: record.grade,
+            gpa: this.calculateGPA(record.grade),
+            modifiedBy: teacher.userId,
           },
         });
       }
@@ -1345,18 +1627,14 @@ export class TeachersService {
       );
     }
 
-    // Delete all CA records for this student - CA records have null assignmentId and type in feedback field
-    const deleted = await this.prisma.academicRecord.deleteMany({
+    // Delete all CA component grades for this student (NEW: use CAComponentGrade table)
+    const deleted = await this.prisma.cAComponentGrade.deleteMany({
       where: {
         teacherId: teacher.id,
         studentId,
         classId,
         subjectId,
         termId,
-        assignmentId: null, // CA records don't reference assignments
-        feedback: {
-          startsWith: 'CA_', // CA type identifier stored in feedback field
-        },
       },
     });
 
@@ -1408,60 +1686,79 @@ export class TeachersService {
     const rawScore = dto.score ?? 0;
     const safeScore = Math.min(Math.max(rawScore, 0), safeMaxScore);
     const percentage = safeMaxScore > 0 ? (safeScore / safeMaxScore) * 100 : 0;
-    const computedGrade = dto.grade || this.calculateGrade(percentage);
+    // Note: grade is handled by CAComponentGrade, not stored in AssignmentGrade
 
-    const existingRecord = await this.prisma.academicRecord.findFirst({
+    // Ensure AssignmentAssignee exists (for tracking assignment-student relationship)
+    await (this.prisma as any).assignmentAssignee.upsert({
       where: {
+        assignmentId_studentId: {
+          assignmentId: dto.assignmentId,
+          studentId: dto.studentId,
+        },
+      },
+      update: {},
+      create: {
         assignmentId: dto.assignmentId,
         studentId: dto.studentId,
       },
     });
 
-    let savedRecord;
-    if (existingRecord) {
-      savedRecord = await this.prisma.academicRecord.update({
-        where: { id: existingRecord.id },
+    // Update or create AssignmentGrade (NEW: separate table for assignment grades)
+    const existingGrade = await this.prisma.assignmentGrade.findFirst({
+      where: {
+        assignmentId: dto.assignmentId,
+        studentId: dto.studentId,
+        attemptNumber: 1, // Default to first attempt
+      },
+    });
+
+    let savedGrade;
+    if (existingGrade) {
+      savedGrade = await this.prisma.assignmentGrade.update({
+        where: { id: existingGrade.id },
         data: {
-          caScore: safeScore,
-          maxcaScore: safeMaxScore,
-          grade: computedGrade,
+          score: safeScore,
+          maxScore: safeMaxScore,
           percentage,
-          gpa: this.calculateGPA(computedGrade),
+          // Note: grade, gpa, feedback, and comments are handled by CAComponentGrade
           modifiedBy: teacher.userId,
-        } as Prisma.AcademicRecordUncheckedUpdateInput,
+          gradedAt: new Date(),
+        },
       });
     } else {
-      savedRecord = await this.prisma.academicRecord.create({
+      savedGrade = await this.prisma.assignmentGrade.create({
         data: {
+          assignmentId: dto.assignmentId,
           studentId: dto.studentId,
           teacherId: teacher.id,
           subjectId,
           classId,
           termId,
-          assignmentId: dto.assignmentId,
-          caScore: safeScore,
-          maxcaScore: safeMaxScore,
-          grade: computedGrade,
+          score: safeScore,
+          maxScore: safeMaxScore,
           percentage,
-          gpa: this.calculateGPA(computedGrade),
+          // Note: grade, gpa, feedback, and comments are handled by CAComponentGrade
           recordedBy: teacher.userId,
           modifiedBy: teacher.userId,
-        } as Prisma.AcademicRecordUncheckedCreateInput,
+          gradedAt: new Date(),
+        },
       });
     }
 
-    const hydratedRecord = await this.prisma.academicRecord.findUnique({
-      where: { id: savedRecord.id },
+    // Fetch hydrated grade with relations
+    const hydratedGrade = await this.prisma.assignmentGrade.findUnique({
+      where: { id: savedGrade.id },
       include: {
         student: { include: { user: true } },
         assignment: true,
         subject: true,
         class: true,
         term: true,
+        teacher: true,
       },
     });
 
-    return this.mapAcademicRecord(hydratedRecord);
+    return this.mapAssignmentGrade(hydratedGrade);
   }
 
   async deleteAssignment(userId: string, assignmentId: string) {
