@@ -62,7 +62,7 @@ export class TeachersService {
         email: teacher.user.email,
         firstName: teacher.user.firstName,
         lastName: teacher.user.lastName,
-        fullName: teacher.user.fullName || `${teacher.user.firstName} ${teacher.user.lastName}`.trim(),
+        fullName: `${teacher.user.firstName} ${teacher.user.lastName}`.trim(),
       },
       school: teacher.school
         ? {
@@ -135,7 +135,6 @@ export class TeachersService {
                   id: assignee.student.id,
                   studentNumber: assignee.student.studentNumber,
                   fullName:
-                    assignee.student.user?.fullName ||
                     `${assignee.student.user?.firstName ?? ''} ${assignee.student.user?.lastName ?? ''}`.trim(),
                   firstName: assignee.student.user?.firstName,
                   lastName: assignee.student.user?.lastName,
@@ -192,8 +191,7 @@ export class TeachersService {
         ? {
             id: grade.student.id,
             studentNumber: grade.student.studentNumber,
-            fullName: grade.student.user?.fullName || 
-              `${grade.student.user?.firstName || ''} ${grade.student.user?.lastName || ''}`.trim(),
+            fullName: `${grade.student.user?.firstName || ''} ${grade.student.user?.lastName || ''}`.trim(),
             firstName: grade.student.user?.firstName,
             lastName: grade.student.user?.lastName,
             email: grade.student.user?.email,
@@ -256,8 +254,7 @@ export class TeachersService {
         ? {
             id: grade.student.id,
             studentNumber: grade.student.studentNumber,
-            fullName: grade.student.user?.fullName || 
-              `${grade.student.user?.firstName || ''} ${grade.student.user?.lastName || ''}`.trim(),
+            fullName: `${grade.student.user?.firstName || ''} ${grade.student.user?.lastName || ''}`.trim(),
             firstName: grade.student.user?.firstName,
             lastName: grade.student.user?.lastName,
             email: grade.student.user?.email,
@@ -348,7 +345,6 @@ export class TeachersService {
             firstName: record.student.user?.firstName,
             lastName: record.student.user?.lastName,
             fullName:
-              record.student.user?.fullName ||
               `${record.student.user?.firstName || ''} ${
                 record.student.user?.lastName || ''
               }`.trim(),
@@ -749,7 +745,7 @@ export class TeachersService {
       studentNumber: student.studentNumber,
       firstName: student.user.firstName,
       lastName: student.user.lastName,
-      fullName: student.user.fullName || `${student.user.firstName} ${student.user.lastName}`.trim(),
+      fullName: `${student.user.firstName} ${student.user.lastName}`.trim(),
       email: student.user.email,
       status: student.status,
       dateOfBirth: student.dateOfBirth,
@@ -841,7 +837,6 @@ export class TeachersService {
               firstName: record.student.user.firstName,
               lastName: record.student.user.lastName,
               fullName:
-                record.student.user.fullName ||
                 `${record.student.user.firstName} ${record.student.user.lastName}`.trim(),
             }
           : null,
@@ -1258,7 +1253,6 @@ export class TeachersService {
 
         const pendingStudents = pendingAssignees.map((assignee) => {
           const fullName =
-            assignee.student?.user?.fullName ||
             `${assignee.student?.user?.firstName || ''} ${assignee.student?.user?.lastName || ''}`.trim();
           return {
             id: assignee.student?.id ?? assignee.studentId,
@@ -1352,7 +1346,6 @@ export class TeachersService {
         studentGrades[studentId] = {
           studentId,
           studentName:
-            grade.student.user?.fullName ||
             `${grade.student.user?.firstName || ''} ${
               grade.student.user?.lastName || ''
             }`.trim() ||

@@ -21,7 +21,6 @@ model User {
   updatedAt       DateTime            @updatedAt
   createdBy       String?
   lastLoginAt     DateTime?
-  fullName        String?
   bio             String?
   country         String?
   website         String?
@@ -127,18 +126,11 @@ model Student {
   hearingIssues             Boolean                    @default(false)
   mobilityIssues            Boolean                    @default(false)
   dietaryRestrictions       String[]
-  fatherName                String?
-  fatherOccupation          String?
-  fatherPhone               String?
-  fatherEmail               String?
-  motherName                String?
-  motherOccupation          String?
-  motherPhone               String?
-  motherEmail               String?
-  guardianName              String?
-  guardianRelationship      String?
-  guardianPhone             String?
-  guardianEmail             String?
+  parentFirstName           String?
+  parentLastName            String?
+  parentPhone               String?
+  parentEmail               String?
+  parentSex                 Gender?
   familyIncome              String?
   familySize                Int?
   lastModified              DateTime                   @updatedAt

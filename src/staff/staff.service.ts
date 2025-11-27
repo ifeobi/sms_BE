@@ -85,7 +85,6 @@ export class StaffService {
         type: userType,
         firstName: userData.firstName,
         lastName: userData.lastName,
-        fullName: `${userData.firstName} ${userData.lastName}`,
         phone: userData.phone,
         isActive: userData.isActive ?? true,
       },
@@ -310,7 +309,6 @@ export class StaffService {
           ...(updateData.lastName && { lastName: updateData.lastName }),
           ...(updateData.firstName &&
             updateData.lastName && {
-              fullName: `${updateData.firstName} ${updateData.lastName}`,
             }),
           ...(updateData.email && { email: updateData.email }),
           ...(updateData.phone && { phone: updateData.phone }),
