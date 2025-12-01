@@ -28,8 +28,8 @@ export class CreateAttendanceDto {
   @IsString()
   termId: string;
 
-  @IsOptional()
   @IsString()
+  @IsOptional()
   subjectId?: string;
 
   @IsDateString()

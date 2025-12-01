@@ -19,6 +19,7 @@ import { CreateAssignmentGradeDto } from './dto/create-assignment-grade.dto';
 interface AttendanceFilters {
   classId?: string;
   termId?: string;
+  subjectId?: string;
   startDate?: Date;
   endDate?: Date;
 }
@@ -160,10 +161,8 @@ export class TeachersService {
       score: record.caScore,
       maxScore: record.maxcaScore,
       grade: record.grade,
-      status: record.status,
       percentage: record.percentage,
       gpa: record.gpa,
-      comments: record.comments,
       feedback: record.feedback,
       gradedAt: record.gradedAt,
       assignment: record.assignment
@@ -271,6 +270,7 @@ export class TeachersService {
     const assignments = await this.prisma.assignment.findMany({
       where: {
         teacherId: teacher.id,
+        isActive: true, // Only return active (not deleted) assignments
       },
       include: {
         class: {
@@ -640,6 +640,10 @@ export class TeachersService {
       where.termId = filters.termId;
     }
 
+    if (filters.subjectId) {
+      where.subjectId = filters.subjectId;
+    }
+
     if (filters.startDate || filters.endDate) {
       where.date = {};
       if (filters.startDate) {
@@ -660,6 +664,7 @@ export class TeachersService {
         },
         class: true,
         term: true,
+        subject: true,
       },
       orderBy: {
         date: 'desc',
@@ -763,10 +768,12 @@ export class TeachersService {
     }
 
     await this.prisma.$transaction(async (tx) => {
+      // Delete existing attendance records for this date, class, subject, and students
       await tx.attendanceRecord.deleteMany({
         where: {
           teacherId: teacher.id,
           classId: dto.classId,
+          ...(dto.subjectId ? { subjectId: dto.subjectId } : {}),
           studentId: { in: studentIds },
           date: {
             gte: startOfDay,
@@ -775,6 +782,7 @@ export class TeachersService {
         },
       });
 
+      // Create new attendance records with subjectId
       for (const record of dto.records) {
         await tx.attendanceRecord.create({
           data: {
@@ -782,6 +790,7 @@ export class TeachersService {
             classId: dto.classId,
             teacherId: teacher.id,
             termId: dto.termId,
+            subjectId: dto.subjectId || null,
             date: attendanceDate,
             status: record.status,
             reason: record.reason?.trim() || null,
@@ -794,6 +803,7 @@ export class TeachersService {
     return this.getAttendance(userId, {
       classId: dto.classId,
       termId: dto.termId,
+      subjectId: dto.subjectId,
       startDate: startOfDay,
       endDate: endOfDay,
     });
@@ -867,6 +877,15 @@ export class TeachersService {
         },
         include: {
           class: true,
+          assignees: {
+            include: {
+              student: {
+                include: {
+                  user: true,
+                },
+              },
+            },
+          },
         },
         take: 10,
       }),
@@ -959,18 +978,73 @@ export class TeachersService {
         : null,
     }));
 
-    const upcomingDeadlines = upcomingAssignments.map((assignment) => ({
-      id: assignment.id,
-      title: assignment.title,
-      dueDate: assignment.dueDate,
-      class: assignment.class
-        ? {
-            id: assignment.class.id,
-            name: assignment.class.name,
-            shortName: assignment.class.shortName,
-          }
-        : null,
-    }));
+    const upcomingAssignmentIds = upcomingAssignments.map((assignment) => assignment.id);
+
+    const upcomingAssignmentGrades = upcomingAssignmentIds.length
+      ? await this.prisma.academicRecord.findMany({
+          where: {
+            assignmentId: {
+              in: upcomingAssignmentIds,
+            },
+          },
+          select: {
+            assignmentId: true,
+            studentId: true,
+            caScore: true,
+          },
+        })
+      : [];
+
+    const submittedByAssignment = upcomingAssignmentGrades.reduce(
+      (acc, record) => {
+        if (
+          !record.assignmentId ||
+          record.caScore === null ||
+          record.caScore === undefined
+        ) {
+          return acc;
+        }
+        if (!acc[record.assignmentId]) {
+          acc[record.assignmentId] = new Set<string>();
+        }
+        acc[record.assignmentId].add(record.studentId);
+        return acc;
+      },
+      {} as Record<string, Set<string>>,
+    );
+
+    const upcomingDeadlines = upcomingAssignments.map((assignment) => {
+      const submittedStudents = submittedByAssignment[assignment.id] ?? new Set<string>();
+      const pendingAssignees = (assignment.assignees ?? []).filter(
+        (assignee) => !submittedStudents.has(assignee.studentId),
+      );
+
+      const pendingStudents = pendingAssignees.map((assignee) => {
+        const fullName =
+          assignee.student?.user?.fullName ||
+          `${assignee.student?.user?.firstName || ''} ${assignee.student?.user?.lastName || ''}`.trim();
+        return {
+          id: assignee.student?.id ?? assignee.studentId,
+          studentNumber: assignee.student?.studentNumber,
+          fullName: fullName || 'Unknown student',
+        };
+      });
+
+      return {
+        id: assignment.id,
+        title: assignment.title,
+        dueDate: assignment.dueDate,
+        class: assignment.class
+          ? {
+              id: assignment.class.id,
+              name: assignment.class.name,
+              shortName: assignment.class.shortName,
+            }
+          : null,
+        pendingStudents,
+        pendingCount: pendingStudents.length,
+      };
+    });
 
     return {
       stats: {
@@ -1011,29 +1085,17 @@ export class TeachersService {
     }
 
     // Fetch all CA-related academic records for this class/subject/term
-    // Using comments field to identify CA type (CA_CA1, CA_CA2, CA_EXAM, etc.)
-    // Also handle legacy records that used assignmentId with CA_ prefix
+    // CA records have null assignmentId and store type identifier in feedback field (CA_CA1, CA_CA2, CA_EXAM, etc.)
     const records = await this.prisma.academicRecord.findMany({
       where: {
         teacherId: teacher.id,
         classId,
         subjectId,
         termId,
-        OR: [
-          // New format: assignmentId is null, CA type in comments
-          {
-            assignmentId: null,
-            comments: {
-              startsWith: 'CA_',
-            },
-          },
-          // Legacy format: assignmentId starts with CA_
-          {
-            assignmentId: {
-              startsWith: 'CA_',
-            },
-          },
-        ],
+        assignmentId: null, // CA records don't reference assignments
+        feedback: {
+          startsWith: 'CA_', // CA type identifier stored in feedback field
+        },
         isActive: true,
       },
       include: {
@@ -1065,9 +1127,9 @@ export class TeachersService {
         };
       }
 
-      // Extract CA type from comments field (new format) or assignmentId (legacy format)
+      // Extract CA type from feedback field
       // e.g., "CA_CA1", "CA_CA2", "CA_CA5", "CA_EXAM", etc.
-      const caType = (record.comments || record.assignmentId)?.replace('CA_', '');
+      const caType = record.feedback?.replace('CA_', '');
       const score = record.caScore;
       const grade = record.grade;
 
@@ -1151,8 +1213,7 @@ export class TeachersService {
           const percentage = (score / maxScore) * 100;
           const grade = this.calculateGrade(percentage);
 
-          // Delete existing record if any - handle both new format (comments) and legacy format (assignmentId)
-          // Legacy format used assignmentId like "CA_CA1", new format uses comments
+          // Delete existing record if any - CA records use null assignmentId and store type in feedback
           await this.prisma.academicRecord.deleteMany({
             where: {
               teacherId: teacher.id,
@@ -1160,21 +1221,13 @@ export class TeachersService {
               classId: dto.classId,
               subjectId: dto.subjectId,
               termId: dto.termId,
-              OR: [
-                // New format: assignmentId is null, CA type in comments
-                {
-                  assignmentId: null,
-                  comments: caType,
-                },
-                // Legacy format: assignmentId with CA_ prefix (e.g., "CA_CA1")
-                {
-                  assignmentId: caType,
-                },
-              ],
+              assignmentId: null,
+              feedback: caType, // Use feedback field to store CA type identifier
             },
           });
 
-          // Create new record with assignmentId as null and CA type in comments
+          // Create new record with null assignmentId (CA records aren't tied to assignments)
+          // Store CA type in feedback field for identification
           const academicRecord = await this.prisma.academicRecord.create({
             data: {
               studentId: record.studentId,
@@ -1182,13 +1235,12 @@ export class TeachersService {
               subjectId: dto.subjectId,
               classId: dto.classId,
               termId: dto.termId,
-              assignmentId: null,
-              comments: caType,
+              assignmentId: null, // CA records don't reference assignments
+              feedback: caType, // Store CA type (CA_CA1, CA_CA2, etc.) in feedback field
               caScore: score,
               maxcaScore: maxScore,
               grade,
               percentage,
-              status: 'Completed',
               gpa: this.calculateGPA(grade),
               recordedBy: teacher.userId,
               modifiedBy: teacher.userId,
@@ -1206,7 +1258,7 @@ export class TeachersService {
         const percentage = (score / maxScore) * 100;
         const grade = this.calculateGrade(percentage);
 
-        // Delete existing exam record if any - handle both new format (comments) and legacy format (assignmentId)
+        // Delete existing exam record if any - exam records use null assignmentId and store type in feedback
         await this.prisma.academicRecord.deleteMany({
           where: {
             teacherId: teacher.id,
@@ -1214,21 +1266,13 @@ export class TeachersService {
             classId: dto.classId,
             subjectId: dto.subjectId,
             termId: dto.termId,
-            OR: [
-              // New format: assignmentId is null, exam type in comments
-              {
-                assignmentId: null,
-                comments: 'CA_EXAM',
-              },
-              // Legacy format: assignmentId is CA_EXAM
-              {
-                assignmentId: 'CA_EXAM',
-              },
-            ],
+            assignmentId: null,
+            feedback: 'CA_EXAM', // Use feedback field to store exam identifier
           },
         });
 
-        // Create new exam record with assignmentId as null and exam type in comments
+        // Create new exam record with null assignmentId (exam records aren't tied to assignments)
+        // Store exam type in feedback field for identification
         const academicRecord = await this.prisma.academicRecord.create({
           data: {
             studentId: record.studentId,
@@ -1236,13 +1280,12 @@ export class TeachersService {
             subjectId: dto.subjectId,
             classId: dto.classId,
             termId: dto.termId,
-            assignmentId: null,
-            comments: 'CA_EXAM',
+            assignmentId: null, // Exam records don't reference assignments
+            feedback: 'CA_EXAM', // Store exam identifier in feedback field
             caScore: score,
             maxcaScore: maxScore,
             grade: record.grade || grade,
             percentage,
-            status: 'Completed',
             gpa: this.calculateGPA(record.grade || grade),
             recordedBy: teacher.userId,
             modifiedBy: teacher.userId,
@@ -1253,7 +1296,6 @@ export class TeachersService {
       }
 
       // If grade is provided separately, update the exam record's grade
-      // Handle both new format (comments) and legacy format (assignmentId)
       if (record.grade) {
         await this.prisma.academicRecord.updateMany({
           where: {
@@ -1262,17 +1304,8 @@ export class TeachersService {
             classId: dto.classId,
             subjectId: dto.subjectId,
             termId: dto.termId,
-            OR: [
-              // New format: assignmentId is null, exam type in comments
-              {
-                assignmentId: null,
-                comments: 'CA_EXAM',
-              },
-              // Legacy format: assignmentId is CA_EXAM
-              {
-                assignmentId: 'CA_EXAM',
-              },
-            ],
+            assignmentId: null,
+            feedback: 'CA_EXAM', // Identify exam record by feedback field
           },
           data: {
             grade: record.grade,
@@ -1312,7 +1345,7 @@ export class TeachersService {
       );
     }
 
-    // Delete all CA records for this student - using comments field to identify CA records
+    // Delete all CA records for this student - CA records have null assignmentId and type in feedback field
     const deleted = await this.prisma.academicRecord.deleteMany({
       where: {
         teacherId: teacher.id,
@@ -1320,9 +1353,9 @@ export class TeachersService {
         classId,
         subjectId,
         termId,
-        assignmentId: null,
-        comments: {
-          startsWith: 'CA_',
+        assignmentId: null, // CA records don't reference assignments
+        feedback: {
+          startsWith: 'CA_', // CA type identifier stored in feedback field
         },
       },
     });
@@ -1376,7 +1409,6 @@ export class TeachersService {
     const safeScore = Math.min(Math.max(rawScore, 0), safeMaxScore);
     const percentage = safeMaxScore > 0 ? (safeScore / safeMaxScore) * 100 : 0;
     const computedGrade = dto.grade || this.calculateGrade(percentage);
-    const status = dto.status || 'Completed';
 
     const existingRecord = await this.prisma.academicRecord.findFirst({
       where: {
@@ -1394,8 +1426,6 @@ export class TeachersService {
           maxcaScore: safeMaxScore,
           grade: computedGrade,
           percentage,
-          status,
-          comments: dto.comments || null,
           gpa: this.calculateGPA(computedGrade),
           modifiedBy: teacher.userId,
         } as Prisma.AcademicRecordUncheckedUpdateInput,
@@ -1413,8 +1443,6 @@ export class TeachersService {
           maxcaScore: safeMaxScore,
           grade: computedGrade,
           percentage,
-          status,
-          comments: dto.comments || null,
           gpa: this.calculateGPA(computedGrade),
           recordedBy: teacher.userId,
           modifiedBy: teacher.userId,
@@ -1434,6 +1462,37 @@ export class TeachersService {
     });
 
     return this.mapAcademicRecord(hydratedRecord);
+  }
+
+  async deleteAssignment(userId: string, assignmentId: string) {
+    const teacher = await this.getTeacherByUserId(userId);
+
+    // Verify the assignment exists and belongs to this teacher
+    const assignment = await this.prisma.assignment.findUnique({
+      where: { id: assignmentId },
+    });
+
+    if (!assignment) {
+      throw new NotFoundException('Assignment not found.');
+    }
+
+    if (assignment.teacherId !== teacher.id) {
+      throw new ForbiddenException('You are not authorized to delete this assignment.');
+    }
+
+    // Soft delete: Set isActive to false instead of hard deleting
+    // This preserves all student grades (academic records) and assignment data
+    await this.prisma.assignment.update({
+      where: { id: assignmentId },
+      data: {
+        isActive: false,
+      },
+    });
+
+    return {
+      message: 'Assignment deleted successfully',
+      assignmentId: assignmentId,
+    };
   }
 
   private calculateGrade(percentage: number): string {

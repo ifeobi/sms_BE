@@ -27,11 +27,11 @@ model User {
   website         String?
   isEmailVerified Boolean             @default(false)
   creator         Creator?
+  purchasesMade   DigitalPurchase[]   @relation("PurchaseBuyer")
   escrowAsBuyer   EscrowTransaction[] @relation("EscrowBuyer")
   escrowAsSeller  EscrowTransaction[] @relation("EscrowSeller")
   parent          Parent?
   productRatings  ProductRating[]
-  purchasesMade   DigitalPurchase[]   @relation("PurchaseBuyer")
   schoolAdmin     SchoolAdmin?
   sellerBalance   SellerBalance?      @relation("SellerBalance")
   student         Student?
@@ -43,34 +43,18 @@ model User {
 }
 
 model UserSettings {
-  id        String   @id @default(cuid())
-  userId    String   @unique
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Profile settings
-  profileData Json? // Store profile preferences as JSON
-
-  // Notification settings
-  notifications Json? // Store notification preferences as JSON
-
-  // Privacy settings
-  privacy Json? // Store privacy preferences as JSON
-
-  // Security settings
-  security Json? // Store security preferences as JSON
-
-  // Appearance settings
-  appearance Json? // Store appearance preferences as JSON
-
-  // Accessibility settings
-  accessibility Json? // Store accessibility preferences as JSON
-
-  // Communication settings
-  communication Json? // Store communication preferences as JSON
-
-  // Relationships
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  id            String   @id @default(cuid())
+  userId        String   @unique
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+  profileData   Json?
+  notifications Json?
+  privacy       Json?
+  security      Json?
+  appearance    Json?
+  accessibility Json?
+  communication Json?
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@map("user_settings")
 }
@@ -92,20 +76,20 @@ model School {
   street                String?
   landmark              String?
   academicTerms         AcademicTerm[]
+  assessmentStructures  AssessmentStructure[]
   bulkImports           BulkImport[]
   classes               Class[]
+  customSectionPatterns CustomSectionPattern[]
   gradingScales         GradingScale[]
   levels                Level[]
-  assessmentStructures  AssessmentStructure[]
   parents               ParentSchoolRelationship[]
+  schoolAcademicConfig  SchoolAcademicConfig?
   schoolAdmins          SchoolAdmin[]
+  sections              Section[]
   students              Student[]
   subjects              Subject[]
   teacherAssignments    TeacherAssignment[]
   teachers              Teacher[]
-  schoolAcademicConfig  SchoolAcademicConfig?
-  sections              Section[]
-  customSectionPatterns CustomSectionPattern[]
 
   @@map("schools")
 }
@@ -117,7 +101,6 @@ model Student {
   studentNumber             String                     @unique
   currentLevelId            String
   currentClassId            String
-  currentSectionId          String? // Optional section within class
   academicYear              String
   status                    StudentStatus              @default(ACTIVE)
   enrollmentDate            DateTime                   @default(now())
@@ -161,7 +144,9 @@ model Student {
   lastModified              DateTime                   @updatedAt
   modifiedBy                String
   notes                     String?
+  currentSectionId          String?
   academicRecords           AcademicRecord[]
+  assignmentAssignees       AssignmentAssignee[]
   attendanceRecords         AttendanceRecord[]
   bulkImportRecords         BulkImportRecord[]
   digitalPurchases          DigitalPurchase[]
@@ -173,15 +158,14 @@ model Student {
   achievements              StudentAchievement[]
   documents                 StudentDocument[]
   healthRecords             StudentHealthRecord[]
+  subjectEnrollments        StudentSubjectEnrollment[]
   currentClass              Class                      @relation("StudentCurrentClass", fields: [currentClassId], references: [id])
   currentLevel              Level                      @relation("StudentCurrentLevel", fields: [currentLevelId], references: [id])
+  section                   Section?                   @relation("StudentCurrentSection", fields: [currentSectionId], references: [id])
   school                    School                     @relation(fields: [schoolId], references: [id])
   user                      User                       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  section                   Section?                   @relation("StudentCurrentSection", fields: [currentSectionId], references: [id])
   timelineEvents            TimelineEvent[]
   parentRelationships       ParentSchoolRelationship[] @relation("ParentSchoolRelationshipToStudent")
-  subjectEnrollments        StudentSubjectEnrollment[]
-  assignmentAssignees       AssignmentAssignee[]
 
   @@map("students")
 }
@@ -192,10 +176,10 @@ model Level {
   name                 String
   order                Int
   isActive             Boolean               @default(true)
+  assessmentStructures AssessmentStructure[]
   classes              Class[]
   school               School                @relation(fields: [schoolId], references: [id])
   students             Student[]             @relation("StudentCurrentLevel")
-  assessmentStructures AssessmentStructure[]
 
   @@map("levels")
 }
@@ -205,26 +189,26 @@ model Class {
   levelId            String
   schoolId           String
   name               String
-  shortName          String? // "P1", "G1", etc. - abbreviated name
-  sectionName        String? // "A", "Red", "Lion", "Alpha-1" - null for base class
-  sectionOrder       Int? // Order within level for sections (1, 2, 3...)
-  capacity           Int? // Student capacity per section
-  templateUsed       String? // "alphabetical", "colors", "custom", etc.
-  graduation         Boolean                    @default(false) // Whether this class level graduates students
   order              Int
   isActive           Boolean                    @default(true)
+  capacity           Int?
   createdAt          DateTime                   @default(now())
+  sectionName        String?
+  sectionOrder       Int?
+  templateUsed       String?
   updatedAt          DateTime                   @updatedAt
+  graduation         Boolean                    @default(false)
+  shortName          String?
   academicRecords    AcademicRecord[]
   assignments        Assignment[]
   attendanceRecords  AttendanceRecord[]
   level              Level                      @relation(fields: [levelId], references: [id])
   school             School                     @relation(fields: [schoolId], references: [id])
+  sections           Section[]
+  studentEnrollments StudentSubjectEnrollment[]
   students           Student[]                  @relation("StudentCurrentClass")
   teachers           TeacherAssignment[]
   subjects           Subject[]                  @relation("ClassToSubject")
-  sections           Section[]
-  studentEnrollments StudentSubjectEnrollment[]
 
   @@map("classes")
 }
@@ -235,14 +219,15 @@ model Subject {
   name               String
   code               String
   description        String?
-  category           String? // For analytics grouping (e.g., "English", "Mathematics")
   isActive           Boolean                    @default(true)
+  category           String?
   academicRecords    AcademicRecord[]
   assignments        Assignment[]
+  studentEnrollments StudentSubjectEnrollment[]
+  attendanceRecords  AttendanceRecord[]
   school             School                     @relation(fields: [schoolId], references: [id])
   teachers           TeacherAssignment[]
   classes            Class[]                    @relation("ClassToSubject")
-  studentEnrollments StudentSubjectEnrollment[]
 
   @@unique([schoolId, name])
   @@map("subjects")
@@ -259,85 +244,73 @@ model Teacher {
   academicRecords    AcademicRecord[]
   assignmentsCreated Assignment[]
   attendanceRecords  AttendanceRecord[]
+  sections           Section[]           @relation("SectionTeacher")
   teacherAssignments TeacherAssignment[]
   school             School              @relation(fields: [schoolId], references: [id])
   user               User                @relation(fields: [userId], references: [id], onDelete: Cascade)
-  sections           Section[]           @relation("SectionTeacher")
 
   @@map("teachers")
 }
 
-// ==================== ACADEMIC STRUCTURE ====================
-
 model SchoolAcademicConfig {
   id                 String   @id @default(cuid())
   schoolId           String   @unique
-  educationSystemId  String // Reference to education system (e.g., "nigeria-6334")
-  selectedLevels     String[] // Array of selected level IDs (e.g., ["primary", "jss"])
-  availableLevels    String[] // Array of available but inactive level IDs (e.g., ["nursery", "sss"])
-  customClassNames   Json? // Override default class names
-  customSubjectNames Json? // Override default subject names
+  educationSystemId  String
+  selectedLevels     String[]
+  availableLevels    String[]
+  customClassNames   Json?
+  customSubjectNames Json?
   isActive           Boolean  @default(true)
   createdAt          DateTime @default(now())
   updatedAt          DateTime @updatedAt
-
-  // Relationships
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
+  school             School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
   @@map("school_academic_configs")
 }
 
-// ==================== SECTION MANAGEMENT ====================
-
 model SectionTemplate {
-  id          String   @id @default(cuid())
-  name        String   @unique // "Alphabetical", "Numbers", "Colors", "Animals"
-  description String // "A, B, C, D, E, F..."
-  pattern     String[] // ["A", "B", "C", "D", "E", "F"]
-  isDefault   Boolean  @default(false)
-  isActive    Boolean  @default(true)
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
-
-  // Relationships
+  id             String                 @id @default(cuid())
+  name           String                 @unique
+  description    String
+  pattern        String[]
+  isDefault      Boolean                @default(false)
+  isActive       Boolean                @default(true)
+  createdAt      DateTime               @default(now())
+  updatedAt      DateTime               @updatedAt
   customPatterns CustomSectionPattern[]
 
   @@map("section_templates")
 }
 
 model CustomSectionPattern {
-  id         String   @id @default(cuid())
+  id         String           @id @default(cuid())
   schoolId   String
   templateId String?
-  name       String // "Custom Pattern 1"
-  pattern    String[] // ["Alpha", "Beta", "Gamma", "Delta"]
-  isActive   Boolean  @default(true)
-  createdAt  DateTime @default(now())
-  updatedAt  DateTime @updatedAt
-
-  // Relationships
-  school   School           @relation(fields: [schoolId], references: [id])
-  template SectionTemplate? @relation(fields: [templateId], references: [id])
+  name       String
+  pattern    String[]
+  isActive   Boolean          @default(true)
+  createdAt  DateTime         @default(now())
+  updatedAt  DateTime         @updatedAt
+  school     School           @relation(fields: [schoolId], references: [id])
+  template   SectionTemplate? @relation(fields: [templateId], references: [id])
 
   @@map("custom_section_patterns")
 }
 
 model Section {
-  id        String   @id @default(cuid())
+  id        String    @id @default(cuid())
   classId   String
   schoolId  String
-  name      String // "A", "B", "Red", "Alpha", etc.
-  teacherId String? // Assigned teacher for this section
-  capacity  Int? // Student capacity for this section
-  isActive  Boolean  @default(true)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
-
-  // Relationships
-  class    Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
-  school   School    @relation(fields: [schoolId], references: [id])
-  teacher  Teacher?  @relation("SectionTeacher", fields: [teacherId], references: [id])
-  students Student[] @relation("StudentCurrentSection")
+  name      String
+  teacherId String?
+  capacity  Int?
+  isActive  Boolean   @default(true)
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  class     Class     @relation(fields: [classId], references: [id], onDelete: Cascade)
+  school    School    @relation(fields: [schoolId], references: [id])
+  teacher   Teacher?  @relation("SectionTeacher", fields: [teacherId], references: [id])
+  students  Student[] @relation("StudentCurrentSection")
 
   @@map("sections")
 }
@@ -349,17 +322,17 @@ model TeacherAssignment {
   classId            String
   subjectId          String
   academicYear       String
-  termId             String?
   isFormTeacher      Boolean                    @default(false)
   isActive           Boolean                    @default(true)
   createdAt          DateTime                   @default(now())
   updatedAt          DateTime                   @updatedAt
+  termId             String?
+  studentEnrollments StudentSubjectEnrollment[]
   class              Class                      @relation(fields: [classId], references: [id])
   school             School                     @relation(fields: [schoolId], references: [id])
   subject            Subject                    @relation(fields: [subjectId], references: [id])
   teacher            Teacher                    @relation(fields: [teacherId], references: [id])
-  term               AcademicTerm?              @relation(fields: [termId], references: [id], onDelete: SetNull)
-  studentEnrollments StudentSubjectEnrollment[]
+  term               AcademicTerm?              @relation(fields: [termId], references: [id])
 
   @@map("teacher_assignments")
 }
@@ -439,9 +412,9 @@ model AcademicTerm {
   name               String
   startDate          DateTime
   endDate            DateTime
-  description        String?
   isActive           Boolean                    @default(true)
   academicYear       String
+  description        String?
   academicRecords    AcademicRecord[]
   school             School                     @relation(fields: [schoolId], references: [id])
   assignments        Assignment[]
@@ -460,13 +433,9 @@ model AcademicRecord {
   classId            String
   termId             String
   assignmentId       String?
-  caScore            Float        @map("score")
-  maxcaScore         Float        @map("maxScore")
   grade              String
-  status             String       @default("Pending")
   percentage         Float
   gpa                Float
-  comments           String?
   feedback           String?
   isLate             Boolean      @default(false)
   latePenaltyApplied Float        @default(0)
@@ -519,22 +488,24 @@ model Assignment {
   dueDateExtended     DateTime?
   extensionReason     String?
   academicRecords     AcademicRecord[]
+  assignees           AssignmentAssignee[]
   class               Class                @relation(fields: [classId], references: [id])
   subject             Subject              @relation(fields: [subjectId], references: [id])
   teacher             Teacher              @relation(fields: [teacherId], references: [id])
   term                AcademicTerm         @relation(fields: [termId], references: [id])
-  assignees           AssignmentAssignee[]
 
   @@map("assignments")
 }
 
 model AssignmentAssignee {
-  id           String     @id @default(cuid())
-  assignmentId String
-  studentId    String
-  assignedAt   DateTime   @default(now())
-  assignment   Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
-  student      Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
+  id                 String     @id @default(cuid())
+  assignmentId       String
+  studentId          String
+  assignedAt         DateTime   @default(now())
+  assignmentScore    Float?
+  assignmentMaxScore Float?
+  assignment         Assignment @relation(fields: [assignmentId], references: [id], onDelete: Cascade)
+  student            Student    @relation(fields: [studentId], references: [id], onDelete: Cascade)
 
   @@unique([assignmentId, studentId])
   @@map("assignment_assignees")
@@ -546,6 +517,7 @@ model AttendanceRecord {
   classId     String
   teacherId   String
   termId      String
+  subjectId   String?
   date        DateTime
   status      AttendanceStatus
   reason      String?
@@ -558,6 +530,7 @@ model AttendanceRecord {
   student     Student          @relation(fields: [studentId], references: [id])
   teacher     Teacher          @relation(fields: [teacherId], references: [id])
   term        AcademicTerm     @relation(fields: [termId], references: [id])
+  subject     Subject?         @relation(fields: [subjectId], references: [id])
 
   @@map("attendance_records")
 }
@@ -665,8 +638,8 @@ model StudentSubjectEnrollment {
   isActive            Boolean            @default(true)
   createdAt           DateTime           @default(now())
   updatedAt           DateTime           @updatedAt
-  student             Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
   class               Class              @relation(fields: [classId], references: [id])
+  student             Student            @relation(fields: [studentId], references: [id], onDelete: Cascade)
   subject             Subject            @relation(fields: [subjectId], references: [id])
   teacherAssignment   TeacherAssignment? @relation(fields: [teacherAssignmentId], references: [id])
   term                AcademicTerm?      @relation(fields: [termId], references: [id])
@@ -748,18 +721,17 @@ model AssessmentStructure {
   id                String   @id @default(cuid())
   levelId           String
   schoolId          String
-  caComponents      Json // Array of CA component configs: [{name: "CA1", maxScore: 10}, ...]
-  examConfig        Json? // Exam configuration: {maxScore: 60, isRequired: true}
-  calculationMethod String   @default("sum") // "sum" or "weighted"
-  totalMaxScore     Int? // Total possible score
+  caComponents      Json
+  examConfig        Json?
+  calculationMethod String   @default("sum")
+  totalMaxScore     Int?
   isActive          Boolean  @default(true)
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
+  level             Level    @relation(fields: [levelId], references: [id], onDelete: Cascade)
+  school            School   @relation(fields: [schoolId], references: [id], onDelete: Cascade)
 
-  level  Level  @relation(fields: [levelId], references: [id], onDelete: Cascade)
-  school School @relation(fields: [schoolId], references: [id], onDelete: Cascade)
-
-  @@unique([levelId, schoolId]) // One assessment structure per level per school
+  @@unique([levelId, schoolId])
   @@map("assessment_structures")
 }
 
@@ -891,12 +863,9 @@ model Content {
   updatedAt                DateTime          @updatedAt
   viewCount                Int               @default(0)
   downloadCount            Int               @default(0)
-  streamCount              Int               @default(0)
   salesCount               Int               @default(0)
-  ratingAverage            Float             @default(0.00)
+  ratingAverage            Float             @default(0)
   reviewCount              Int               @default(0)
-  marketplacePublishedAt   DateTime?
-  marketplaceUnpublishedAt DateTime?
   textbookAuthor           String?
   textbookEdition          String?
   textbookIsbn             String?
@@ -910,6 +879,9 @@ model Content {
   ebookLicenseType         String?
   ebookPages               String?
   ebookPrice               Float?
+  streamCount              Int               @default(0)
+  marketplacePublishedAt   DateTime?
+  marketplaceUnpublishedAt DateTime?
   contentCategory          ContentCategory?  @relation(fields: [contentCategoryId], references: [id])
   creator                  Creator           @relation(fields: [creatorId], references: [id], onDelete: Cascade)
   subjectCategory          SubjectCategory?  @relation(fields: [subjectCategoryId], references: [id])
@@ -968,8 +940,6 @@ model BulkImportRecord {
 model DigitalPurchase {
   id                String          @id @default(cuid())
   studentId         String
-  buyerId           String
-  buyerType         BuyerType
   contentId         String
   marketplaceItemId String
   creatorId         String
@@ -978,18 +948,20 @@ model DigitalPurchase {
   paymentReference  String?         @unique
   paymentMethod     String?
   status            PurchaseStatus  @default(PENDING)
-  giftMessage       String?
   downloadCount     Int             @default(0)
-  streamCount       Int             @default(0)
   lastDownloadedAt  DateTime?
-  lastStreamedAt    DateTime?
   purchasedAt       DateTime        @default(now())
   completedAt       DateTime?
+  buyerId           String
+  buyerType         BuyerType
+  giftMessage       String?
+  lastStreamedAt    DateTime?
+  streamCount       Int             @default(0)
+  buyer             User            @relation("PurchaseBuyer", fields: [buyerId], references: [id])
   content           Content         @relation(fields: [contentId], references: [id])
   creator           Creator         @relation(fields: [creatorId], references: [id])
   marketplaceItem   MarketplaceItem @relation(fields: [marketplaceItemId], references: [id])
   student           Student         @relation(fields: [studentId], references: [id])
-  buyer             User            @relation("PurchaseBuyer", fields: [buyerId], references: [id])
 
   @@map("digital_purchases")
 }
@@ -1212,7 +1184,6 @@ enum GradingScaleType {
 
 enum MarketplaceCategory {
   TEXTBOOK
-  EBOOK
   PAST_QUESTIONS
   TUTORIAL
   ASSIGNMENT
@@ -1222,6 +1193,7 @@ enum MarketplaceCategory {
   ASSESSMENT
   WORKSHEET
   AUDIO_BOOK
+  EBOOK
 }
 
 enum ContentType {
