@@ -141,4 +141,25 @@ export class SchoolController {
       );
     }
   }
+
+  @Get('parents')
+  @ApiOperation({ summary: 'Get parents linked to this school' })
+  @ApiResponse({
+    status: 200,
+    description: 'Parents retrieved successfully',
+  })
+  async getSchoolParents(@Request() req) {
+    if (req.user?.type?.toLowerCase() !== 'school_admin') {
+      throw new HttpException('Access denied', HttpStatus.FORBIDDEN);
+    }
+
+    try {
+      return await this.schoolService.getParentsForSchool(req.user.id);
+    } catch (error) {
+      throw new HttpException(
+        error.message || 'Failed to get parents',
+        error.status || HttpStatus.INTERNAL_SERVER_ERROR,
+      );
+    }
+  }
 }

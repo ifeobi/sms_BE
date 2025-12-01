@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger, BadRequestException } from '@nestjs/common';
+import { Prisma, GradingScaleType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 import { EducationSystemsService } from '../education-systems/education-systems.service';
 import { EducationSystem } from '../education-systems/interfaces/education-system.interface';
@@ -6,6 +7,8 @@ import { SectionManagementService } from '../section-management/section-manageme
 
 @Injectable()
 export class AcademicStructureService {
+  private readonly logger = new Logger(AcademicStructureService.name);
+
   constructor(
     private prisma: PrismaService,
     private educationSystemsService: EducationSystemsService,
@@ -23,6 +26,12 @@ export class AcademicStructureService {
     availableLevels: string[],
     prismaClient?: any,
   ) {
+    this.logger.log(
+      `[GENERATE] Initialising academic structure | schoolId=${schoolId} educationSystemId=${educationSystemId} selectedLevels=${JSON.stringify(
+        selectedLevels,
+      )}`,
+    );
+
     const educationSystem =
       this.educationSystemsService.getEducationSystemById(educationSystemId);
     if (!educationSystem) {
@@ -53,6 +62,12 @@ export class AcademicStructureService {
       const level = educationSystem.levels.find((l) => l.id === levelId);
       if (!level) continue;
 
+      this.logger.debug(
+        `[GENERATE] Processing level "${level.name}" (${levelId}) | active=${
+          selectedLevels.includes(levelId)
+        }`,
+      );
+
       const isActive = selectedLevels.includes(levelId);
 
       // Create level with proper active status
@@ -68,9 +83,8 @@ export class AcademicStructureService {
       // Only create classes and subjects for ACTIVE levels
       if (isActive) {
         // Create classes for this level first
-        const createdClasses: any[] = [];
         for (const classLevel of level.classLevels) {
-          const classRecord = await prisma.class.create({
+          await prisma.class.create({
             data: {
               name: classLevel.name,
               order: classLevel.order,
@@ -79,33 +93,20 @@ export class AcademicStructureService {
               isActive: true,
             },
           });
-          createdClasses.push(classRecord);
         }
 
-        // Create subjects at education level and link to all classes in this level
+        // Create subjects at education level
         for (const subjectName of level.subjects) {
-          const subject = await prisma.subject.create({
-            data: {
-              name: subjectName,
-              code: subjectName.toUpperCase().replace(/\s+/g, '_'),
-              description: `${subjectName} for ${level.name}`,
-              category: subjectName, // For analytics grouping
-              schoolId,
-              isActive: true,
-            },
-          });
-
-          // Link the subject to ALL classes in this education level
-          for (const classRecord of createdClasses) {
-            await prisma.class.update({
-              where: { id: classRecord.id },
-              data: {
-                subjects: {
-                  connect: { id: subject.id }
-                }
-              }
-            });
-          }
+          this.logger.debug(
+            `[GENERATE] Ensuring subject "${subjectName}" for level "${level.name}"`,
+          );
+          await this.ensureSubjectRecord(
+            prisma,
+            schoolId,
+            subjectName,
+            this.buildSchoolWideDescription(subjectName),
+            subjectName,
+          );
         }
       }
     }
@@ -220,32 +221,12 @@ export class AcademicStructureService {
           const customSubjectName =
             customSubjectNames?.[subjectName] || subjectName;
 
-          const existingSubject = await this.prisma.subject.findFirst({
-            where: {
-              schoolId,
-              name: customSubjectName,
-            },
-          });
-
-          if (existingSubject) {
-            await this.prisma.subject.update({
-              where: { id: existingSubject.id },
-              data: {
-                isActive: true,
-                description: `${customSubjectName} for ${className}`,
-              },
-            });
-          } else {
-            await this.prisma.subject.create({
-              data: {
-                name: customSubjectName,
-                code: customSubjectName.toUpperCase().replace(/\s+/g, '_'),
-                description: `${customSubjectName} for ${className}`,
-                schoolId,
-                isActive: true,
-              },
-            });
-          }
+          await this.ensureSubjectRecord(
+            this.prisma,
+            schoolId,
+            customSubjectName,
+            this.buildSchoolWideDescription(customSubjectName),
+          );
         }
       }
     }
@@ -254,6 +235,8 @@ export class AcademicStructureService {
   }
 
   async getSchoolAcademicStructure(schoolId: string) {
+    await this.deduplicateSubjectsForSchool(schoolId);
+
     const config = await this.prisma.schoolAcademicConfig.findFirst({
       where: { schoolId },
       include: {
@@ -414,10 +397,10 @@ export class AcademicStructureService {
     });
 
     if (isActive) {
-      // Level is being activated - create classes and subjects
+      // Level is being activated - create classes and ensure school-level subjects exist
       await this.createClassesAndSubjectsForLevel(levelId, level.schoolId);
     } else {
-      // Level is being deactivated - remove classes and subjects
+      // Level is being deactivated - remove classes; subjects remain school-scoped
       await this.removeClassesAndSubjectsForLevel(levelId);
     }
 
@@ -476,6 +459,117 @@ export class AcademicStructureService {
     }
   }
 
+  private async deduplicateSubjectsForSchool(schoolId: string) {
+    const subjects = await this.prisma.subject.findMany({
+      where: { schoolId },
+    });
+
+    const grouped = new Map<string, typeof subjects>();
+    const hasStudentSubjectTable = await this.tableExists(
+      'student_subject_enrollments',
+    );
+
+    for (const subject of subjects) {
+      const key = subject.name.trim().toLowerCase();
+      const existingGroup = grouped.get(key) ?? [];
+      existingGroup.push(subject);
+      grouped.set(key, existingGroup);
+    }
+
+    for (const group of grouped.values()) {
+      if (group.length <= 1) {
+        continue;
+      }
+
+      const sortedGroup = [...group].sort((a, b) => {
+        if (a.isActive !== b.isActive) {
+          return a.isActive ? -1 : 1;
+        }
+        return a.id.localeCompare(b.id);
+      });
+
+      const [primary, ...duplicates] = sortedGroup;
+
+      const descriptions = new Set<string>();
+      const categories = new Set<string>();
+
+      for (const subject of group) {
+        if (subject.description?.trim()) {
+          descriptions.add(subject.description.trim());
+        }
+        if (subject.category?.trim()) {
+          categories.add(subject.category.trim());
+        }
+      }
+
+      await this.prisma.$transaction(async (tx: Prisma.TransactionClient) => {
+        const transaction = tx as any;
+        if (!primary.isActive) {
+          await tx.subject.update({
+            where: { id: primary.id },
+            data: { isActive: true },
+          });
+        }
+
+        for (const duplicate of duplicates) {
+          await tx.assignment.updateMany({
+            where: { subjectId: duplicate.id },
+            data: { subjectId: primary.id },
+          });
+
+          await tx.academicRecord.updateMany({
+            where: { subjectId: duplicate.id },
+            data: { subjectId: primary.id },
+          });
+
+          await tx.teacherAssignment.updateMany({
+            where: { subjectId: duplicate.id },
+            data: { subjectId: primary.id },
+          });
+
+          if (hasStudentSubjectTable) {
+            await transaction.studentSubjectEnrollment.updateMany({
+              where: { subjectId: duplicate.id },
+              data: { subjectId: primary.id },
+            });
+          }
+
+          await tx.subject.delete({
+            where: { id: duplicate.id },
+          });
+        }
+
+        const combinedDescription =
+          descriptions.size > 0
+            ? Array.from(descriptions).join(' | ')
+            : null;
+        const primaryCategory =
+          categories.size > 0 ? Array.from(categories)[0] : null;
+        const normalizedCode = this.generateSubjectCode(primary.name);
+        const updateData: Record<string, any> = {};
+
+        if (combinedDescription !== null) {
+          updateData.description = combinedDescription;
+        }
+
+        if (primaryCategory) {
+          updateData.category = primaryCategory;
+        }
+
+        if (primary.code !== normalizedCode) {
+          updateData.code = normalizedCode;
+        }
+
+        if (Object.keys(updateData).length > 0) {
+          await tx.subject.update({
+            where: { id: primary.id },
+            data: updateData,
+          });
+        }
+      });
+    }
+  }
+
   private async createClassesAndSubjectsForLevel(levelId: string, schoolId: string) {
     // Get the school's academic config to find education system
     const config = await this.prisma.schoolAcademicConfig.findFirst({
@@ -514,7 +608,6 @@ export class AcademicStructureService {
     }
 
     // Create classes for this level first (check if they already exist)
-    const createdClasses: any[] = [];
     for (const classLevel of systemLevel.classLevels) {
       // Check if class already exists
       const existingClass = await this.prisma.class.findFirst({
@@ -544,54 +637,17 @@ export class AcademicStructureService {
           },
         });
       }
-      createdClasses.push(classRecord);
     }
 
-    // Create subjects at education level and link to all classes in this level
+    // Ensure subjects exist at the school level for this education stage
     for (const subjectName of systemLevel.subjects) {
-      // Check if subject already exists
-      const existingSubject = await this.prisma.subject.findFirst({
-        where: {
-          name: subjectName,
-          schoolId,
-        },
-      });
-
-      let subject;
-      if (existingSubject) {
-        // Update existing subject to be active
-        subject = await this.prisma.subject.update({
-          where: { id: existingSubject.id },
-          data: { 
-            isActive: true,
-            description: `${subjectName} for ${systemLevel.name}`,
-          },
-        });
-      } else {
-        // Create new subject
-        subject = await this.prisma.subject.create({
-          data: {
-            name: subjectName,
-            code: subjectName.toUpperCase().replace(/\s+/g, '_'),
-            description: `${subjectName} for ${systemLevel.name}`,
-            category: subjectName, // For analytics grouping
-            schoolId,
-            isActive: true,
-          },
-        });
-      }
-
-      // Link the subject to ALL classes in this education level
-      for (const classRecord of createdClasses) {
-        await this.prisma.class.update({
-          where: { id: classRecord.id },
-          data: {
-            subjects: {
-              connect: { id: subject.id }
-            }
-          }
-        });
-      }
+      await this.ensureSubjectRecord(
+        this.prisma,
+        schoolId,
+        subjectName,
+        this.buildSchoolWideDescription(subjectName),
+        subjectName,
+      );
     }
   }
 
@@ -610,8 +666,7 @@ export class AcademicStructureService {
       where: { levelId },
     });
 
-    // For now, we'll only remove classes since subjects don't have direct class relationship
-    // In a real implementation, you'd need to track which subjects belong to which classes
+    // Subjects remain managed at the school level, so we only deactivate the classes here.
     // Remove classes for this level
     await this.prisma.class.deleteMany({
       where: { levelId },
@@ -628,9 +683,6 @@ export class AcademicStructureService {
       orderBy: { order: 'asc' },
       include: {
         level: true,
-        subjects: {
-          where: { isActive: true },
-        },
         sections: {
           where: { isActive: true },
           include: {
@@ -646,26 +698,47 @@ export class AcademicStructureService {
   }
 
   async getSubjects(schoolId: string) {
-    return this.prisma.subject.findMany({
-      where: { 
-        schoolId, 
+    await this.deduplicateSubjectsForSchool(schoolId);
+
+    const subjects = await this.prisma.subject.findMany({
+      where: {
+        schoolId,
         isActive: true,
-        classes: {
-          some: {
-            level: {
-              isActive: true
-            }
-          }
-        }
       },
       include: {
         classes: {
+          where: { isActive: true },
           include: {
-            level: true
-          }
-        }
+            level: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
       },
       orderBy: { name: 'asc' },
+    });
+
+    return subjects.map((subject) => {
+      const levelNames = Array.from(
+        new Set(
+          subject.classes
+            .map((cls) => cls.level?.name?.trim())
+            .filter((name): name is string => Boolean(name)),
+        ),
+      );
+
+      const fallbackDescription =
+        subject.description?.trim() ||
+        (levelNames.length > 0 ? `Offered in: ${levelNames.join(', ')}` : null);
+
+      return {
+        ...subject,
+        levelNames,
+        description: fallbackDescription,
+      };
     });
   }
 
@@ -715,19 +788,106 @@ export class AcademicStructureService {
   }
 
   async createSubject(subjectData: any) {
-    return this.prisma.subject.create({
-      data: {
-        ...subjectData,
+    const subject = await this.ensureSubjectRecord(
+      this.prisma,
+      subjectData.schoolId,
+      subjectData.name,
+      subjectData.description,
+      subjectData.category,
+    );
+
+    return subject;
+  }
+
+  private parseDateInput(value: any, fieldName: string): Date | null {
+    if (value === null || value === undefined || value === '') {
+      return null;
+    }
+
+    let date: Date;
+    if (value instanceof Date) {
+      date = value;
+    } else if (typeof value === 'string') {
+      date = new Date(value);
+    } else if (typeof value === 'number') {
+      date = new Date(value);
+    } else {
+      throw new BadRequestException(
+        `${fieldName} must be a valid ISO date string (YYYY-MM-DD), timestamp, or JavaScript Date.`,
+      );
+    }
+
+    if (Number.isNaN(date.getTime())) {
+      throw new BadRequestException(
+        `${fieldName} must be a valid ISO date string (YYYY-MM-DD) or JavaScript Date.`,
+      );
+    }
+    return date;
+  }
+
+  private async ensureSingleActiveTerm(
+    schoolId: string,
+    currentTermId?: string,
+  ): Promise<void> {
+    await this.prisma.academicTerm.updateMany({
+      where: {
+        schoolId,
         isActive: true,
+        ...(currentTermId && { id: { not: currentTermId } }),
+      },
+      data: {
+        isActive: false,
       },
     });
   }
 
   async createAcademicTerm(termData: any) {
+    const {
+      name,
+      academicYear,
+      schoolId,
+      startDate,
+      endDate,
+      description,
+      isActive = true,
+    } = termData;
+
+    if (!name?.trim()) {
+      throw new BadRequestException('Term name is required.');
+    }
+
+    if (!academicYear?.trim()) {
+      throw new BadRequestException('Academic year is required.');
+    }
+
+    if (!schoolId) {
+      throw new BadRequestException('schoolId is required.');
+    }
+
+    const parsedStartDate = this.parseDateInput(startDate, 'startDate');
+    const parsedEndDate = this.parseDateInput(endDate, 'endDate');
+
+    if (!parsedStartDate || !parsedEndDate) {
+      throw new BadRequestException('startDate and endDate are required.');
+    }
+
+    if (parsedStartDate.getTime() > parsedEndDate.getTime()) {
+      throw new BadRequestException('startDate cannot be after endDate.');
+    }
+
+    if (isActive) {
+      await this.ensureSingleActiveTerm(schoolId);
+    }
+
     return this.prisma.academicTerm.create({
       data: {
-        ...termData,
-        isActive: true,
+        name: name.trim(),
+        academicYear: academicYear.trim(),
+        description: description?.trim() || null,
+        schoolId,
+        startDate: parsedStartDate,
+        endDate: parsedEndDate,
+        isActive,
       },
     });
   }
@@ -755,16 +915,98 @@ export class AcademicStructureService {
   }
 
   async updateSubject(id: string, subjectData: any) {
+    const existing = await this.prisma.subject.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new Error('Subject not found');
+    }
+
+    const normalizedName = subjectData.name?.trim();
+    if (normalizedName) {
+      const duplicate = await this.prisma.subject.findFirst({
+        where: {
+          schoolId: existing.schoolId,
+          name: { equals: normalizedName, mode: 'insensitive' },
+          NOT: { id },
+        },
+      });
+      if (duplicate) {
+        throw new Error(
+          `Subject "${normalizedName}" already exists for this school.`,
+        );
+      }
+    }
+
     return this.prisma.subject.update({
       where: { id },
-      data: subjectData,
+      data: {
+        ...subjectData,
+        name: normalizedName ?? subjectData.name,
+        code: normalizedName
+          ? normalizedName.toUpperCase().replace(/\s+/g, '_')
+          : subjectData.code ?? existing.code,
+      },
     });
   }
 
   async updateAcademicTerm(id: string, termData: any) {
+    const existing = await this.prisma.academicTerm.findUnique({
+      where: { id },
+    });
+
+    if (!existing) {
+      throw new BadRequestException('Academic term not found.');
+    }
+
+    const updatePayload: Record<string, any> = {};
+
+    if (termData.name !== undefined) {
+      if (!termData.name?.trim()) {
+        throw new BadRequestException('Term name cannot be empty.');
+      }
+      updatePayload.name = termData.name.trim();
+    }
+
+    if (termData.academicYear !== undefined) {
+      if (!termData.academicYear?.trim()) {
+        throw new BadRequestException('Academic year cannot be empty.');
+      }
+      updatePayload.academicYear = termData.academicYear.trim();
+    }
+
+    if (termData.description !== undefined) {
+      updatePayload.description = termData.description?.trim() ?? null;
+    }
+
+    if (termData.startDate !== undefined) {
+      updatePayload.startDate = this.parseDateInput(termData.startDate, 'startDate');
+    }
+
+    if (termData.endDate !== undefined) {
+      updatePayload.endDate = this.parseDateInput(termData.endDate, 'endDate');
+    }
+
+    if (
+      updatePayload.startDate &&
+      updatePayload.endDate &&
+      updatePayload.startDate.getTime() > updatePayload.endDate.getTime()
+    ) {
+      throw new BadRequestException('startDate cannot be after endDate.');
+    }
+
+    if (termData.isActive !== undefined) {
+      updatePayload.isActive = Boolean(termData.isActive);
+    }
+
+    if (updatePayload.isActive) {
+      await this.ensureSingleActiveTerm(existing.schoolId, id);
+    }
+
     return this.prisma.academicTerm.update({
       where: { id },
-      data: termData,
+      data: updatePayload,
     });
   }
 
@@ -931,6 +1173,361 @@ export class AcademicStructureService {
           firstName: 'asc',
         },
       },
+    });
+  }
+
+  private formatSubjectName(name: string) {
+    return name.trim();
+  }
+
+  private generateSubjectCode(name: string) {
+    return this.formatSubjectName(name).toUpperCase().replace(/\s+/g, '_');
+  }
+
+  private buildSchoolWideDescription(name: string) {
+    return `${name} (School-wide subject)`;
+  }
+
+  private async ensureSubjectRecord(
+    prisma: any,
+    schoolId: string,
+    name: string,
+    description?: string,
+    category?: string,
+  ) {
+    const formattedName = this.formatSubjectName(name);
+
+    const existingSubject = await prisma.subject.findFirst({
+      where: {
+        schoolId,
+        name: { equals: formattedName, mode: 'insensitive' },
+      },
+    });
+
+    if (existingSubject) {
+      this.logger.verbose(
+        `[SUBJECT] Reusing existing subject "${formattedName}" (${existingSubject.id}) for school ${schoolId}`,
+      );
+      const needsUpdate =
+        !existingSubject.isActive ||
+        (description && existingSubject.description !== description) ||
+        (category &&
+          existingSubject.category?.toLowerCase() !== category.toLowerCase());
+
+      if (needsUpdate) {
+        return prisma.subject.update({
+          where: { id: existingSubject.id },
+          data: {
+            isActive: true,
+            description: description ?? existingSubject.description,
+            category: category ?? existingSubject.category,
+          },
+        });
+      }
+
+      return existingSubject;
+    }
+
+    this.logger.log(
+      `[SUBJECT] Creating new subject "${formattedName}" for school ${schoolId}`,
+    );
+    return prisma.subject.create({
+      data: {
+        schoolId,
+        name: formattedName,
+        code: this.generateSubjectCode(formattedName),
+        description,
+        category: category ?? formattedName,
+        isActive: true,
+      },
+    });
+  }
+
+  private async tableExists(tableName: string): Promise<boolean> {
+    const result = await this.prisma.$queryRaw<
+      Array<{ exists: boolean }>
+    >`SELECT EXISTS (
+      SELECT 1
+      FROM information_schema.tables
+      WHERE table_schema = 'public'
+        AND table_name = ${tableName}
+    ) as "exists"`;
+
+    return result?.[0]?.exists ?? false;
+  }
+
+  // ==================== GRADING SCALE METHODS ====================
+
+  async getGradingScales(schoolId: string) {
+    return this.prisma.gradingScale.findMany({
+      where: { schoolId, isActive: true },
+      orderBy: { isDefault: 'desc' },
+    });
+  }
+
+  async getDefaultGradingScale(schoolId: string) {
+    const defaultScale = await this.prisma.gradingScale.findFirst({
+      where: { schoolId, isDefault: true, isActive: true },
+    });
+
+    if (defaultScale) {
+      return defaultScale;
+    }
+
+    // Return first active scale if no default exists
+    return this.prisma.gradingScale.findFirst({
+      where: { schoolId, isActive: true },
+    });
+  }
+
+  async createGradingScale(schoolId: string, data: {
+    name: string;
+    type: string;
+    scale: any;
+    isDefault?: boolean;
+    isActive?: boolean;
+  }) {
+    // Convert string type to enum (handle both uppercase and lowercase)
+    const typeUpper = data.type.toUpperCase();
+    let gradingScaleType: GradingScaleType;
+    
+    if (typeUpper === 'PERCENTAGE') {
+      gradingScaleType = GradingScaleType.PERCENTAGE;
+    } else if (typeUpper === 'LETTER') {
+      gradingScaleType = GradingScaleType.LETTER;
+    } else if (typeUpper === 'GPA') {
+      gradingScaleType = GradingScaleType.GPA;
+    } else if (typeUpper === 'CUSTOM') {
+      gradingScaleType = GradingScaleType.CUSTOM;
+    } else {
+      // Default to PERCENTAGE if invalid
+      gradingScaleType = GradingScaleType.PERCENTAGE;
+    }
+
+    // If this is set as default, unset other defaults
+    if (data.isDefault) {
+      await this.prisma.gradingScale.updateMany({
+        where: { schoolId, isDefault: true },
+        data: { isDefault: false },
+      });
+    }
+
+    return this.prisma.gradingScale.create({
+      data: {
+        schoolId,
+        name: data.name,
+        type: gradingScaleType,
+        scale: data.scale,
+        isDefault: data.isDefault || false,
+        isActive: data.isActive !== undefined ? data.isActive : true,
+      },
+    });
+  }
+
+  async updateGradingScale(id: string, schoolId: string, data: {
+    name?: string;
+    type?: string;
+    scale?: any;
+    isDefault?: boolean;
+    isActive?: boolean;
+  }) {
+    // Convert string type to enum if provided
+    let gradingScaleType: GradingScaleType | undefined;
+    if (data.type) {
+      const typeUpper = data.type.toUpperCase();
+      if (typeUpper === 'PERCENTAGE') {
+        gradingScaleType = GradingScaleType.PERCENTAGE;
+      } else if (typeUpper === 'LETTER') {
+        gradingScaleType = GradingScaleType.LETTER;
+      } else if (typeUpper === 'GPA') {
+        gradingScaleType = GradingScaleType.GPA;
+      } else if (typeUpper === 'CUSTOM') {
+        gradingScaleType = GradingScaleType.CUSTOM;
+      } else {
+        // Default to PERCENTAGE if invalid
+        gradingScaleType = GradingScaleType.PERCENTAGE;
+      }
+    }
+
+    // If this is set as default, unset other defaults
+    if (data.isDefault) {
+      await this.prisma.gradingScale.updateMany({
+        where: { schoolId, isDefault: true, id: { not: id } },
+        data: { isDefault: false },
+      });
+    }
+
+    return this.prisma.gradingScale.update({
+      where: { id },
+      data: {
+        ...(data.name && { name: data.name }),
+        ...(gradingScaleType && { type: gradingScaleType }),
+        ...(data.scale && { scale: data.scale }),
+        ...(data.isDefault !== undefined && { isDefault: data.isDefault }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
+      },
+    });
+  }
+
+  // ==================== ASSESSMENT STRUCTURE METHODS ====================
+
+  async getAssessmentStructures(schoolId: string) {
+    return this.prisma.assessmentStructure.findMany({
+      where: { schoolId, isActive: true },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+      orderBy: {
+        level: {
+          order: 'asc',
+        },
+      },
+    });
+  }
+
+  async getAssessmentStructureByLevel(levelId: string, schoolId: string) {
+    return this.prisma.assessmentStructure.findUnique({
+      where: {
+        levelId_schoolId: {
+          levelId,
+          schoolId,
+        },
+      },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+    });
+  }
+
+  async createAssessmentStructure(
+    schoolId: string,
+    data: {
+      levelId: string;
+      caComponents: any;
+      examConfig?: any;
+      calculationMethod?: string;
+      totalMaxScore?: number;
+    },
+  ) {
+    // Validate that level belongs to school
+    const level = await this.prisma.level.findFirst({
+      where: {
+        id: data.levelId,
+        schoolId,
+      },
+    });
+
+    if (!level) {
+      throw new BadRequestException('Level not found or does not belong to school');
+    }
+
+    // Check if assessment structure already exists for this level
+    const existing = await this.prisma.assessmentStructure.findUnique({
+      where: {
+        levelId_schoolId: {
+          levelId: data.levelId,
+          schoolId,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Assessment structure already exists for this level');
+    }
+
+    return this.prisma.assessmentStructure.create({
+      data: {
+        levelId: data.levelId,
+        schoolId,
+        caComponents: data.caComponents,
+        examConfig: data.examConfig || null,
+        calculationMethod: data.calculationMethod || 'sum',
+        totalMaxScore: data.totalMaxScore || null,
+        isActive: true,
+      },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+    });
+  }
+
+  async updateAssessmentStructure(
+    id: string,
+    schoolId: string,
+    data: {
+      caComponents?: any;
+      examConfig?: any;
+      calculationMethod?: string;
+      totalMaxScore?: number;
+      isActive?: boolean;
+    },
+  ) {
+    // Verify the assessment structure belongs to the school
+    const existing = await this.prisma.assessmentStructure.findFirst({
+      where: {
+        id,
+        schoolId,
+      },
+    });
+
+    if (!existing) {
+      throw new BadRequestException('Assessment structure not found');
+    }
+
+    return this.prisma.assessmentStructure.update({
+      where: { id },
+      data: {
+        ...(data.caComponents && { caComponents: data.caComponents }),
+        ...(data.examConfig !== undefined && { examConfig: data.examConfig }),
+        ...(data.calculationMethod && { calculationMethod: data.calculationMethod }),
+        ...(data.totalMaxScore !== undefined && { totalMaxScore: data.totalMaxScore }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
+      },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+    });
+  }
+
+  async deleteAssessmentStructure(id: string, schoolId: string) {
+    // Verify the assessment structure belongs to the school
+    const existing = await this.prisma.assessmentStructure.findFirst({
+      where: {
+        id,
+        schoolId,
+      },
+    });
+
+    if (!existing) {
+      throw new BadRequestException('Assessment structure not found');
+    }
+
+    return this.prisma.assessmentStructure.delete({
+      where: { id },
     });
   }
 }

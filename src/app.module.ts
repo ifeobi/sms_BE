@@ -11,6 +11,11 @@ import { StaffModule } from './staff/staff.module';
 import { EducationSystemsModule } from './education-systems/education-systems.module';
 import { SectionManagementModule } from './section-management/section-management.module';
 import { AcademicStructureModule } from './academic-structure/academic-structure.module';
+import { ImageKitModule } from './imagekit/imagekit.module';
+import { MarketplaceModule } from './marketplace/marketplace.module';
+import { ContentModule } from './content/content.module';
+import { DigitalPurchasesModule } from './digital-purchases/digital-purchases.module';
+import { TeachersModule } from './teachers/teachers.module';
 
 @Module({
   imports: [
@@ -26,6 +31,11 @@ import { AcademicStructureModule } from './academic-structure/academic-structure
     EducationSystemsModule,
     SectionManagementModule,
     AcademicStructureModule,
+    ImageKitModule,
+    MarketplaceModule,
+    ContentModule,
+    DigitalPurchasesModule,
+    TeachersModule,
   ],
   controllers: [AppController],
   providers: [AppService],

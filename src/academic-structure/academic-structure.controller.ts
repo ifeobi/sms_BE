@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Query,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -350,5 +351,126 @@ export class AcademicStructureController {
   })
   async deleteSection(@Param('id') id: string) {
     return this.academicStructureService.deleteSection(id);
+  }
+
+  // ==================== GRADING SCALE ENDPOINTS ====================
+
+  @Get('schools/:schoolId/grading-scales')
+  @ApiOperation({ summary: 'Get all grading scales for a school' })
+  @ApiResponse({
+    status: 200,
+    description: 'Grading scales retrieved successfully',
+  })
+  async getGradingScales(@Param('schoolId') schoolId: string) {
+    return this.academicStructureService.getGradingScales(schoolId);
+  }
+
+  @Get('schools/:schoolId/grading-scales/default')
+  @ApiOperation({ summary: 'Get default grading scale for a school' })
+  @ApiResponse({
+    status: 200,
+    description: 'Default grading scale retrieved successfully',
+  })
+  async getDefaultGradingScale(@Param('schoolId') schoolId: string) {
+    const scale =
+      await this.academicStructureService.getDefaultGradingScale(schoolId);
+    if (!scale) {
+      throw new NotFoundException(
+        'Default grading scale not found for this school',
+      );
+    }
+    return scale;
+  }
+
+  @Post('schools/:schoolId/grading-scales')
+  @ApiOperation({ summary: 'Create a new grading scale' })
+  @ApiResponse({
+    status: 201,
+    description: 'Grading scale created successfully',
+  })
+  async createGradingScale(
+    @Param('schoolId') schoolId: string,
+    @Body() data: any,
+  ) {
+    return this.academicStructureService.createGradingScale(schoolId, data);
+  }
+
+  @Put('schools/:schoolId/grading-scales/:id')
+  @ApiOperation({ summary: 'Update a grading scale' })
+  @ApiResponse({
+    status: 200,
+    description: 'Grading scale updated successfully',
+  })
+  async updateGradingScale(
+    @Param('schoolId') schoolId: string,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
+    return this.academicStructureService.updateGradingScale(id, schoolId, data);
+  }
+
+  // ==================== ASSESSMENT STRUCTURE ENDPOINTS ====================
+
+  @Get('schools/:schoolId/assessment-structures')
+  @ApiOperation({ summary: 'Get all assessment structures for a school' })
+  @ApiResponse({
+    status: 200,
+    description: 'Assessment structures retrieved successfully',
+  })
+  async getAssessmentStructures(@Param('schoolId') schoolId: string) {
+    return this.academicStructureService.getAssessmentStructures(schoolId);
+  }
+
+  @Get('schools/:schoolId/assessment-structures/level/:levelId')
+  @ApiOperation({ summary: 'Get assessment structure for a specific level' })
+  @ApiResponse({
+    status: 200,
+    description: 'Assessment structure retrieved successfully',
+  })
+  async getAssessmentStructureByLevel(
+    @Param('schoolId') schoolId: string,
+    @Param('levelId') levelId: string,
+  ) {
+    return this.academicStructureService.getAssessmentStructureByLevel(levelId, schoolId);
+  }
+
+  @Post('schools/:schoolId/assessment-structures')
+  @ApiOperation({ summary: 'Create a new assessment structure' })
+  @ApiResponse({
+    status: 201,
+    description: 'Assessment structure created successfully',
+  })
+  async createAssessmentStructure(
+    @Param('schoolId') schoolId: string,
+    @Body() data: any,
+  ) {
+    return this.academicStructureService.createAssessmentStructure(schoolId, data);
+  }
+
+  @Put('schools/:schoolId/assessment-structures/:id')
+  @ApiOperation({ summary: 'Update an assessment structure' })
+  @ApiResponse({
+    status: 200,
+    description: 'Assessment structure updated successfully',
+  })
+  async updateAssessmentStructure(
+    @Param('schoolId') schoolId: string,
+    @Param('id') id: string,
+    @Body() data: any,
+  ) {
+    return this.academicStructureService.updateAssessmentStructure(id, schoolId, data);
+  }
+
+  @Delete('schools/:schoolId/assessment-structures/:id')
+  @ApiOperation({ summary: 'Delete an assessment structure' })
+  @ApiResponse({
+    status: 200,
+    description: 'Assessment structure deleted successfully',
+  })
+  async deleteAssessmentStructure(
+    @Param('schoolId') schoolId: string,
+    @Param('id') id: string,
+  ) {
+    return this.academicStructureService.deleteAssessmentStructure(id, schoolId);
   }
 }
