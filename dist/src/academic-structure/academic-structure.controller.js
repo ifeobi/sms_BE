@@ -61,6 +61,9 @@ let AcademicStructureController = class AcademicStructureController {
     async toggleLevelStatus(id, body) {
         return this.academicStructureService.toggleLevelStatus(id, body.isActive);
     }
+    async getLevelClassCount(id, getExpectedCount) {
+        return this.academicStructureService.getLevelClassCount(id, getExpectedCount);
+    }
     async updateClass(id, classData) {
         return this.academicStructureService.updateClass(id, classData);
     }
@@ -272,6 +275,19 @@ __decorate([
     __metadata("design:paramtypes", [String, Object]),
     __metadata("design:returntype", Promise)
 ], AcademicStructureController.prototype, "toggleLevelStatus", null);
+__decorate([
+    (0, common_1.Get)('levels/:id/classes/count'),
+    (0, swagger_1.ApiOperation)({ summary: 'Get class count for a specific level' }),
+    (0, swagger_1.ApiResponse)({
+        status: 200,
+        description: 'Class count retrieved successfully',
+    }),
+    __param(0, (0, common_1.Param)('id')),
+    __param(1, (0, common_1.Query)('getExpectedCount')),
+    __metadata("design:type", Function),
+    __metadata("design:paramtypes", [String, Boolean]),
+    __metadata("design:returntype", Promise)
+], AcademicStructureController.prototype, "getLevelClassCount", null);
 __decorate([
     (0, common_1.Put)('classes/:id'),
     (0, swagger_1.ApiOperation)({ summary: 'Update a class' }),

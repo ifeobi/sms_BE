@@ -397,6 +397,9 @@ export declare class AcademicStructureService {
         schoolId: string;
         order: number;
     }>;
+    getLevelClassCount(levelId: string, getExpectedCount?: boolean): Promise<{
+        count: number;
+    }>;
     private createClassesAndSubjectsForLevel;
     private removeClassesAndSubjectsForLevel;
     getClasses(schoolId: string): Promise<({
