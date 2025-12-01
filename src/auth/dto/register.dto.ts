@@ -171,12 +171,12 @@ export class RegisterDto {
   @IsString()
   profilePicture?: string;
 
-  // Creator-specific fields
+  // Creator-specific fields (all optional)
   @Expose()
   @ApiProperty({
     type: [String],
     example: ['mathematics', 'science', 'english'],
-    description: 'Content categories the creator specializes in',
+    description: 'Content categories the creator specializes in (optional)',
     required: false,
   })
   @IsOptional()
@@ -187,12 +187,22 @@ export class RegisterDto {
   @Expose()
   @ApiProperty({
     example: 'free',
-    description: 'Creator plan: free, premium, pro',
+    description: 'Creator plan: free, premium, pro (optional)',
     required: false,
   })
   @IsOptional()
   @IsString()
   plan?: string;
+
+  @Expose()
+  @ApiProperty({
+    example: 'Experienced math teacher with 10 years of experience...',
+    description: 'Creator bio (optional)',
+    required: false,
+  })
+  @IsOptional()
+  @IsString()
+  bio?: string;
 
   // Exclude fields that shouldn't be sent to backend
   @Exclude()

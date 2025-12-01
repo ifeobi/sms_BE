@@ -774,7 +774,7 @@ model Creator {
   joinDate         DateTime          @default(now())
   specialties      String[]
   isActive         Boolean           @default(true)
-  categories       String[]
+  categories       String[]          @default([])
   plan             String            @default("free")
   content          Content[]
   user             User              @relation(fields: [userId], references: [id], onDelete: Cascade)

@@ -258,6 +258,11 @@ export class AuthService {
         return await this.registerSchoolAdmin(registerDto, hashedPassword);
       }
 
+      // Handle creator registration
+      if (registerDto.userType === UserType.CREATOR) {
+        return await this.registerCreator(registerDto, hashedPassword);
+      }
+
       // Handle other user types (existing logic)
       const userData = {
         email: registerDto.email,
@@ -434,6 +439,96 @@ export class AuthService {
         },
       };
     });
+  }
+
+  private async registerCreator(
+    registerDto: RegisterDto,
+    hashedPassword: string,
+  ) {
+    this.logger.log(`Creator registration: ${registerDto.email}`);
+
+    try {
+      // Use transaction to ensure data consistency
+      const result = await this.prisma.$transaction(async (prisma) => {
+        // 1. Create the user with additional fields
+        const userData = {
+          email: registerDto.email,
+          password: hashedPassword,
+          firstName: registerDto.firstName,
+          lastName: registerDto.lastName,
+          type: UserType.CREATOR,
+          phone: registerDto.phone,
+          profilePicture: registerDto.profilePicture,
+          bio: registerDto.bio,
+          website: registerDto.website,
+          country: registerDto.country,
+        };
+
+        const user = await prisma.user.create({
+          data: userData,
+        });
+        this.logger.log(`Creator user created: ${user.id}`);
+
+        // 2. Create the creator profile
+        const creatorData = {
+          userId: user.id,
+          plan: registerDto.plan || 'free',
+          categories: registerDto.categories || [],
+          specialties: [],
+        };
+
+        const creator = await prisma.creator.create({
+          data: creatorData,
+        });
+        this.logger.log(`Creator profile created: ${creator.id}`);
+
+        return { user, creator };
+      });
+
+      // 3. Send verification email
+      try {
+        await this.sendVerificationEmail(
+          result.user.email,
+          'CREATOR',
+          `${result.user.firstName} ${result.user.lastName}`,
+        );
+      } catch (emailError) {
+        this.logger.error(
+          `Failed to send creator verification email to ${result.user.email}`,
+          emailError as any,
+        );
+      }
+
+      // 4. Generate JWT token
+      const payload = {
+        email: result.user.email,
+        sub: result.user.id,
+        type: result.user.type.toLowerCase(),
+        firstName: result.user.firstName,
+        lastName: result.user.lastName,
+      };
+
+      this.logger.log(`Creator registration completed: ${result.user.email}`);
+
+      return {
+        access_token: this.jwtService.sign(payload),
+        user: {
+          id: result.user.id,
+          email: result.user.email,
+          type: result.user.type.toLowerCase(),
+          firstName: result.user.firstName,
+          lastName: result.user.lastName,
+          profilePicture: result.user.profilePicture,
+          isEmailVerified: result.user.isEmailVerified,
+        },
+      };
+    } catch (error) {
+      this.logger.error(
+        `Creator registration failed for ${registerDto.email}:`,
+        error,
+      );
+      throw error;
+    }
   }
 
   async createMasterAccount() {
