@@ -8,6 +8,7 @@ import {
   Delete,
   UseGuards,
   Query,
+  NotFoundException,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -371,7 +372,14 @@ export class AcademicStructureController {
     description: 'Default grading scale retrieved successfully',
   })
   async getDefaultGradingScale(@Param('schoolId') schoolId: string) {
-    return this.academicStructureService.getDefaultGradingScale(schoolId);
+    const scale =
+      await this.academicStructureService.getDefaultGradingScale(schoolId);
+    if (!scale) {
+      throw new NotFoundException(
+        'Default grading scale not found for this school',
+      );
+    }
+    return scale;
   }
 
   @Post('schools/:schoolId/grading-scales')
