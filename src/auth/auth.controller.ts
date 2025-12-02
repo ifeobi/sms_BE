@@ -15,7 +15,6 @@ import { SchoolAdminRegisterDto } from './dto/school-admin-register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
-import { LocalAuthGuard } from './guards/local-auth.guard';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import {
   ApiTags,
@@ -78,13 +77,6 @@ export class AuthController {
     console.log('================================');
 
     return this.authService.register(cleanRegisterDto);
-  }
-
-  @UseGuards(LocalAuthGuard)
-  @Post('login/local')
-  @ApiOperation({ summary: 'Local authentication (for testing)' })
-  async loginLocal(@Request() req) {
-    return this.authService.login(req.user);
   }
 
   @UseGuards(JwtAuthGuard)

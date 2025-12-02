@@ -11,6 +11,8 @@ import {
   Request,
   ParseIntPipe,
   DefaultValuePipe,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { ContentService } from './content.service';
 import { CreateContentDto } from './dto/create-content.dto';
@@ -18,6 +20,10 @@ import { UpdateContentDto } from './dto/update-content.dto';
 import { UploadFileDto } from './dto/upload-file.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { ContentStatus } from '@prisma/client';
+import {
+  SubscriptionGuard,
+  CheckLimit,
+} from '../creator/guards/subscription.guard';
 
 @Controller('content')
 @UseGuards(JwtAuthGuard)
@@ -28,6 +34,8 @@ export class ContentController {
   }
 
   @Post()
+  @UseGuards(SubscriptionGuard)
+  @CheckLimit('product')
   async create(@Body() createContentDto: CreateContentDto, @Request() req) {
     console.log('Content Controller - User from JWT:', req.user);
 

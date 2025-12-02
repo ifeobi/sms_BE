@@ -16,6 +16,7 @@ import { MarketplaceModule } from './marketplace/marketplace.module';
 import { ContentModule } from './content/content.module';
 import { DigitalPurchasesModule } from './digital-purchases/digital-purchases.module';
 import { TeachersModule } from './teachers/teachers.module';
+import { CreatorModule } from './creator/creator.module';
 
 @Module({
   imports: [
@@ -36,6 +37,7 @@ import { TeachersModule } from './teachers/teachers.module';
     ContentModule,
     DigitalPurchasesModule,
     TeachersModule,
+    CreatorModule,
   ],
   controllers: [AppController],
   providers: [AppService],
