@@ -62,7 +62,9 @@ export class TeachersService {
         email: teacher.user.email,
         firstName: teacher.user.firstName,
         lastName: teacher.user.lastName,
-        fullName: teacher.user.fullName || `${teacher.user.firstName} ${teacher.user.lastName}`.trim(),
+        fullName:
+          teacher.user.fullName ||
+          `${teacher.user.firstName} ${teacher.user.lastName}`.trim(),
       },
       school: teacher.school
         ? {
@@ -324,7 +326,10 @@ export class TeachersService {
     );
   }
 
-  async createAssignment(userId: string, createAssignmentDto: CreateAssignmentDto) {
+  async createAssignment(
+    userId: string,
+    createAssignmentDto: CreateAssignmentDto,
+  ) {
     const teacher = await this.getTeacherByUserId(userId);
     const {
       classId,
@@ -358,7 +363,9 @@ export class TeachersService {
     });
 
     if (!teacherAssignment) {
-      throw new ForbiddenException('You are not assigned to this class and subject.');
+      throw new ForbiddenException(
+        'You are not assigned to this class and subject.',
+      );
     }
 
     let resolvedTermId = termId ?? teacherAssignment.termId ?? null;
@@ -385,7 +392,7 @@ export class TeachersService {
 
     // If studentIds are provided, validate them; otherwise, fetch all students in the class
     let eligibleStudents: { id: string }[];
-    
+
     if (studentIds && studentIds.length > 0) {
       const uniqueStudentIds = Array.from(new Set(studentIds));
       const studentWhere: Prisma.StudentWhereInput = {
@@ -421,7 +428,9 @@ export class TeachersService {
       });
     }
 
-    const parsedDueDate = dueDate ? new Date(dueDate) : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
+    const parsedDueDate = dueDate
+      ? new Date(dueDate)
+      : new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     if (Number.isNaN(parsedDueDate.getTime())) {
       throw new BadRequestException('Invalid due date provided.');
     }
@@ -443,9 +452,9 @@ export class TeachersService {
         allowLateSubmission: allowLateSubmission ?? true,
         latePenalty: latePenalty ?? 0,
         allowResubmission: allowResubmission ?? false,
-        maxResubmissions: allowResubmission ? maxResubmissions ?? 0 : 0,
+        maxResubmissions: allowResubmission ? (maxResubmissions ?? 0) : 0,
         isGroupAssignment: isGroupAssignment ?? false,
-        groupSize: isGroupAssignment ? groupSize ?? null : null,
+        groupSize: isGroupAssignment ? (groupSize ?? null) : null,
         learningObjectives: learningObjectives ?? [],
         tags: tags ?? [],
         createdBy: teacher.user?.email || teacher.userId,
@@ -543,7 +552,9 @@ export class TeachersService {
 
     if (!assignment) {
       throw new ForbiddenException(
-        subjectId ? 'You are not assigned to this class for the requested subject' : 'You are not assigned to this class',
+        subjectId
+          ? 'You are not assigned to this class for the requested subject'
+          : 'You are not assigned to this class',
       );
     }
 
@@ -603,7 +614,9 @@ export class TeachersService {
       studentNumber: student.studentNumber,
       firstName: student.user.firstName,
       lastName: student.user.lastName,
-      fullName: student.user.fullName || `${student.user.firstName} ${student.user.lastName}`.trim(),
+      fullName:
+        student.user.fullName ||
+        `${student.user.firstName} ${student.user.lastName}`.trim(),
       email: student.user.email,
       status: student.status,
       dateOfBirth: student.dateOfBirth,
@@ -718,7 +731,9 @@ export class TeachersService {
 
   async recordAttendance(userId: string, dto: CreateAttendanceDto) {
     if (!dto.records?.length) {
-      throw new BadRequestException('Please provide at least one attendance record.');
+      throw new BadRequestException(
+        'Please provide at least one attendance record.',
+      );
     }
 
     const teacher = await this.getTeacherByUserId(userId);
@@ -733,7 +748,9 @@ export class TeachersService {
     });
 
     if (!assignment) {
-      throw new ForbiddenException('You are not assigned to this class or subject.');
+      throw new ForbiddenException(
+        'You are not assigned to this class or subject.',
+      );
     }
 
     const term = await this.prisma.academicTerm.findUnique({
@@ -764,7 +781,9 @@ export class TeachersService {
     });
 
     if (students.length !== studentIds.length) {
-      throw new BadRequestException('One or more students are not part of this class.');
+      throw new BadRequestException(
+        'One or more students are not part of this class.',
+      );
     }
 
     await this.prisma.$transaction(async (tx) => {
@@ -854,7 +873,12 @@ export class TeachersService {
   async getDashboard(userId: string) {
     const teacher = await this.getTeacherByUserId(userId);
 
-    const [teacherAssignments, assignmentRecords, attendanceRecords, upcomingAssignments] = await Promise.all([
+    const [
+      teacherAssignments,
+      assignmentRecords,
+      attendanceRecords,
+      upcomingAssignments,
+    ] = await Promise.all([
       this.prisma.teacherAssignment.findMany({
         where: { teacherId: teacher.id, isActive: true },
       }),
@@ -891,7 +915,9 @@ export class TeachersService {
       }),
     ]);
 
-    const classIds = Array.from(new Set(teacherAssignments.map((a) => a.classId)));
+    const classIds = Array.from(
+      new Set(teacherAssignments.map((a) => a.classId)),
+    );
 
     const totalStudents = classIds.length
       ? await this.prisma.student.count({
@@ -928,7 +954,8 @@ export class TeachersService {
     });
 
     const averagePerformance = academicRecords.length
-      ? academicRecords.reduce((sum, record) => sum + record.percentage, 0) / academicRecords.length
+      ? academicRecords.reduce((sum, record) => sum + record.percentage, 0) /
+        academicRecords.length
       : 0;
 
     const atRiskStudents = await this.prisma.academicRecord.count({
@@ -978,7 +1005,9 @@ export class TeachersService {
         : null,
     }));
 
-    const upcomingAssignmentIds = upcomingAssignments.map((assignment) => assignment.id);
+    const upcomingAssignmentIds = upcomingAssignments.map(
+      (assignment) => assignment.id,
+    );
 
     const upcomingAssignmentGrades = upcomingAssignmentIds.length
       ? await this.prisma.academicRecord.findMany({
@@ -990,7 +1019,7 @@ export class TeachersService {
           select: {
             assignmentId: true,
             studentId: true,
-            caScore: true,
+            percentage: true,
           },
         })
       : [];
@@ -999,8 +1028,8 @@ export class TeachersService {
       (acc, record) => {
         if (
           !record.assignmentId ||
-          record.caScore === null ||
-          record.caScore === undefined
+          record.percentage === null ||
+          record.percentage === undefined
         ) {
           return acc;
         }
@@ -1014,7 +1043,8 @@ export class TeachersService {
     );
 
     const upcomingDeadlines = upcomingAssignments.map((assignment) => {
-      const submittedStudents = submittedByAssignment[assignment.id] ?? new Set<string>();
+      const submittedStudents =
+        submittedByAssignment[assignment.id] ?? new Set<string>();
       const pendingAssignees = (assignment.assignees ?? []).filter(
         (assignee) => !submittedStudents.has(assignee.studentId),
       );
@@ -1130,7 +1160,7 @@ export class TeachersService {
       // Extract CA type from feedback field
       // e.g., "CA_CA1", "CA_CA2", "CA_CA5", "CA_EXAM", etc.
       const caType = record.feedback?.replace('CA_', '');
-      const score = record.caScore;
+      const score = record.percentage;
       const grade = record.grade;
 
       if (caType === 'EXAM') {
@@ -1196,7 +1226,7 @@ export class TeachersService {
       // Dynamically process all CA fields (ca1, ca2, ca3, ..., ca20, etc.)
       // Extract all keys that start with 'ca' followed by a number
       const caFields = Object.keys(record).filter(
-        (key) => key.match(/^ca\d+$/i) && typeof record[key] === 'number'
+        (key) => key.match(/^ca\d+$/i) && typeof record[key] === 'number',
       );
 
       // Process all CA fields dynamically
@@ -1252,7 +1282,11 @@ export class TeachersService {
       }
 
       // Process exam field separately
-      if (record.exam !== undefined && record.exam !== null && !isNaN(record.exam)) {
+      if (
+        record.exam !== undefined &&
+        record.exam !== null &&
+        !isNaN(record.exam)
+      ) {
         const score = record.exam as number;
         const maxScore = 100;
         const percentage = (score / maxScore) * 100;
@@ -1477,7 +1511,9 @@ export class TeachersService {
     }
 
     if (assignment.teacherId !== teacher.id) {
-      throw new ForbiddenException('You are not authorized to delete this assignment.');
+      throw new ForbiddenException(
+        'You are not authorized to delete this assignment.',
+      );
     }
 
     // Soft delete: Set isActive to false instead of hard deleting
@@ -1516,4 +1552,3 @@ export class TeachersService {
     return gradeMap[grade.toUpperCase()] || 0.0;
   }
 }
-

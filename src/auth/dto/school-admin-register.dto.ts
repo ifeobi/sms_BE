@@ -58,12 +58,20 @@ export class AddressDto {
   @IsString()
   landmark?: string;
 
-  // Exclude fields that shouldn't be sent to backend
-  @Exclude()
+  @Expose()
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsString()
   formattedAddress?: string;
-  @Exclude()
+
+  @Expose()
+  @ApiProperty({ required: false })
+  @IsOptional()
   latitude?: number;
-  @Exclude()
+
+  @Expose()
+  @ApiProperty({ required: false })
+  @IsOptional()
   longitude?: number;
 }
 
