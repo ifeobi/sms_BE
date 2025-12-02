@@ -757,9 +757,7 @@ export class TeachersService {
       studentNumber: student.studentNumber,
       firstName: student.user.firstName,
       lastName: student.user.lastName,
-      fullName:
-        student.user.fullName ||
-        `${student.user.firstName} ${student.user.lastName}`.trim(),
+      fullName: `${student.user.firstName} ${student.user.lastName}`.trim(),
       email: student.user.email,
       status: student.status,
       dateOfBirth: student.dateOfBirth,
