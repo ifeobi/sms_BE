@@ -1,4 +1,4 @@
-import { Controller, Post, Body, UseGuards, Request, ForbiddenException, Get } from '@nestjs/common';
+import { Controller, Post, Body, UseGuards, Request, ForbiddenException, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
 import { StudentsService } from './students.service';
@@ -48,6 +48,23 @@ export class StudentsController {
       console.error('❌ [DEBUG] Controller: Error caught:', error.message);
       throw error;
     }
+  }
+
+  @Get()
+  @ApiOperation({ summary: 'Get students for the logged-in school admin' })
+  @ApiResponse({ status: 200, description: 'Students returned successfully' })
+  async getStudents(@Request() req: any, @Query('schoolId') schoolId?: string) {
+    const userType = req.user?.type?.toLowerCase();
+    if (userType !== 'school_admin' && userType !== 'teacher' && userType !== 'master') {
+      throw new ForbiddenException('Only school administrators can view students');
+    }
+
+    const targetSchoolId = schoolId || req.user.schoolId;
+    if (!targetSchoolId) {
+      throw new ForbiddenException('School ID is required to fetch students');
+    }
+
+    return this.studentsService.getStudentsForSchool(targetSchoolId);
   }
 
   @Get('my-children')

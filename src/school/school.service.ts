@@ -227,4 +227,167 @@ export class SchoolService {
 
     return events;
   }
+
+  async getParentsForSchool(userId: string) {
+    const schoolAdmin = await this.prisma.schoolAdmin.findUnique({
+      where: { userId },
+      select: { schoolId: true },
+    });
+
+    if (!schoolAdmin) {
+      throw new NotFoundException('School admin not found');
+    }
+
+    const relationships = await this.prisma.parentSchoolRelationship.findMany({
+      where: { schoolId: schoolAdmin.schoolId },
+      include: {
+        parent: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                email: true,
+                firstName: true,
+                lastName: true,
+                profilePicture: true,
+                phone: true,
+                isActive: true,
+              },
+            },
+          },
+        },
+        children: {
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profilePicture: true,
+              },
+            },
+            currentClass: {
+              select: {
+                name: true,
+                level: {
+                  select: {
+                    name: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+
+    const parentMap = new Map<
+      string,
+      {
+        parentId: string;
+        userId: string;
+        firstName?: string | null;
+        lastName?: string | null;
+        email?: string | null;
+        phone?: string | null;
+        profilePicture?: string | null;
+        isActive: boolean;
+        relationshipTypes: Set<string>;
+        relationships: Array<{
+          id: string;
+          relationshipType: string;
+          isActive: boolean;
+          isVerified: boolean;
+          createdAt: Date;
+        }>;
+        children: Array<{
+          id: string;
+          userId: string;
+          firstName?: string | null;
+          lastName?: string | null;
+          email?: string | null;
+          profilePicture?: string | null;
+          className?: string | null;
+          levelName?: string | null;
+          relationshipType: string;
+        }>;
+      }
+    >();
+
+    relationships.forEach((relationship) => {
+      const parentRecord = relationship.parent;
+      if (!parentRecord) {
+        return;
+      }
+
+      const parentKey = parentRecord.id;
+      if (!parentMap.has(parentKey)) {
+        parentMap.set(parentKey, {
+          parentId: parentRecord.id,
+          userId: parentRecord.userId,
+          firstName: parentRecord.user?.firstName,
+          lastName: parentRecord.user?.lastName,
+          email: parentRecord.user?.email,
+          phone: parentRecord.user?.phone,
+          profilePicture: parentRecord.user?.profilePicture,
+          isActive: parentRecord.isActive,
+          relationshipTypes: new Set<string>(),
+          relationships: [],
+          children: [],
+        });
+      }
+
+      const parentEntry = parentMap.get(parentKey)!;
+      parentEntry.relationshipTypes.add(relationship.relationshipType);
+      parentEntry.relationships.push({
+        id: relationship.id,
+        relationshipType: relationship.relationshipType,
+        isActive: relationship.isActive,
+        isVerified: relationship.isVerified,
+        createdAt: relationship.createdAt,
+      });
+
+      relationship.children.forEach((child) => {
+        const childExists = parentEntry.children.some(
+          (existingChild) => existingChild.id === child.id,
+        );
+
+        if (!childExists) {
+          parentEntry.children.push({
+            id: child.id,
+            userId: child.userId,
+            firstName: child.user?.firstName,
+            lastName: child.user?.lastName,
+            email: child.user?.email,
+            profilePicture: child.user?.profilePicture,
+            className: child.currentClass?.name,
+            levelName: child.currentClass?.level?.name,
+            relationshipType: relationship.relationshipType,
+          });
+        }
+      });
+
+      // Parent should only be marked active if both the parent record and relationship are active
+      parentEntry.isActive = parentEntry.isActive && relationship.isActive;
+    });
+
+    return Array.from(parentMap.values()).map((parent) => ({
+      parentId: parent.parentId,
+      userId: parent.userId,
+      firstName: parent.firstName,
+      lastName: parent.lastName,
+      email: parent.email,
+      phone: parent.phone,
+      profilePicture: parent.profilePicture,
+      isActive: parent.isActive,
+      relationshipTypes: Array.from(parent.relationshipTypes),
+      relationships: parent.relationships,
+      children: parent.children,
+      totalChildren: parent.children.length,
+    }));
+  }
 }

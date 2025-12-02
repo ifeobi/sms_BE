@@ -28,8 +28,7 @@ export class CreateAssignmentGradeDto {
   @Min(1)
   maxScore?: number;
 
-  @IsOptional()
-  @IsString()
-  grade?: string;
+  // Note: grade, gpa, feedback, and comments are handled by CAComponentGrade
+  // Removed grade field - AssignmentGrade no longer stores grade
 }
 

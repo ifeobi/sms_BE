@@ -345,4 +345,60 @@ export class StudentsService {
       academicYear: child.academicYear,
     }));
   }
+
+  async getStudentsForSchool(schoolId: string) {
+    return this.prisma.student.findMany({
+      where: { schoolId },
+      include: {
+        user: {
+          select: {
+            id: true,
+            firstName: true,
+            lastName: true,
+            email: true,
+            phone: true,
+            profilePicture: true,
+            type: true,
+            isActive: true,
+          },
+        },
+        currentClass: {
+          select: {
+            id: true,
+            name: true,
+            level: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
+        parentRelationships: {
+          where: {
+            isActive: true,
+          },
+          include: {
+            parent: {
+              include: {
+                user: {
+                  select: {
+                    id: true,
+                    firstName: true,
+                    lastName: true,
+                    email: true,
+                    phone: true,
+                    profilePicture: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      orderBy: {
+        enrollmentDate: 'desc',
+      },
+    });
+  }
 }

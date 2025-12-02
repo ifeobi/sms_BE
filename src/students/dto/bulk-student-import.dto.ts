@@ -15,7 +15,10 @@ import { Gender } from '@prisma/client';
 
 export class BulkStudentDataDto {
   @IsString()
-  fullName: string;
+  firstName: string;
+
+  @IsString()
+  lastName: string;
 
   @IsEnum(Gender)
   sex: Gender;
@@ -30,7 +33,13 @@ export class BulkStudentDataDto {
   phone: string;
 
   @IsString()
-  parentFullName: string;
+  parentFirstName: string;
+
+  @IsString()
+  parentLastName: string;
+
+  @IsEnum(Gender)
+  parentSex: Gender;
 
   @IsEmail()
   parentEmail: string;

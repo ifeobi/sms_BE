@@ -152,7 +152,7 @@ export class BulkImportService {
           if (result && result.password) {
             credentials.push({
               row: i + 1,
-              studentName: studentData.fullName,
+              studentName: `${studentData.firstName} ${studentData.lastName}`,
               email: studentData.email,
               password: result.password,
               parentEmail: studentData.parentEmail,
@@ -163,11 +163,11 @@ export class BulkImportService {
           failedRecords++;
           errorLog.push({
             row: i + 1,
-            student: studentData.fullName,
+            student: `${studentData.firstName} ${studentData.lastName}`,
             error: error.message,
           });
           this.logger.error(
-            `Failed to process student ${studentData.fullName}:`,
+            `Failed to process student ${studentData.firstName} ${studentData.lastName}:`,
             error,
           );
         }
@@ -431,9 +431,11 @@ export class BulkImportService {
         dateOfBirth: new Date(studentData.dateOfBirth),
         gender: studentData.sex,
         nationality: 'Nigerian', // Default, can be updated later
-        fatherName: studentData.parentFullName,
-        fatherPhone: studentData.parentPhone,
-        fatherEmail: studentData.parentEmail,
+        parentFirstName: studentData.parentFirstName,
+        parentLastName: studentData.parentLastName,
+        parentPhone: studentData.parentPhone,
+        parentEmail: studentData.parentEmail,
+        parentSex: studentData.parentSex,
         modifiedBy: 'bulk_import',
       },
     });
@@ -558,11 +560,11 @@ export class BulkImportService {
       }
 
       this.logger.log(
-        `✅ Successfully processed student ${studentData.fullName} (Row ${rowNumber})`,
+        `✅ Successfully processed student ${studentData.firstName} ${studentData.lastName} (Row ${rowNumber})`,
       );
       
       // Log to console for better visibility
-      console.log(`\n✅ [BULK IMPORT] Row ${rowNumber}: ${studentData.fullName}`);
+      console.log(`\n✅ [BULK IMPORT] Row ${rowNumber}: ${studentData.firstName} ${studentData.lastName}`);
       console.log(`   📧 Student: ${studentData.email} | 🔑 Password: ${studentPassword}`);
       if (parentPassword) {
         console.log(`   👨‍👩‍👧 Parent: ${studentData.parentEmail} | 🔑 Password: ${parentPassword}`);
@@ -626,17 +628,13 @@ export class BulkImportService {
           email: studentData.parentEmail.trim(), // Store normalized email
           password: hashedParentPassword,
           type: UserType.PARENT,
-          firstName:
-            studentData.parentFullName.split(' ')[0] ||
-            studentData.parentFullName,
-          lastName:
-            studentData.parentFullName.split(' ').slice(1).join(' ') || '',
-          fullName: studentData.parentFullName, // Store the original full name
+          firstName: studentData.parentFirstName,
+          lastName: studentData.parentLastName,
           phone: studentData.parentPhone,
         },
       });
 
-      console.log(`✅ [BULK IMPORT] PARENT PASSWORD for ${studentData.parentFullName} (${studentData.parentEmail}): ${parentPassword}`);
+      console.log(`✅ [BULK IMPORT] PARENT PASSWORD for ${studentData.parentFirstName} ${studentData.parentLastName} (${studentData.parentEmail}): ${parentPassword}`);
 
       // Create parent record for new user
       this.logger.log(`[BULK IMPORT] Creating Parent record for new user: ${parentUser.id}`);
@@ -694,23 +692,19 @@ export class BulkImportService {
     schoolId: string,
   ) {
     const studentPassword = await this.generateStudentPassword(schoolId);
-    const [firstName, ...lastNameParts] = studentData.fullName.split(' ');
-    const lastName = lastNameParts.join(' ') || firstName;
-
     const hashedStudentPassword = await bcrypt.hash(studentPassword, 10);
     const studentUser = await this.prisma.user.create({
       data: {
         email: studentData.email,
         password: hashedStudentPassword,
         type: UserType.STUDENT,
-        firstName,
-        lastName,
-        fullName: studentData.fullName, // Store the original full name
+        firstName: studentData.firstName,
+        lastName: studentData.lastName,
         phone: studentData.phone,
       },
     });
 
-    this.logger.log(`[BULK IMPORT] ✅ STUDENT PASSWORD for ${studentData.fullName} (${studentData.email}): ${studentPassword}`);
+    this.logger.log(`[BULK IMPORT] ✅ STUDENT PASSWORD for ${studentData.firstName} ${studentData.lastName} (${studentData.email}): ${studentPassword}`);
 
     return { user: studentUser, password: studentPassword };
   }
@@ -830,7 +824,7 @@ export class BulkImportService {
 
     await this.emailService.sendStudentWelcomeEmail({
       to: studentData.email,
-      studentName: studentData.fullName,
+      studentName: `${studentData.firstName} ${studentData.lastName}`,
       email: studentData.email,
       password,
       schoolName: 'Your School', // Get from school data
@@ -854,7 +848,7 @@ export class BulkImportService {
     await this.emailService.sendParentInvitationEmail({
       to: user.email,
       parentName: `${user.firstName} ${user.lastName}`,
-      studentName: studentData.fullName,
+      studentName: `${studentData.firstName} ${studentData.lastName}`,
       verificationCode,
     });
   }
