@@ -140,12 +140,29 @@ export class TeachersController {
     @Query('termId') termId: string,
   ) {
     this.ensureTeacherAccess(req);
-    return this.teachersService.getContinuousAssessment(
+    
+    // Console log: Backend - Controller received GET request
+    console.log('[BACKEND - Controller] GET /teachers/me/continuous-assessment received:', {
+      userId: req.user.id,
+      classId,
+      subjectId,
+      termId
+    });
+    
+    const result = await this.teachersService.getContinuousAssessment(
       req.user.id,
       classId,
       subjectId,
       termId,
     );
+    
+    // Console log: Backend - Controller returning response
+    console.log('[BACKEND - Controller] GET response:', {
+      resultCount: Array.isArray(result) ? result.length : 0,
+      result
+    });
+    
+    return result;
   }
 
   @Post('me/continuous-assessment')
@@ -154,6 +171,32 @@ export class TeachersController {
     @Body() dto: CreateContinuousAssessmentDto,
   ) {
     this.ensureTeacherAccess(req);
+    
+    // Console log: Backend - Controller received POST request
+    console.log('[BACKEND - Controller] POST /teachers/me/continuous-assessment received:', {
+      userId: req.user.id,
+      classId: dto.classId,
+      subjectId: dto.subjectId,
+      termId: dto.termId,
+      recordsCount: dto.records.length,
+      records: dto.records.map((r: any) => {
+        const allKeys = Object.keys(r);
+        const caFields = allKeys.filter(k => k.match(/^ca\d+$/i));
+        return {
+          studentId: r.studentId,
+          studentIdType: typeof r.studentId,
+          allKeys,
+          allKeysLength: allKeys.length,
+          caFields,
+          caFieldsLength: caFields.length,
+          caValues: caFields.reduce((acc: any, k: string) => ({ ...acc, [k]: r[k] }), {}),
+          exam: r.exam,
+          grade: r.grade,
+          fullRecord: r // Include full record to see everything
+        };
+      })
+    });
+    
     return this.teachersService.saveContinuousAssessment(req.user.id, dto);
   }
 

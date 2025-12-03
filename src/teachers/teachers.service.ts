@@ -97,7 +97,6 @@ export class TeachersService {
       maxResubmissions: assignment.maxResubmissions,
       isGroupAssignment: assignment.isGroupAssignment,
       groupSize: assignment.groupSize,
-      instructions: assignment.instructions,
       learningObjectives: assignment.learningObjectives,
       tags: assignment.tags,
       class: assignment.class
@@ -183,7 +182,6 @@ export class TeachersService {
             id: grade.assignment.id,
             title: grade.assignment.title,
             dueDate: grade.assignment.dueDate,
-            maxScore: grade.assignment.maxScore,
             weight: grade.assignment.weight,
             category: grade.assignment.category,
             type: grade.assignment.type,
@@ -317,7 +315,6 @@ export class TeachersService {
             id: record.assignment.id,
             title: record.assignment.title,
             dueDate: record.assignment.dueDate,
-            maxScore: record.assignment.maxScore,
             weight: record.assignment.weight,
             category: record.assignment.category,
           }
@@ -481,8 +478,8 @@ export class TeachersService {
       title,
       description,
       dueDate,
-      studentIds,
       maxScore,
+      studentIds,
       weight,
       type,
       category,
@@ -582,13 +579,12 @@ export class TeachersService {
       data: {
         title,
         description: description ?? '',
-        instructions: description ?? 'No instructions provided.',
         subjectId,
         classId,
         teacherId: teacher.id,
         termId: resolvedTermId,
         dueDate: parsedDueDate,
-        maxScore: maxScore ?? 100,
+        maxScore: maxScore ?? null,
         weight: weight ?? 1,
         type: type ?? AssignmentType.HOMEWORK,
         category: category ?? AssignmentCategory.FORMATIVE,
@@ -1194,7 +1190,7 @@ export class TeachersService {
         record.type === 'assignment' && record.assignment
           ? `Entered grades for ${record.assignment.title}`
           : record.type === 'ca'
-            ? `Recorded ${record.componentType || 'CA'} grade`
+            ? `Recorded CA grade`
             : 'Recorded grades',
       timestamp: record.gradedAt || record.recordedAt,
       student: record.student
@@ -1365,11 +1361,23 @@ export class TeachersService {
       },
     });
 
-    // Group grades by student - dynamically handle all CA fields
+    // Console log: Backend - Fetching CA grades
+    console.log('[BACKEND - Service] getContinuousAssessment - Fetched records:', {
+      count: caGrades.length,
+      records: caGrades.map(g => ({
+        studentId: g.studentId,
+        caScores: (g as any).caScores,
+        grade: g.grade
+      }))
+    });
+    
+    // Process grades - each row now contains all CA scores in JSON
     const studentGrades: Record<string, any> = {};
 
     caGrades.forEach((grade) => {
       const studentId = grade.studentId;
+      
+      // Initialize student record
       if (!studentGrades[studentId]) {
         studentGrades[studentId] = {
           studentId,
@@ -1380,21 +1388,48 @@ export class TeachersService {
         };
       }
 
-      // Use componentType directly (e.g., "CA1", "CA2", "EXAM")
-      const componentType = grade.componentType;
-      const score = grade.score ?? null;
-      const gradeLetter = grade.grade;
+      // Extract CA scores from JSON field
+      const caScores = (grade as any).caScores as Record<string, number> | null;
+      
+      // Console log: Backend - Processing fetched grade
+      console.log('[BACKEND - Service] Processing fetched grade:', {
+        studentId,
+        caScores,
+        caScoresType: typeof caScores,
+        isObject: caScores && typeof caScores === 'object'
+      });
+      
+      if (caScores && typeof caScores === 'object') {
+        // Process all CA scores from JSON
+        Object.keys(caScores).forEach((key) => {
+          const score = caScores[key];
+          
+          console.log('[BACKEND - Service] Processing key from caScores:', {
+            studentId,
+            key,
+            score,
+            isExam: key.toUpperCase() === 'EXAM',
+            isCA: key.match(/^CA\d+$/i)
+          });
+          
+          if (key.toUpperCase() === 'EXAM') {
+            studentGrades[studentId].exam = score;
+          } else if (key.match(/^CA\d+$/i)) {
+            // Convert to lowercase for consistency (CA1 -> ca1, CA5 -> ca5)
+            const caKey = key.toLowerCase();
+            studentGrades[studentId][caKey] = score;
+          }
+        });
+      }
 
-      if (componentType === 'EXAM' || componentType.toUpperCase() === 'EXAM') {
-        studentGrades[studentId].exam = score;
-        studentGrades[studentId].grade = gradeLetter;
-      } else if (componentType && componentType.match(/^CA\d+$/i)) {
-        // Dynamically handle any CA field (CA1, CA2, CA3, ..., CA20, etc.)
-        // Convert to lowercase for consistency (CA1 -> ca1, CA5 -> ca5)
-        const caKey = componentType.toLowerCase();
-        studentGrades[studentId][caKey] = score;
+      // Add overall grade if available
+      if (grade.grade) {
+        studentGrades[studentId].grade = grade.grade;
       }
     });
+    
+    // Console log: Backend - Final response
+    console.log('[BACKEND - Service] Final response being returned:', Object.values(studentGrades));
 
     return Object.values(studentGrades);
   }
@@ -1403,6 +1438,23 @@ export class TeachersService {
     userId: string,
     dto: CreateContinuousAssessmentDto,
   ) {
+    // Console log: Backend - Service received DTO
+    console.log('[BACKEND - Service] saveContinuousAssessment called with:', {
+      userId,
+      classId: dto.classId,
+      subjectId: dto.subjectId,
+      termId: dto.termId,
+      recordsCount: dto.records.length,
+      records: dto.records.map((r: any) => ({
+        studentId: r.studentId,
+        allKeys: Object.keys(r),
+        caFields: Object.keys(r).filter(k => k.match(/^ca\d+$/i)),
+        caValues: Object.keys(r).filter(k => k.match(/^ca\d+$/i)).reduce((acc, k) => ({ ...acc, [k]: r[k] }), {}),
+        exam: r.exam,
+        grade: r.grade
+      }))
+    });
+    
     const teacher = await this.getTeacherByUserId(userId);
 
     // Verify teacher assignment
@@ -1422,12 +1474,21 @@ export class TeachersService {
     }
 
     // Verify students belong to the class
+    // Filter out undefined/null studentIds to avoid Prisma validation error
+    const studentIds = dto.records
+      .map((r) => r.studentId)
+      .filter((id): id is string => id !== undefined && id !== null);
+    
+    if (studentIds.length === 0) {
+      throw new BadRequestException('No valid student IDs provided in records.');
+    }
+    
     const students = await this.prisma.student.findMany({
       where: {
         schoolId: teacher.schoolId,
         currentClassId: dto.classId,
         id: {
-          in: dto.records.map((r) => r.studentId),
+          in: studentIds,
         },
       },
       select: {
@@ -1463,21 +1524,58 @@ export class TeachersService {
 
     // Process each student's grades
     for (const record of dto.records) {
+      // Console log: Backend - Processing each record
+      console.log('[BACKEND - Service] Processing record for student:', record.studentId, {
+        allKeys: Object.keys(record),
+        recordData: record
+      });
+      
+      // Build caScores JSON object containing all CA scores and exam
+      const caScores: Record<string, number> = {};
+
       // Dynamically process all CA fields (ca1, ca2, ca3, ..., ca20, etc.)
       // Extract all keys that start with 'ca' followed by a number
       const caFields = Object.keys(record).filter(
+<<<<<<< HEAD
         (key) => key.match(/^ca\d+$/i) && typeof record[key] === 'number',
+=======
+        (key) => key.match(/^ca\d+$/i) && record[key] !== undefined && record[key] !== null
+>>>>>>> exam
       );
+      
+      // Console log: Backend - CA fields extracted
+      console.log('[BACKEND - Service] CA fields extracted:', {
+        studentId: record.studentId,
+        caFields,
+        caFieldValues: caFields.map(k => ({ key: k, value: record[k], type: typeof record[k] }))
+      });
 
-      // Process all CA fields dynamically
+      // Add all CA scores to JSON object
       for (const caKey of caFields) {
-        const score = record[caKey] as number;
+        const score = typeof record[caKey] === 'string' 
+          ? parseFloat(record[caKey] as string) 
+          : record[caKey] as number;
+        
+        // Console log: Backend - Processing each CA field
+        console.log('[BACKEND - Service] Processing CA field:', {
+          studentId: record.studentId,
+          caKey,
+          originalValue: record[caKey],
+          parsedScore: score,
+          isValid: score !== undefined && score !== null && !isNaN(score)
+        });
 
         if (score !== undefined && score !== null && !isNaN(score)) {
-          // Extract CA number (e.g., 'ca1' -> 'CA1', 'ca5' -> 'CA5')
+          // Convert to uppercase (ca1 -> CA1)
           const caNumber = caKey.toUpperCase();
-          const componentType = caNumber; // e.g., "CA1", "CA2"
+          caScores[caNumber] = score;
+          console.log('[BACKEND - Service] Added to caScores:', caNumber, '=', score);
+        } else {
+          console.log('[BACKEND - Service] Skipped CA field (invalid):', caKey, 'value:', record[caKey]);
+        }
+      }
 
+<<<<<<< HEAD
           // Get max score from AssessmentStructure if available
           let maxScore = 10; // Default
           let componentName = null;
@@ -1490,57 +1588,162 @@ export class TeachersService {
             if (component) {
               maxScore = component.maxScore || 10;
               componentName = component.name || componentType;
-            }
-          }
-
-          // Calculate percentage and grade
-          const percentage = (score / maxScore) * 100;
-          const grade = this.calculateGrade(percentage);
-
-          // Upsert CAComponentGrade (NEW: separate table for CA component grades)
-          const caGrade = await this.prisma.cAComponentGrade.upsert({
-            where: {
-              studentId_subjectId_classId_termId_componentType: {
-                studentId: record.studentId,
-                subjectId: dto.subjectId,
-                classId: dto.classId,
-                termId: dto.termId,
-                componentType: componentType,
-              },
-            },
-            update: {
-              score,
-              maxScore,
-              grade,
-              percentage,
-              gpa: this.calculateGPA(grade),
-              componentName,
-              modifiedBy: teacher.userId,
-              gradedAt: new Date(),
-            },
-            create: {
-              studentId: record.studentId,
-              teacherId: teacher.id,
-              subjectId: dto.subjectId,
-              classId: dto.classId,
-              termId: dto.termId,
-              componentType: componentType,
-              componentName,
-              score,
-              maxScore,
-              grade,
-              percentage,
-              gpa: this.calculateGPA(grade),
-              recordedBy: teacher.userId,
-              modifiedBy: teacher.userId,
-              gradedAt: new Date(),
-            },
-          });
-
-          results.push(caGrade);
+=======
+      // Add exam score if provided
+      if (record.exam !== undefined && record.exam !== null) {
+        const examScore = typeof record.exam === 'string' 
+          ? parseFloat(record.exam) 
+          : record.exam as number;
+        
+        console.log('[BACKEND - Service] Processing exam:', {
+          studentId: record.studentId,
+          originalValue: record.exam,
+          parsedScore: examScore,
+          isValid: !isNaN(examScore)
+        });
+        
+        if (!isNaN(examScore)) {
+          caScores['EXAM'] = examScore;
+          console.log('[BACKEND - Service] Added EXAM to caScores:', examScore);
         }
       }
+      
+      // Console log: Backend - Final caScores object before saving
+      console.log('[BACKEND - Service] Final caScores object for student:', record.studentId, caScores);
 
+      // Calculate overall grade, percentage, and GPA
+      let overallPercentage = 0;
+      let overallGrade = '';
+      let overallGPA = 0;
+
+      if (Object.keys(caScores).length > 0 && assessmentStructure) {
+        // Calculate total CA score and max CA score
+        let totalCAScore = 0;
+        let totalCAMaxScore = 0;
+        let examScore = 0;
+        let examMaxScore = 0;
+
+        // Get CA components from AssessmentStructure
+        if (assessmentStructure.caComponents && Array.isArray(assessmentStructure.caComponents)) {
+          assessmentStructure.caComponents.forEach((component: any, index: number) => {
+            const caKey = `CA${index + 1}`;
+            const maxScore = component.maxScore || 10;
+            totalCAMaxScore += maxScore;
+            
+            if (caScores[caKey] !== undefined) {
+              totalCAScore += caScores[caKey];
+>>>>>>> exam
+            }
+          });
+        }
+
+        // Get exam max score from AssessmentStructure
+        if (assessmentStructure.examConfig) {
+          examMaxScore = assessmentStructure.examConfig.maxScore || 60;
+        } else {
+          examMaxScore = 60; // Default
+        }
+
+        if (caScores['EXAM'] !== undefined) {
+          examScore = caScores['EXAM'];
+        }
+
+        // Calculate overall percentage: (Total CA + Exam) / (Max CA + Max Exam) * 100
+        const totalScore = totalCAScore + examScore;
+        const totalMaxScore = totalCAMaxScore + examMaxScore;
+        
+        if (totalMaxScore > 0) {
+          overallPercentage = (totalScore / totalMaxScore) * 100;
+          overallGrade = record.grade || this.calculateGrade(overallPercentage);
+          overallGPA = this.calculateGPA(overallGrade);
+        }
+      } else if (record.grade) {
+        // If grade is provided but no assessment structure, use provided grade
+        overallGrade = record.grade;
+        overallGPA = this.calculateGPA(overallGrade);
+      }
+
+      // Upsert CAComponentGrade - one row per student/subject/class/term
+      // Find existing record first
+      const existing = await this.prisma.cAComponentGrade.findFirst({
+        where: {
+          studentId: record.studentId,
+          subjectId: dto.subjectId,
+          classId: dto.classId,
+          termId: dto.termId,
+        },
+      });
+
+      const caScoresData: Prisma.InputJsonValue | undefined = 
+        Object.keys(caScores).length > 0 ? caScores : undefined;
+      
+      // Console log: Backend - Before preparing database data
+      console.log('[BACKEND - Service] Preparing database data:', {
+        studentId: record.studentId,
+        caScoresObject: caScores,
+        caScoresKeys: Object.keys(caScores),
+        caScoresData,
+        caScoresDataType: typeof caScoresData,
+        overallGrade,
+        overallPercentage,
+        overallGPA
+      });
+      
+      const updateData: any = {
+        caScores: caScoresData,
+        grade: overallGrade || null,
+        percentage: overallPercentage > 0 ? overallPercentage : null,
+        gpa: overallGPA > 0 ? overallGPA : null,
+        modifiedBy: teacher.userId,
+        gradedAt: new Date(),
+      };
+      
+      const createData: any = {
+        studentId: record.studentId,
+        teacherId: teacher.id,
+        subjectId: dto.subjectId,
+        classId: dto.classId,
+        termId: dto.termId,
+        caScores: caScoresData,
+        grade: overallGrade || null,
+        percentage: overallPercentage > 0 ? overallPercentage : null,
+        gpa: overallGPA > 0 ? overallGPA : null,
+        recordedBy: teacher.userId,
+        modifiedBy: teacher.userId,
+        gradedAt: new Date(),
+      };
+      
+      // Console log: Backend - Before database save
+      console.log('[BACKEND - Service] Before database save:', {
+        studentId: record.studentId,
+        existing: !!existing,
+        existingId: existing?.id,
+        updateData: JSON.stringify(updateData),
+        createData: JSON.stringify(createData),
+        caScoresData: JSON.stringify(caScoresData)
+      });
+      
+      const caGrade = existing
+        ? await this.prisma.cAComponentGrade.update({
+            where: { id: existing.id },
+            data: updateData,
+          })
+        : await this.prisma.cAComponentGrade.create({
+            data: createData,
+          });
+
+      // Console log: Backend - After database save
+      console.log('[BACKEND - Service] After database save:', {
+        studentId: record.studentId,
+        savedId: caGrade.id,
+        savedCaScores: (caGrade as any).caScores,
+        savedCaScoresType: typeof (caGrade as any).caScores,
+        savedGrade: caGrade.grade,
+        savedPercentage: caGrade.percentage,
+        savedGPA: caGrade.gpa
+      });
+
+<<<<<<< HEAD
       // Process exam field separately
       if (
         record.exam !== undefined &&
@@ -1621,6 +1824,9 @@ export class TeachersService {
           },
         });
       }
+=======
+      results.push(caGrade);
+>>>>>>> exam
     }
 
     return {
@@ -1708,7 +1914,7 @@ export class TeachersService {
       );
     }
 
-    const maxScoreValue = dto.maxScore ?? assignment.maxScore ?? 100;
+    const maxScoreValue = dto.maxScore ?? 100;
     const safeMaxScore = maxScoreValue > 0 ? maxScoreValue : 100;
     const rawScore = dto.score ?? 0;
     const safeScore = Math.min(Math.max(rawScore, 0), safeMaxScore);
