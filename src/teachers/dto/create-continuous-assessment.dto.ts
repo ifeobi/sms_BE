@@ -7,7 +7,7 @@ import {
   Min,
   Max,
 } from 'class-validator';
-import { Type } from 'class-transformer';
+import { Transform, plainToInstance } from 'class-transformer';
 
 class ContinuousAssessmentRecordInput {
   @IsString()
@@ -40,7 +40,34 @@ export class CreateContinuousAssessmentDto {
 
   @IsArray()
   @ValidateNested({ each: true })
-  @Type(() => ContinuousAssessmentRecordInput)
+  @Transform(({ value }) => {
+    // Preserve all properties including dynamic CA fields
+    // class-transformer strips unknown properties, so we need to preserve them manually
+    if (!Array.isArray(value)) return value;
+    
+    return value.map((record: any) => {
+      // Use plainToInstance with excludeExtraneousValues: false to preserve all properties
+      // This ensures CA fields and studentId are preserved
+      const instance = plainToInstance(
+        ContinuousAssessmentRecordInput,
+        record,
+        {
+          excludeExtraneousValues: false, // Preserve unknown properties
+          enableImplicitConversion: true,
+        }
+      );
+      
+      // Manually copy all properties from original record to ensure nothing is lost
+      // This is a safety measure in case plainToInstance still strips something
+      Object.keys(record).forEach(key => {
+        if (!(key in instance) || instance[key] === undefined) {
+          (instance as any)[key] = record[key];
+        }
+      });
+      
+      return instance;
+    });
+  })
   records: ContinuousAssessmentRecordInput[];
 }
 

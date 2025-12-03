@@ -468,7 +468,7 @@ model Assignment {
   teacherId           String
   termId              String
   dueDate             DateTime
-  maxScore            Float
+  maxScore             Float?
   weight              Float
   type                AssignmentType
   category            AssignmentCategory
@@ -478,7 +478,6 @@ model Assignment {
   maxResubmissions    Int                  @default(0)
   isGroupAssignment   Boolean              @default(false)
   groupSize           Int?
-  instructions        String
   learningObjectives  String[]
   tags                String[]
   isActive            Boolean              @default(true)
@@ -573,15 +572,12 @@ model CAComponentGrade {
   classId   String // FK to Class
   termId    String // FK to Term
 
-  // CA Component identification
-  componentType String // "CA1", "CA2", "CA3", ..., "EXAM" (matches AssessmentStructure.caComponents)
-  componentName String? // Optional: human-readable name (from AssessmentStructure)
+  // CA Scores stored as JSON object: { "CA1": 8, "CA2": 7, "CA3": 9, "CA4": 8, "EXAM": 43 }
+  // Number of CA components is dynamic based on AssessmentStructure
+  // Max scores are defined in AssessmentStructure, not stored here
+  caScores Json? // JSON object containing all CA component scores and exam score
 
-  // Score fields
-  score    Float? // Component score (e.g., 8)
-  maxScore Float? // Component max score (from AssessmentStructure, but can be overridden)
-
-  // Calculated fields
+  // Calculated fields (overall grade for the student in this subject/class/term)
   grade      String? // Letter grade
   percentage Float? // Calculated percentage
   gpa        Float? // GPA value
@@ -610,10 +606,9 @@ model CAComponentGrade {
   class   Class        @relation(fields: [classId], references: [id])
   term    AcademicTerm @relation(fields: [termId], references: [id])
 
-  @@unique([studentId, subjectId, classId, termId, componentType])
+  @@unique([studentId, subjectId, classId, termId])
   @@index([studentId])
   @@index([subjectId, classId, termId])
-  @@index([componentType])
   @@map("ca_component_grades")
 }
 

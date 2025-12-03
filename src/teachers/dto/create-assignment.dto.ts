@@ -35,7 +35,7 @@ export class CreateAssignmentDto {
 
   @IsOptional()
   @IsNumber()
-  @Min(0)
+  @Min(1)
   maxScore?: number;
 
   @IsOptional()
