@@ -1536,11 +1536,7 @@ export class TeachersService {
       // Dynamically process all CA fields (ca1, ca2, ca3, ..., ca20, etc.)
       // Extract all keys that start with 'ca' followed by a number
       const caFields = Object.keys(record).filter(
-<<<<<<< HEAD
-        (key) => key.match(/^ca\d+$/i) && typeof record[key] === 'number',
-=======
         (key) => key.match(/^ca\d+$/i) && record[key] !== undefined && record[key] !== null
->>>>>>> exam
       );
       
       // Console log: Backend - CA fields extracted
@@ -1575,20 +1571,6 @@ export class TeachersService {
         }
       }
 
-<<<<<<< HEAD
-          // Get max score from AssessmentStructure if available
-          let maxScore = 10; // Default
-          let componentName = null;
-          if (
-            assessmentStructure?.caComponents &&
-            Array.isArray(assessmentStructure.caComponents)
-          ) {
-            const componentIndex = parseInt(caNumber.replace('CA', '')) - 1;
-            const component = assessmentStructure.caComponents[componentIndex];
-            if (component) {
-              maxScore = component.maxScore || 10;
-              componentName = component.name || componentType;
-=======
       // Add exam score if provided
       if (record.exam !== undefined && record.exam !== null) {
         const examScore = typeof record.exam === 'string' 
@@ -1632,7 +1614,6 @@ export class TeachersService {
             
             if (caScores[caKey] !== undefined) {
               totalCAScore += caScores[caKey];
->>>>>>> exam
             }
           });
         }
@@ -1743,90 +1724,7 @@ export class TeachersService {
         savedGPA: caGrade.gpa
       });
 
-<<<<<<< HEAD
-      // Process exam field separately
-      if (
-        record.exam !== undefined &&
-        record.exam !== null &&
-        !isNaN(record.exam)
-      ) {
-        const score = record.exam as number;
-
-        // Get exam max score from AssessmentStructure if available
-        let maxScore = 60; // Default
-        let componentName = 'EXAM';
-        if (assessmentStructure?.examConfig) {
-          maxScore = assessmentStructure.examConfig.maxScore || 60;
-          componentName = 'EXAM';
-        }
-
-        const percentage = (score / maxScore) * 100;
-        const grade = this.calculateGrade(percentage);
-
-        // Upsert CAComponentGrade for EXAM (NEW: separate table)
-        const examGrade = await this.prisma.cAComponentGrade.upsert({
-          where: {
-            studentId_subjectId_classId_termId_componentType: {
-              studentId: record.studentId,
-              subjectId: dto.subjectId,
-              classId: dto.classId,
-              termId: dto.termId,
-              componentType: 'EXAM',
-            },
-          },
-          update: {
-            score,
-            maxScore,
-            grade: record.grade || grade,
-            percentage,
-            gpa: this.calculateGPA(record.grade || grade),
-            componentName,
-            modifiedBy: teacher.userId,
-            gradedAt: new Date(),
-          },
-          create: {
-            studentId: record.studentId,
-            teacherId: teacher.id,
-            subjectId: dto.subjectId,
-            classId: dto.classId,
-            termId: dto.termId,
-            componentType: 'EXAM',
-            componentName,
-            score,
-            maxScore,
-            grade: record.grade || grade,
-            percentage,
-            gpa: this.calculateGPA(record.grade || grade),
-            recordedBy: teacher.userId,
-            modifiedBy: teacher.userId,
-            gradedAt: new Date(),
-          },
-        });
-
-        results.push(examGrade);
-      }
-
-      // If grade is provided separately, update the exam record's grade
-      if (record.grade) {
-        await this.prisma.cAComponentGrade.updateMany({
-          where: {
-            teacherId: teacher.id,
-            studentId: record.studentId,
-            classId: dto.classId,
-            subjectId: dto.subjectId,
-            termId: dto.termId,
-            componentType: 'EXAM',
-          },
-          data: {
-            grade: record.grade,
-            gpa: this.calculateGPA(record.grade),
-            modifiedBy: teacher.userId,
-          },
-        });
-      }
-=======
       results.push(caGrade);
->>>>>>> exam
     }
 
     return {

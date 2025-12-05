@@ -253,6 +253,22 @@ export class AcademicStructureService {
     const subjects = await this.getSubjects(schoolId);
     const academicTerms = await this.getAcademicTerms(schoolId);
     const teacherAssignments = await this.getTeacherAssignments({ schoolId });
+    
+    // Try to fetch promotion systems, but don't fail if table doesn't exist yet
+    let promotionSystems: any[] = [];
+    try {
+      promotionSystems = await this.getPromotionSystems(schoolId);
+    } catch (error: any) {
+      // If table doesn't exist (P2021 error), return empty array
+      if (error.code === 'P2021') {
+        this.logger.warn('PromotionSystem table does not exist yet. Please run migrations.');
+        promotionSystems = [];
+      } else {
+        // For other errors, log but don't fail the entire request
+        this.logger.error('Error fetching promotion systems:', error);
+        promotionSystems = [];
+      }
+    }
 
     return {
       config,
@@ -261,6 +277,7 @@ export class AcademicStructureService {
       subjects,
       academicTerms,
       teacherAssignments,
+      promotionSystems,
       educationSystemId: config.educationSystemId,
       selectedLevels: config.selectedLevels,
       availableLevels: config.availableLevels,
@@ -743,8 +760,9 @@ export class AcademicStructureService {
   }
 
   async getAcademicTerms(schoolId: string) {
+    // Return all terms for the school - frontend will auto-detect active term based on dates
     return this.prisma.academicTerm.findMany({
-      where: { schoolId, isActive: true },
+      where: { schoolId },
       orderBy: { startDate: 'asc' },
     });
   }
@@ -1041,9 +1059,9 @@ export class AcademicStructureService {
   }
 
   async deleteAcademicTerm(id: string) {
-    return this.prisma.academicTerm.update({
+    // Hard delete - completely remove the term from the database
+    return this.prisma.academicTerm.delete({
       where: { id },
-      data: { isActive: false },
     });
   }
 
@@ -1527,6 +1545,176 @@ export class AcademicStructureService {
     }
 
     return this.prisma.assessmentStructure.delete({
+      where: { id },
+    });
+  }
+
+  // ==================== PROMOTION SYSTEM METHODS ====================
+
+  async getPromotionSystems(schoolId: string) {
+    return this.prisma.promotionSystem.findMany({
+      where: { schoolId, isActive: true },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+      orderBy: {
+        level: {
+          order: 'asc',
+        },
+      },
+    });
+  }
+
+  async getPromotionSystemByLevel(levelId: string, schoolId: string) {
+    return this.prisma.promotionSystem.findUnique({
+      where: {
+        levelId_schoolId: {
+          levelId,
+          schoolId,
+        },
+      },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+    });
+  }
+
+  async createPromotionSystem(
+    schoolId: string,
+    data: {
+      levelId: string;
+      numberOfTermsForPromotion?: number;
+      passingScoreThreshold?: number;
+      autoPromotionEnabled?: boolean;
+      requireCoreSubjects?: boolean;
+      coreSubjectIds?: string[];
+    },
+  ) {
+    // Validate that level belongs to school
+    const level = await this.prisma.level.findFirst({
+      where: {
+        id: data.levelId,
+        schoolId,
+      },
+    });
+
+    if (!level) {
+      throw new BadRequestException('Level not found or does not belong to school');
+    }
+
+    // Check if promotion system already exists for this level
+    const existing = await this.prisma.promotionSystem.findUnique({
+      where: {
+        levelId_schoolId: {
+          levelId: data.levelId,
+          schoolId,
+        },
+      },
+    });
+
+    if (existing) {
+      throw new BadRequestException('Promotion system already exists for this level');
+    }
+
+    return this.prisma.promotionSystem.create({
+      data: {
+        levelId: data.levelId,
+        schoolId,
+        numberOfTermsForPromotion: data.numberOfTermsForPromotion || null,
+        passingScoreThreshold: data.passingScoreThreshold || 50,
+        autoPromotionEnabled: data.autoPromotionEnabled || false,
+        requireCoreSubjects: data.requireCoreSubjects !== undefined ? data.requireCoreSubjects : true,
+        coreSubjectIds: data.coreSubjectIds && data.coreSubjectIds.length > 0 ? data.coreSubjectIds : Prisma.JsonNull,
+        isActive: true,
+      },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+    });
+  }
+
+  async updatePromotionSystem(
+    id: string,
+    schoolId: string,
+    data: {
+      numberOfTermsForPromotion?: number;
+      passingScoreThreshold?: number;
+      autoPromotionEnabled?: boolean;
+      requireCoreSubjects?: boolean;
+      coreSubjectIds?: string[];
+      isActive?: boolean;
+    },
+  ) {
+    // Verify the promotion system belongs to the school
+    const existing = await this.prisma.promotionSystem.findFirst({
+      where: {
+        id,
+        schoolId,
+      },
+    });
+
+    if (!existing) {
+      throw new BadRequestException('Promotion system not found');
+    }
+
+    return this.prisma.promotionSystem.update({
+      where: { id },
+      data: {
+        ...(data.numberOfTermsForPromotion !== undefined && { numberOfTermsForPromotion: data.numberOfTermsForPromotion }),
+        ...(data.passingScoreThreshold !== undefined && { passingScoreThreshold: data.passingScoreThreshold }),
+        ...(data.autoPromotionEnabled !== undefined && { autoPromotionEnabled: data.autoPromotionEnabled }),
+        ...(data.requireCoreSubjects !== undefined && { requireCoreSubjects: data.requireCoreSubjects }),
+        ...(data.coreSubjectIds !== undefined && { 
+          coreSubjectIds: data.coreSubjectIds && data.coreSubjectIds.length > 0 
+            ? data.coreSubjectIds 
+            : Prisma.JsonNull 
+        }),
+        ...(data.isActive !== undefined && { isActive: data.isActive }),
+      },
+      include: {
+        level: {
+          select: {
+            id: true,
+            name: true,
+            order: true,
+          },
+        },
+      },
+    });
+  }
+
+  async deletePromotionSystem(id: string, schoolId: string) {
+    // Verify the promotion system belongs to the school
+    const existing = await this.prisma.promotionSystem.findFirst({
+      where: {
+        id,
+        schoolId,
+      },
+    });
+
+    if (!existing) {
+      throw new BadRequestException('Promotion system not found');
+    }
+
+    return this.prisma.promotionSystem.delete({
       where: { id },
     });
   }

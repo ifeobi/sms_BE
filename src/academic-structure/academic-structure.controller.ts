@@ -473,4 +473,83 @@ export class AcademicStructureController {
   ) {
     return this.academicStructureService.deleteAssessmentStructure(id, schoolId);
   }
+
+  // ==================== PROMOTION SYSTEM ENDPOINTS ====================
+
+  @Get('schools/:schoolId/promotion-systems')
+  @ApiOperation({ summary: 'Get all promotion systems for a school' })
+  @ApiResponse({
+    status: 200,
+    description: 'Promotion systems retrieved successfully',
+  })
+  async getPromotionSystems(@Param('schoolId') schoolId: string) {
+    return this.academicStructureService.getPromotionSystems(schoolId);
+  }
+
+  @Get('schools/:schoolId/promotion-systems/level/:levelId')
+  @ApiOperation({ summary: 'Get promotion system for a specific level' })
+  @ApiResponse({
+    status: 200,
+    description: 'Promotion system retrieved successfully',
+  })
+  async getPromotionSystemByLevel(
+    @Param('schoolId') schoolId: string,
+    @Param('levelId') levelId: string,
+  ) {
+    return this.academicStructureService.getPromotionSystemByLevel(levelId, schoolId);
+  }
+
+  @Post('schools/:schoolId/promotion-systems')
+  @ApiOperation({ summary: 'Create a promotion system for a level' })
+  @ApiResponse({
+    status: 201,
+    description: 'Promotion system created successfully',
+  })
+  async createPromotionSystem(
+    @Param('schoolId') schoolId: string,
+    @Body() data: {
+      levelId: string;
+      numberOfTermsForPromotion?: number;
+      passingScoreThreshold?: number;
+      autoPromotionEnabled?: boolean;
+      requireCoreSubjects?: boolean;
+      coreSubjectIds?: string[];
+    },
+  ) {
+    return this.academicStructureService.createPromotionSystem(schoolId, data);
+  }
+
+  @Put('schools/:schoolId/promotion-systems/:id')
+  @ApiOperation({ summary: 'Update a promotion system' })
+  @ApiResponse({
+    status: 200,
+    description: 'Promotion system updated successfully',
+  })
+  async updatePromotionSystem(
+    @Param('schoolId') schoolId: string,
+    @Param('id') id: string,
+    @Body() data: {
+      numberOfTermsForPromotion?: number;
+      passingScoreThreshold?: number;
+      autoPromotionEnabled?: boolean;
+      requireCoreSubjects?: boolean;
+      coreSubjectIds?: string[];
+      isActive?: boolean;
+    },
+  ) {
+    return this.academicStructureService.updatePromotionSystem(id, schoolId, data);
+  }
+
+  @Delete('schools/:schoolId/promotion-systems/:id')
+  @ApiOperation({ summary: 'Delete a promotion system' })
+  @ApiResponse({
+    status: 200,
+    description: 'Promotion system deleted successfully',
+  })
+  async deletePromotionSystem(
+    @Param('schoolId') schoolId: string,
+    @Param('id') id: string,
+  ) {
+    return this.academicStructureService.deletePromotionSystem(id, schoolId);
+  }
 }
