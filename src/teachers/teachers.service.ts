@@ -1020,7 +1020,11 @@ export class TeachersService {
         where: {
           teacherId: teacher.id,
           dueDate: {
-            gte: new Date(), // Only get assignments with future due dates
+            gte: (() => {
+              const today = new Date();
+              today.setHours(0, 0, 0, 0); // Set to start of today to include assignments due today
+              return today;
+            })(),
           },
           isActive: true, // Only active assignments
         },
@@ -1028,7 +1032,12 @@ export class TeachersService {
           dueDate: 'asc',
         },
         include: {
-          class: true,
+          class: {
+            include: {
+              level: true,
+            },
+          },
+          subject: true,
           assignees: {
             include: {
               student: {
@@ -1294,6 +1303,19 @@ export class TeachersService {
                 id: assignment.class.id,
                 name: assignment.class.name,
                 shortName: assignment.class.shortName,
+                level: assignment.class.level
+                  ? {
+                      id: assignment.class.level.id,
+                      name: assignment.class.level.name,
+                    }
+                  : null,
+              }
+            : null,
+          subject: assignment.subject
+            ? {
+                id: assignment.subject.id,
+                name: assignment.subject.name,
+                code: assignment.subject.code,
               }
             : null,
           pendingStudents,
