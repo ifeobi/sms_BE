@@ -2,15 +2,22 @@ import {
   Injectable,
   ConflictException,
   NotFoundException,
+  Logger,
 } from '@nestjs/common';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
+import { EmailService } from '../email/email.service';
 import * as bcrypt from 'bcryptjs';
 
 @Injectable()
 export class StaffService {
-  constructor(private prisma: PrismaService) {}
+  private readonly logger = new Logger(StaffService.name);
+
+  constructor(
+    private prisma: PrismaService,
+    private emailService: EmailService,
+  ) {}
 
   /**
    * Generate a random secure password for new staff members
@@ -37,6 +44,14 @@ export class StaffService {
     
     // Shuffle the password to randomize character positions
     return password.split('').sort(() => Math.random() - 0.5).join('');
+  }
+
+  /**
+   * Validate email format
+   */
+  private isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    return emailRegex.test(email);
   }
 
   async create(createStaffDto: CreateStaffDto) {
@@ -164,6 +179,26 @@ export class StaffService {
 
       if (subjects && subjects.length > 0) {
         console.log('Subjects selected (deprecated field):', subjects);
+      }
+
+      // Send welcome email with password if email is valid
+      if (userData.email && this.isValidEmail(userData.email)) {
+        try {
+          await this.emailService.sendTeacherWelcomeEmail({
+            to: userData.email,
+            teacherName: `${userData.firstName} ${userData.lastName}`,
+            email: userData.email,
+            password: temporaryPassword,
+            schoolName: teacher.school.name,
+          });
+          console.log('✅ Welcome email sent to:', userData.email);
+        } catch (error) {
+          // Log error but don't fail teacher creation
+          this.logger.error(`Failed to send welcome email to ${userData.email}:`, error);
+          console.log('⚠️  Email sending failed, but teacher was created successfully');
+        }
+      } else {
+        console.log('⚠️  No valid email provided, skipping email notification');
       }
 
       // Return teacher with temporary password

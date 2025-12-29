@@ -7,7 +7,10 @@ import {
   Request,
   Patch,
   Logger,
+  UseInterceptors,
+  UploadedFile,
 } from '@nestjs/common';
+import { FileInterceptor } from '@nestjs/platform-express';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -95,6 +98,30 @@ export class AuthController {
   @ApiResponse({ status: 200, description: 'Profile updated successfully' })
   updateProfile(@Request() req, @Body() updateDto: UpdateProfileDto) {
     return this.authService.updateProfile(req.user, updateDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('change-password')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Change user password' })
+  @ApiResponse({ status: 200, description: 'Password changed successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid password data' })
+  changePassword(@Request() req, @Body() changePasswordDto: { newPassword: string; confirmPassword: string }) {
+    return this.authService.changePassword(req.user, changePasswordDto);
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('profile/picture')
+  @UseInterceptors(FileInterceptor('file'))
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Upload profile picture' })
+  @ApiResponse({ status: 200, description: 'Profile picture uploaded successfully' })
+  @ApiResponse({ status: 400, description: 'Invalid file or upload failed' })
+  async uploadProfilePicture(
+    @Request() req,
+    @UploadedFile() file: Express.Multer.File,
+  ) {
+    return this.authService.uploadProfilePicture(req.user, file);
   }
 
   @Post('create-master')

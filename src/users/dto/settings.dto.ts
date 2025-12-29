@@ -98,6 +98,27 @@ export class NotificationSettingsDto {
   @IsOptional()
   @IsBoolean()
   systemMaintenance?: boolean;
+
+  // Teacher-specific notification preferences
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  assignmentReminders?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  classUpdates?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  parentCommunications?: boolean;
+
+  @ApiProperty({ required: false })
+  @IsOptional()
+  @IsBoolean()
+  weeklySummary?: boolean;
 }
 
 export class PrivacySettingsDto {

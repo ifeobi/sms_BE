@@ -3,12 +3,14 @@ import {
   UnauthorizedException,
   ConflictException,
   Logger,
+  BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AcademicStructureService } from '../academic-structure/academic-structure.service';
+import { ImageKitService } from '../imagekit/imagekit.service';
 import * as bcrypt from 'bcryptjs';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -25,6 +27,7 @@ export class AuthService {
     private emailService: EmailService,
     private prisma: PrismaService,
     private academicStructureService: AcademicStructureService,
+    private imageKitService: ImageKitService,
   ) {}
 
   private readonly logger = new Logger(AuthService.name);
@@ -773,11 +776,36 @@ export class AuthService {
       if (updateDto.country !== undefined) {
         updateData.country = updateDto.country;
       }
+      if (updateDto.email !== undefined) {
+        updateData.email = updateDto.email;
+      }
 
       const updatedUser = await this.prisma.user.update({
         where: { id: user.id },
         data: updateData,
       });
+
+      // Update teacher-specific fields if user is a teacher
+      if (user.type === UserType.TEACHER && (updateDto.employeeNumber !== undefined || updateDto.department !== undefined)) {
+        const teacher = await this.prisma.teacher.findUnique({
+          where: { userId: user.id },
+        });
+
+        if (teacher) {
+          const teacherUpdateData: any = {};
+          if (updateDto.employeeNumber !== undefined) {
+            teacherUpdateData.employeeNumber = updateDto.employeeNumber;
+          }
+          if (updateDto.department !== undefined) {
+            teacherUpdateData.department = updateDto.department;
+          }
+
+          await this.prisma.teacher.update({
+            where: { id: teacher.id },
+            data: teacherUpdateData,
+          });
+        }
+      }
 
       const { password, ...result } = updatedUser;
       return {
@@ -791,6 +819,131 @@ export class AuthService {
     } catch (error) {
       this.logger.error(`Error updating profile for user ${user.id}:`, error);
       throw new Error('Failed to update profile');
+    }
+  }
+
+  async changePassword(user: any, changePasswordDto: { newPassword: string; confirmPassword: string }) {
+    this.logger.log(`[Change Password] Starting password change for user ${user.id}`);
+    this.logger.log(`[Change Password] Request data:`, {
+      userId: user.id,
+      newPasswordLength: changePasswordDto.newPassword?.length || 0,
+      confirmPasswordLength: changePasswordDto.confirmPassword?.length || 0,
+    });
+
+    try {
+      // Validation: Check if passwords are provided
+      if (!changePasswordDto.newPassword || !changePasswordDto.confirmPassword) {
+        const errorMsg = 'Both password fields are required';
+        this.logger.warn(`[Change Password] Validation failed: ${errorMsg}`);
+        throw new BadRequestException(errorMsg);
+      }
+
+      // Validation: Check if passwords match
+      if (changePasswordDto.newPassword !== changePasswordDto.confirmPassword) {
+        const errorMsg = 'New passwords do not match';
+        this.logger.warn(`[Change Password] Validation failed: ${errorMsg}`);
+        throw new BadRequestException(errorMsg);
+      }
+
+      // Validation: Check password length (minimum)
+      if (changePasswordDto.newPassword.length < 6) {
+        const errorMsg = 'Password must be at least 6 characters';
+        this.logger.warn(`[Change Password] Validation failed: ${errorMsg}`);
+        throw new BadRequestException(errorMsg);
+      }
+
+      // Validation: Check password length (maximum)
+      if (changePasswordDto.newPassword.length > 128) {
+        const errorMsg = 'Password is too long. Maximum length is 128 characters';
+        this.logger.warn(`[Change Password] Validation failed: ${errorMsg}`);
+        throw new BadRequestException(errorMsg);
+      }
+
+      this.logger.log(`[Change Password] Validation passed, hashing password`);
+
+      // Hash the new password
+      const hashedPassword = await bcrypt.hash(changePasswordDto.newPassword, 10);
+      this.logger.log(`[Change Password] Password hashed successfully`);
+
+      // Update user password
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { password: hashedPassword },
+      });
+
+      this.logger.log(`[Change Password] Password updated successfully for user ${user.id}`);
+
+      return {
+        success: true,
+        message: 'Password changed successfully',
+      };
+    } catch (error: any) {
+      this.logger.error(`[Change Password] Error changing password for user ${user.id}:`, {
+        error: error.message,
+        stack: error.stack,
+        name: error.name,
+      });
+      
+      if (error instanceof BadRequestException) {
+        this.logger.warn(`[Change Password] BadRequestException thrown: ${error.message}`);
+        throw error;
+      }
+      
+      const errorMsg = error?.message || 'Failed to change password';
+      this.logger.error(`[Change Password] Unexpected error: ${errorMsg}`);
+      throw new BadRequestException(errorMsg);
+    }
+  }
+
+  async uploadProfilePicture(user: any, file: Express.Multer.File) {
+    if (!file) {
+      throw new BadRequestException('No file provided');
+    }
+
+    // Validate file type
+    if (!file.mimetype.startsWith('image/')) {
+      throw new BadRequestException('File must be an image');
+    }
+
+    // Validate file size (max 5MB)
+    const maxSize = 5 * 1024 * 1024; // 5MB
+    if (file.size > maxSize) {
+      throw new BadRequestException('Image size must be less than 5MB');
+    }
+
+    try {
+      // Upload to ImageKit
+      const uploadResult = await this.imageKitService.uploadFile({
+        file: file.buffer,
+        fileName: file.originalname,
+        folder: `profiles/${user.id}`,
+        useUniqueFileName: true,
+        tags: ['profile-picture', `user-${user.id}`],
+      });
+
+      // Update user profile with the new picture URL
+      const updatedUser = await this.prisma.user.update({
+        where: { id: user.id },
+        data: {
+          profilePicture: uploadResult.url,
+        },
+      });
+
+      return {
+        success: true,
+        message: 'Profile picture uploaded successfully',
+        url: uploadResult.url,
+        fileId: uploadResult.fileId,
+        user: {
+          ...updatedUser,
+          password: undefined,
+        },
+      };
+    } catch (error: any) {
+      this.logger.error(`Error uploading profile picture for user ${user.id}:`, error);
+      throw new BadRequestException(
+        error.message || 'Failed to upload profile picture',
+      );
     }
   }
 

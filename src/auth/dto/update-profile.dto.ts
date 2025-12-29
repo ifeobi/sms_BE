@@ -37,6 +37,17 @@ export class UpdateProfileDto {
   @IsString()
   bio?: string;
 
+  // Teacher-specific fields
+  @ApiProperty({ example: 'EMP001', description: 'Employee number', required: false })
+  @IsOptional()
+  @IsString()
+  employeeNumber?: string;
+
+  @ApiProperty({ example: 'Mathematics', description: 'Department', required: false })
+  @IsOptional()
+  @IsString()
+  department?: string;
+
   @ApiProperty({ required: false })
   @IsOptional()
   @IsString()

@@ -10,6 +10,7 @@ import { UsersModule } from '../users/users.module';
 import { EmailModule } from '../email/email.module';
 import { PrismaModule } from '../prisma/prisma.module';
 import { AcademicStructureModule } from '../academic-structure/academic-structure.module';
+import { ImageKitModule } from '../imagekit/imagekit.module';
 
 @Module({
   imports: [
@@ -17,6 +18,7 @@ import { AcademicStructureModule } from '../academic-structure/academic-structur
     EmailModule,
     PrismaModule,
     AcademicStructureModule,
+    ImageKitModule,
     PassportModule,
     JwtModule.registerAsync({
       imports: [ConfigModule],

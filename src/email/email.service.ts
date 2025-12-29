@@ -1,8 +1,10 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { MailerService } from '@nestjs-modules/mailer';
 
 @Injectable()
 export class EmailService {
+  private readonly logger = new Logger(EmailService.name);
+
   constructor(private mailerService: MailerService) {}
 
   async sendVerificationEmail(
@@ -732,6 +734,361 @@ export class EmailService {
             <p>Best regards,<br>The SMS Platform Team</p>
           </div>
           
+          <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+            <p>&copy; 2024 SMS Platform. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  // ==================== TEACHER NOTIFICATION EMAILS ====================
+
+  async sendAssignmentReminderEmail(data: {
+    to: string;
+    teacherName: string;
+    assignmentTitle: string;
+    assignmentDescription: string;
+    dueDate: Date;
+    className: string;
+    subjectName: string;
+  }): Promise<boolean> {
+    try {
+      const htmlContent = this.getAssignmentReminderEmailTemplate(data);
+
+      await this.mailerService.sendMail({
+        to: data.to,
+        subject: `Assignment Reminder: ${data.assignmentTitle}`,
+        html: htmlContent,
+      });
+
+      this.logger.log(`✅ Assignment reminder email sent to ${data.to}`);
+      return true;
+    } catch (error) {
+      this.logger.error('❌ Failed to send assignment reminder email:', error);
+      return false;
+    }
+  }
+
+  async sendWeeklySummaryEmail(data: {
+    to: string;
+    teacherName: string;
+    weekStartDate: Date;
+    assignmentsCreated: number;
+    assignmentsGraded: number;
+    attendanceRecords: number;
+    classesTaught: number;
+  }): Promise<boolean> {
+    try {
+      const htmlContent = this.getWeeklySummaryEmailTemplate(data);
+
+      await this.mailerService.sendMail({
+        to: data.to,
+        subject: 'Your Weekly Teaching Summary',
+        html: htmlContent,
+      });
+
+      this.logger.log(`✅ Weekly summary email sent to ${data.to}`);
+      return true;
+    } catch (error) {
+      this.logger.error('❌ Failed to send weekly summary email:', error);
+      return false;
+    }
+  }
+
+  async sendParentCommunicationEmail(data: {
+    to: string;
+    teacherName: string;
+    parentName: string;
+    messagePreview: string;
+  }): Promise<boolean> {
+    try {
+      const htmlContent = this.getParentCommunicationEmailTemplate(data);
+
+      await this.mailerService.sendMail({
+        to: data.to,
+        subject: `New Message from ${data.parentName}`,
+        html: htmlContent,
+      });
+
+      this.logger.log(`✅ Parent communication email sent to ${data.to}`);
+      return true;
+    } catch (error) {
+      this.logger.error('❌ Failed to send parent communication email:', error);
+      return false;
+    }
+  }
+
+  private getAssignmentReminderEmailTemplate(data: {
+    teacherName: string;
+    assignmentTitle: string;
+    assignmentDescription: string;
+    dueDate: Date;
+    className: string;
+    subjectName: string;
+  }): string {
+    const dueDateStr = new Date(data.dueDate).toLocaleDateString('en-US', {
+      weekday: 'long',
+      year: 'numeric',
+      month: 'long',
+      day: 'numeric',
+      hour: '2-digit',
+      minute: '2-digit',
+    });
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Assignment Reminder</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; }
+          .header { background: #1976d2; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { padding: 20px; background: #ffffff; }
+          .assignment-box { background: #f8f9fa; border-left: 4px solid #1976d2; padding: 15px; margin: 20px 0; border-radius: 4px; }
+          .due-date { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📚 Assignment Reminder</h1>
+          </div>
+          <div class="content">
+            <h2>Hello ${data.teacherName},</h2>
+            <p>This is a reminder about an upcoming assignment deadline.</p>
+            <div class="assignment-box">
+              <h3>${data.assignmentTitle}</h3>
+              <p><strong>Subject:</strong> ${data.subjectName}</p>
+              <p><strong>Class:</strong> ${data.className}</p>
+              <p>${data.assignmentDescription}</p>
+            </div>
+            <div class="due-date">
+              <strong>⏰ Due Date:</strong> ${dueDateStr}
+            </div>
+            <p>Please ensure all students are aware of this deadline and that grading is prepared.</p>
+            <p>Best regards,<br>The SMS Platform Team</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+            <p>&copy; 2024 SMS Platform. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private getWeeklySummaryEmailTemplate(data: {
+    teacherName: string;
+    weekStartDate: Date;
+    assignmentsCreated: number;
+    assignmentsGraded: number;
+    attendanceRecords: number;
+    classesTaught: number;
+  }): string {
+    const weekEndDate = new Date(data.weekStartDate);
+    weekEndDate.setDate(weekEndDate.getDate() + 7);
+    const weekRange = `${data.weekStartDate.toLocaleDateString()} - ${weekEndDate.toLocaleDateString()}`;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Weekly Summary</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; }
+          .header { background: #1976d2; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { padding: 20px; background: #ffffff; }
+          .stats-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin: 20px 0; }
+          .stat-box { background: #f8f9fa; padding: 15px; border-radius: 8px; text-align: center; border: 2px solid #e3f2fd; }
+          .stat-number { font-size: 32px; font-weight: bold; color: #1976d2; }
+          .stat-label { color: #666; font-size: 14px; margin-top: 5px; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>📊 Weekly Summary</h1>
+            <p>${weekRange}</p>
+          </div>
+          <div class="content">
+            <h2>Hello ${data.teacherName},</h2>
+            <p>Here's a summary of your teaching activities for the past week:</p>
+            <div class="stats-grid">
+              <div class="stat-box">
+                <div class="stat-number">${data.assignmentsCreated}</div>
+                <div class="stat-label">Assignments Created</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-number">${data.assignmentsGraded}</div>
+                <div class="stat-label">Assignments Graded</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-number">${data.attendanceRecords}</div>
+                <div class="stat-label">Attendance Records</div>
+              </div>
+              <div class="stat-box">
+                <div class="stat-number">${data.classesTaught}</div>
+                <div class="stat-label">Classes Taught</div>
+              </div>
+            </div>
+            <p>Keep up the great work! Continue making a positive impact on your students' education.</p>
+            <p>Best regards,<br>The SMS Platform Team</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+            <p>&copy; 2024 SMS Platform. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  private getParentCommunicationEmailTemplate(data: {
+    teacherName: string;
+    parentName: string;
+    messagePreview: string;
+  }): string {
+    const preview = data.messagePreview.length > 150 
+      ? data.messagePreview.substring(0, 150) + '...' 
+      : data.messagePreview;
+
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>New Parent Message</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; }
+          .header { background: #1976d2; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { padding: 20px; background: #ffffff; }
+          .message-box { background: #f8f9fa; border-left: 4px solid #1976d2; padding: 15px; margin: 20px 0; border-radius: 4px; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
+          .button { display: inline-block; background: #1976d2; color: white; padding: 12px 24px; text-decoration: none; border-radius: 5px; margin: 10px 0; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>💬 New Parent Message</h1>
+          </div>
+          <div class="content">
+            <h2>Hello ${data.teacherName},</h2>
+            <p>You have received a new message from <strong>${data.parentName}</strong>.</p>
+            <div class="message-box">
+              <p><strong>Message Preview:</strong></p>
+              <p>${preview}</p>
+            </div>
+            <p>Please log in to your account to view and respond to this message.</p>
+            <p style="text-align: center;">
+              <a href="#" class="button">View Message</a>
+            </p>
+            <p>Best regards,<br>The SMS Platform Team</p>
+          </div>
+          <div class="footer">
+            <p>This is an automated message. Please do not reply to this email.</p>
+            <p>&copy; 2024 SMS Platform. All rights reserved.</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  }
+
+  // ==================== TEACHER WELCOME EMAIL ====================
+
+  async sendTeacherWelcomeEmail(data: {
+    to: string;
+    teacherName: string;
+    email: string;
+    password: string;
+    schoolName: string;
+  }): Promise<boolean> {
+    try {
+      const htmlContent = this.getTeacherWelcomeEmailTemplate(data);
+
+      await this.mailerService.sendMail({
+        to: data.to,
+        subject: `Welcome to ${data.schoolName} - Teacher Account Created`,
+        html: htmlContent,
+      });
+
+      this.logger.log(`✅ Teacher welcome email sent to ${data.to}`);
+      return true;
+    } catch (error) {
+      this.logger.error('❌ Failed to send teacher welcome email:', error);
+      return false;
+    }
+  }
+
+  private getTeacherWelcomeEmailTemplate(data: {
+    teacherName: string;
+    email: string;
+    password: string;
+    schoolName: string;
+  }): string {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+        <title>Welcome to ${data.schoolName} - Teacher Account Created</title>
+        <style>
+          body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; margin: 0; padding: 0; background-color: #f4f4f4; }
+          .container { max-width: 600px; margin: 0 auto; padding: 20px; background-color: #ffffff; }
+          .header { background: #1976d2; color: white; padding: 20px; text-align: center; border-radius: 8px 8px 0 0; }
+          .content { padding: 20px; background: #ffffff; }
+          .credentials-box { background: #f8f9fa; border-left: 4px solid #1976d2; padding: 15px; margin: 20px 0; border-radius: 4px; }
+          .password-box { background: #fff3cd; border: 2px solid #ffeaa7; padding: 15px; margin: 20px 0; border-radius: 5px; text-align: center; }
+          .password { font-size: 24px; font-weight: bold; color: #d32f2f; font-family: 'Courier New', monospace; letter-spacing: 2px; }
+          .warning { background: #fff3cd; border: 1px solid #ffeaa7; padding: 15px; border-radius: 5px; margin: 20px 0; }
+          .footer { text-align: center; padding: 20px; color: #666; font-size: 12px; background: #f8f9fa; border-radius: 0 0 8px 8px; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <h1>👨‍🏫 Welcome to ${data.schoolName}!</h1>
+            <p>Teacher Account Created</p>
+          </div>
+          <div class="content">
+            <h2>Hello ${data.teacherName},</h2>
+            <p>Welcome to ${data.schoolName}! Your teacher account has been created successfully.</p>
+            <p>You can now access the School Management System platform with the following credentials:</p>
+            <div class="credentials-box">
+              <p><strong>Email:</strong> ${data.email}</p>
+            </div>
+            <div class="password-box">
+              <p style="margin: 0 0 10px 0;"><strong>Your Temporary Password:</strong></p>
+              <div class="password">${data.password}</div>
+            </div>
+            <div class="warning">
+              <strong>⚠️ Important Security Information:</strong>
+              <ul style="margin: 10px 0;">
+                <li>Please change your password immediately after your first login</li>
+                <li>Keep your password secure and don't share it with others</li>
+                <li>If you didn't request this account, please contact your school administrator</li>
+              </ul>
+            </div>
+            <p>You can now log in to access all the features available for teachers on our platform.</p>
+            <p>Best regards,<br>The ${data.schoolName} Administration Team</p>
+          </div>
           <div class="footer">
             <p>This is an automated message. Please do not reply to this email.</p>
             <p>&copy; 2024 SMS Platform. All rights reserved.</p>

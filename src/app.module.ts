@@ -17,6 +17,7 @@ import { ContentModule } from './content/content.module';
 import { DigitalPurchasesModule } from './digital-purchases/digital-purchases.module';
 import { TeachersModule } from './teachers/teachers.module';
 import { CreatorModule } from './creator/creator.module';
+import { NotificationsModule } from './notifications/notifications.module';
 
 @Module({
   imports: [
@@ -38,6 +39,7 @@ import { CreatorModule } from './creator/creator.module';
     DigitalPurchasesModule,
     TeachersModule,
     CreatorModule,
+    NotificationsModule,
   ],
   controllers: [AppController],
   providers: [AppService],

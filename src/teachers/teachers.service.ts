@@ -65,6 +65,7 @@ export class TeachersService {
         fullName:
           teacher.user.fullName ||
           `${teacher.user.firstName} ${teacher.user.lastName}`.trim(),
+        profilePicture: teacher.user.profilePicture,
       },
       school: teacher.school
         ? {
