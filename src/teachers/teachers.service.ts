@@ -1193,23 +1193,126 @@ export class TeachersService {
       })
       .slice(0, 5);
 
-    const recentActivity = recentGrades.map((record) => ({
-      type: 'grade_entered',
-      description:
-        record.type === 'assignment' && record.assignment
-          ? `Entered grades for ${record.assignment.title}`
-          : record.type === 'ca'
-            ? `Recorded CA grade`
-            : 'Recorded grades',
-      timestamp: record.gradedAt || record.recordedAt,
-      student: record.student
-        ? {
-            id: record.student.id,
-            firstName: record.student.user?.firstName,
-            lastName: record.student.user?.lastName,
-          }
-        : null,
+    // Get recent assignment creations (last 10)
+    const recentAssignments = await this.prisma.assignment.findMany({
+      where: { teacherId: teacher.id },
+      orderBy: { createdAt: 'desc' },
+      take: 10,
+      include: {
+        class: {
+          include: {
+            level: true,
+          },
+        },
+        subject: true,
+      },
+    });
+
+    // Get recent attendance records (last 20, grouped by date and class/subject)
+    const recentAttendanceRecords = await this.prisma.attendanceRecord.findMany({
+      where: { teacherId: teacher.id },
+      orderBy: { date: 'desc' },
+      take: 20,
+      include: {
+        class: {
+          include: {
+            level: true,
+          },
+        },
+        subject: true,
+      },
+    });
+
+    // Group attendance by date, class, and subject to avoid duplicates
+    const attendanceByDateClassSubject = new Map<string, {
+      date: Date;
+      classId: string;
+      className: string;
+      subjectId: string | null;
+      subjectName: string | null;
+      timestamp: Date;
+    }>();
+
+    recentAttendanceRecords.forEach((record) => {
+      const key = `${record.date.toISOString().split('T')[0]}-${record.classId}-${record.subjectId || 'no-subject'}`;
+      if (!attendanceByDateClassSubject.has(key)) {
+        attendanceByDateClassSubject.set(key, {
+          date: record.date,
+          classId: record.classId,
+          className: record.class?.name || 'Unknown Class',
+          subjectId: record.subjectId,
+          subjectName: record.subject?.name || null,
+          timestamp: record.date, // Use date as timestamp for attendance
+        });
+      }
+    });
+
+    // Map grade activities
+    const gradeActivities = recentGrades.map((record) => {
+      const student = record.student;
+      const firstName = student?.user?.firstName || '';
+      const lastName = student?.user?.lastName || '';
+      const fullName = `${firstName} ${lastName}`.trim() || null;
+      
+      return {
+        type: 'grade_entered' as const,
+        description:
+          record.type === 'assignment' && record.assignment
+            ? `Entered grades for ${record.assignment.title}`
+            : record.type === 'ca'
+              ? `Recorded CA grade`
+              : 'Recorded grades',
+        timestamp: record.gradedAt || record.recordedAt,
+        student: student
+          ? {
+              id: student.id,
+              firstName: firstName || null,
+              lastName: lastName || null,
+              fullName: fullName,
+            }
+          : null,
+      };
+    });
+
+    // Map assignment creation activities
+    const assignmentActivities = recentAssignments.map((assignment) => ({
+      type: 'assignment_created' as const,
+      description: `Created assignment: ${assignment.title}`,
+      timestamp: assignment.createdAt,
+      student: null,
+      assignment: {
+        id: assignment.id,
+        title: assignment.title,
+        classId: assignment.classId,
+        className: assignment.class?.name || 'Unknown Class',
+        subjectId: assignment.subjectId,
+        subjectName: assignment.subject?.name || 'Unknown Subject',
+      },
     }));
+
+    // Map attendance activities
+    const attendanceActivities = Array.from(attendanceByDateClassSubject.values()).map((attendance) => ({
+      type: 'attendance_marked' as const,
+      description: attendance.subjectName
+        ? `Marked attendance for ${attendance.className} - ${attendance.subjectName}`
+        : `Marked attendance for ${attendance.className}`,
+      timestamp: attendance.timestamp,
+      student: null,
+    }));
+
+    // Combine all activities and sort by timestamp (most recent first)
+    const allActivities = [
+      ...gradeActivities,
+      ...assignmentActivities,
+      ...attendanceActivities,
+    ].sort((a, b) => {
+      const aTime = a.timestamp instanceof Date ? a.timestamp.getTime() : new Date(a.timestamp).getTime();
+      const bTime = b.timestamp instanceof Date ? b.timestamp.getTime() : new Date(b.timestamp).getTime();
+      return bTime - aTime; // Descending order (newest first)
+    });
+
+    // Take only the most recent 15 activities
+    const recentActivity = allActivities.slice(0, 15);
 
     const upcomingAssignmentIds = upcomingAssignments.map(
       (assignment) => assignment.id,
