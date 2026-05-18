@@ -17,6 +17,7 @@ import { SchoolAdminRegisterDto } from './dto/school-admin-register.dto';
 import { UpdateProfileDto } from './dto/update-profile.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
+import { ParentActivateDto } from './dto/parent-activate.dto';
 import { JwtAuthGuard } from './guards/jwt-auth.guard';
 import {
   ApiTags,
@@ -163,6 +164,25 @@ export class AuthController {
   @ApiResponse({ status: 400, description: 'Invalid token or passwords' })
   async resetPassword(@Body() resetPasswordDto: ResetPasswordDto) {
     return this.authService.resetPassword(resetPasswordDto);
+  }
+
+  @Post('parent/activate')
+  @Throttle({ short: { limit: 5, ttl: 60_000 } })
+  @ApiOperation({
+    summary: 'Activate a parent account (verify code + set password + login)',
+  })
+  @ApiResponse({ status: 200, description: 'Activated; returns token pair' })
+  @ApiResponse({ status: 400, description: 'Invalid or expired code' })
+  async parentActivate(
+    @Body() dto: ParentActivateDto,
+    @Request() req: any,
+  ) {
+    return this.authService.parentActivate(
+      dto.email,
+      dto.code,
+      dto.newPassword,
+      { ipAddress: req.ip, userAgent: req.headers['user-agent'] },
+    );
   }
 
   @Post('verify-creator-email')

@@ -181,11 +181,17 @@ export class EmailService {
     verificationCode: string;
   }): Promise<boolean> {
     try {
-      const htmlContent = this.getParentInvitationEmailTemplate(data);
+      const frontendUrl = process.env.FRONTEND_URL || 'http://localhost:3000';
+      const activationLink = `${frontendUrl}/auth/activate-parent?email=${encodeURIComponent(data.to)}&code=${encodeURIComponent(data.verificationCode)}`;
+
+      const htmlContent = this.getParentInvitationEmailTemplate({
+        ...data,
+        activationLink,
+      });
 
       await this.mailerService.sendMail({
         to: data.to,
-        subject: `Link Your Account to ${data.studentName} - SMS Platform`,
+        subject: `Activate your parent account — ${data.studentName} on SMS Platform`,
         html: htmlContent,
       });
 
@@ -660,6 +666,7 @@ export class EmailService {
     parentName: string;
     studentName: string;
     verificationCode: string;
+    activationLink?: string;
   }): string {
     return `
       <!DOCTYPE html>
@@ -713,22 +720,30 @@ export class EmailService {
           
           <div class="content">
             <h2>Hello ${data.parentName},</h2>
-            
-            <p>You have been invited to link your account to ${data.studentName}'s account on our School Management System platform.</p>
-            
-            <p>Please use the verification code below to complete the linking process:</p>
-            
+
+            <p>You have been invited to activate your parent account so you can follow ${data.studentName}'s academic progress.</p>
+
+            ${
+              data.activationLink
+                ? `<p style="text-align:center;margin:24px 0;">
+                    <a href="${data.activationLink}" style="display:inline-block;background:#1976d2;color:#ffffff;padding:14px 28px;text-decoration:none;border-radius:6px;font-weight:600;">Activate my account</a>
+                  </p>
+                  <p style="text-align:center;color:#666;font-size:13px;">Or paste this link into your browser:<br/><code>${data.activationLink}</code></p>
+                  <p>If the button above doesn't work, you can also enter the code manually on the activation page:</p>`
+                : '<p>Enter the verification code below on the activation page:</p>'
+            }
+
             <div class="code">${data.verificationCode}</div>
-            
+
             <div class="warning">
               <strong>Important:</strong>
               <ul>
-                <li>This code expires in 15 minutes</li>
-                <li>Keep this code secure and don't share it with others</li>
-                <li>If you didn't receive this invitation, please ignore this email</li>
+                <li>This code/link expires shortly — activate now</li>
+                <li>You'll be asked to set a new password during activation</li>
+                <li>If you didn't expect this invitation, ignore this email</li>
               </ul>
             </div>
-            
+
             <p>Best regards,<br>The SMS Platform Team</p>
           </div>
           

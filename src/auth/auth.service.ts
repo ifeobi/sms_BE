@@ -2,13 +2,17 @@ import {
   Injectable,
   UnauthorizedException,
   ConflictException,
+  BadRequestException,
   Logger,
+  Inject,
+  forwardRef,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { UsersService } from '../users/users.service';
 import { EmailService } from '../email/email.service';
 import { PrismaService } from '../prisma/prisma.service';
 import { AcademicStructureService } from '../academic-structure/academic-structure.service';
+import { RefreshTokenService } from './refresh-token.service';
 import * as bcrypt from 'bcryptjs';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -25,6 +29,8 @@ export class AuthService {
     private emailService: EmailService,
     private prisma: PrismaService,
     private academicStructureService: AcademicStructureService,
+    @Inject(forwardRef(() => RefreshTokenService))
+    private refreshTokenService: RefreshTokenService,
   ) {}
 
   private readonly logger = new Logger(AuthService.name);
@@ -66,6 +72,77 @@ export class AuthService {
       if (s) payload.schoolId = s.schoolId;
     }
     return payload;
+  }
+
+  /**
+   * Parent activation flow — combines verify + set-password + auto-login.
+   *
+   * Called when a parent clicks the activation link in their invitation
+   * email. Validates the verification code on an unverified
+   * ParentSchoolRelationship, sets a new password on the parent user,
+   * marks the relationship verified, and returns a fresh token pair so
+   * the parent lands directly in their dashboard.
+   */
+  async parentActivate(
+    email: string,
+    code: string,
+    newPassword: string,
+    meta: { ipAddress?: string; userAgent?: string } = {},
+  ) {
+    const normalizedEmail = email.trim().toLowerCase();
+
+    const relationship = await this.prisma.parentSchoolRelationship.findFirst({
+      where: {
+        verificationCode: code,
+        verificationExpiresAt: { gt: new Date() },
+        isVerified: false,
+      },
+      include: {
+        parent: { include: { user: true } },
+      },
+    });
+
+    if (
+      !relationship ||
+      relationship.parent.user.email.toLowerCase() !== normalizedEmail
+    ) {
+      throw new BadRequestException('Invalid or expired verification code');
+    }
+
+    if (newPassword.length < 8) {
+      throw new BadRequestException('Password must be at least 8 characters');
+    }
+
+    const hashed = await bcrypt.hash(newPassword, 10);
+
+    await this.prisma.$transaction([
+      this.prisma.user.update({
+        where: { id: relationship.parent.user.id },
+        data: {
+          password: hashed,
+          isEmailVerified: true,
+        },
+      }),
+      this.prisma.parentSchoolRelationship.update({
+        where: { id: relationship.id },
+        data: { isVerified: true, verifiedAt: new Date() },
+      }),
+    ]);
+
+    const user = relationship.parent.user;
+    const payload = await this.buildJwtPayloadForUser(user.id);
+    const tokens = await this.refreshTokenService.issueTokenPair(payload, meta);
+
+    return {
+      ...tokens,
+      user: {
+        id: user.id,
+        email: user.email,
+        type: user.type.toLowerCase(),
+        firstName: user.firstName,
+        lastName: user.lastName,
+      },
+    };
   }
 
   async validateUser(

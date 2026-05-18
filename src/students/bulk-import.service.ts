@@ -650,13 +650,11 @@ export class BulkImportService {
         throw new Error(`Failed to create Parent record: ${error.message}`);
       }
 
-      // Send parent welcome email (non-blocking)
-      try {
-        await this.sendParentWelcomeEmail(parentUser, parentPassword);
-      } catch (error) {
-        this.logger.warn(`Failed to send parent welcome email: ${error.message}`);
-      }
-      
+      // NOTE: Welcome email with temp password disabled.
+      // The activation flow (sendParentInvitationEmail → /auth/activate-parent)
+      // is the canonical onboarding path: parent sets their own password during
+      // verification. Temp password stays in DB but is never shared.
+
       return { user: parentUser, password: parentPassword };
     } else {
       console.log(`✅ [BULK IMPORT] EXISTING parent user found: ${parentUser.id} (${parentUser.email})`);
