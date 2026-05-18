@@ -17,10 +17,15 @@ import {
 } from '@nestjs/swagger';
 import { SectionManagementService } from './section-management.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { SchoolScopeGuard } from '../auth/guards/school-scope.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserType } from '@prisma/client';
 
 @ApiTags('Section Management')
 @Controller('section-management')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, SchoolScopeGuard)
+@Roles(UserType.SCHOOL_ADMIN, UserType.TEACHER)
 @ApiBearerAuth()
 export class SectionManagementController {
   constructor(

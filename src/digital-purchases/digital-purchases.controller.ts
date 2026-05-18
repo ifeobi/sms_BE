@@ -21,10 +21,14 @@ import { StreamingService } from './streaming.service';
 import { CreateDigitalPurchaseDto } from './dto/create-purchase.dto';
 import { VerifyPaymentDto } from './dto/verify-payment.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
 
 @Controller('digital-purchases')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserType.PARENT, UserType.STUDENT, UserType.MASTER)
 export class DigitalPurchasesController {
   constructor(
     private readonly digitalPurchasesService: DigitalPurchasesService,

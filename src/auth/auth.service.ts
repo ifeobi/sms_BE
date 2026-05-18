@@ -29,6 +29,45 @@ export class AuthService {
 
   private readonly logger = new Logger(AuthService.name);
 
+  /**
+   * Build the JWT payload for a given user id. Used by refresh-token rotation
+   * so the new access token always reflects current user state (including
+   * schoolId for school-scoped roles).
+   */
+  async buildJwtPayloadForUser(userId: string): Promise<Record<string, any>> {
+    const user = await this.usersService.findById(userId);
+    if (!user || !user.isActive) {
+      throw new UnauthorizedException('User not found or inactive');
+    }
+    const payload: Record<string, any> = {
+      email: user.email,
+      sub: user.id,
+      type: user.type.toLowerCase(),
+      firstName: user.firstName,
+      lastName: user.lastName,
+    };
+    if (user.type === 'SCHOOL_ADMIN') {
+      const sa = await this.prisma.schoolAdmin.findUnique({
+        where: { userId: user.id },
+        select: { schoolId: true },
+      });
+      if (sa) payload.schoolId = sa.schoolId;
+    } else if (user.type === 'TEACHER') {
+      const t = await this.prisma.teacher.findUnique({
+        where: { userId: user.id },
+        select: { schoolId: true },
+      });
+      if (t) payload.schoolId = t.schoolId;
+    } else if (user.type === 'STUDENT') {
+      const s = await this.prisma.student.findUnique({
+        where: { userId: user.id },
+        select: { schoolId: true },
+      });
+      if (s) payload.schoolId = s.schoolId;
+    }
+    return payload;
+  }
+
   async validateUser(
     email: string,
     password: string,

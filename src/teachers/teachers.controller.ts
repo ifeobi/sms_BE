@@ -12,6 +12,10 @@ import {
 } from '@nestjs/common';
 import { TeachersService } from './teachers.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { SchoolScopeGuard } from '../auth/guards/school-scope.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserType } from '@prisma/client';
 import { ApiBearerAuth, ApiTags } from '@nestjs/swagger';
 import { CreateAssignmentDto } from './dto/create-assignment.dto';
 import { CreateAttendanceDto } from './dto/create-attendance.dto';
@@ -20,7 +24,8 @@ import { CreateAssignmentGradeDto } from './dto/create-assignment-grade.dto';
 
 @ApiTags('Teachers')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, SchoolScopeGuard)
+@Roles(UserType.TEACHER, UserType.MASTER)
 @Controller('teachers')
 export class TeachersController {
   constructor(private readonly teachersService: TeachersService) {}

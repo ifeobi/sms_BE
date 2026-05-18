@@ -7,6 +7,10 @@ import {
   HttpStatus,
 } from '@nestjs/common';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { SchoolScopeGuard } from '../auth/guards/school-scope.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserType } from '@prisma/client';
 import { SchoolService } from './school.service';
 import {
   ApiTags,
@@ -17,7 +21,8 @@ import {
 
 @ApiTags('School')
 @Controller('school')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, SchoolScopeGuard)
+@Roles(UserType.SCHOOL_ADMIN)
 @ApiBearerAuth()
 export class SchoolController {
   constructor(private readonly schoolService: SchoolService) {}

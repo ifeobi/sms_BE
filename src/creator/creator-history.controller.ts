@@ -10,19 +10,23 @@ import {
 } from '@nestjs/common';
 import { CreatorHistoryService } from './creator-history.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserType } from '@prisma/client';
 import { PrismaService } from '../prisma/prisma.service';
-import { 
-  ApiTags, 
-  ApiOperation, 
-  ApiResponse, 
+import {
+  ApiTags,
+  ApiOperation,
+  ApiResponse,
   ApiBearerAuth,
-  ApiQuery 
+  ApiQuery
 } from '@nestjs/swagger';
 
 @ApiTags('Creator History')
 @ApiBearerAuth()
 @Controller('creator/history')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserType.CREATOR, UserType.MASTER)
 export class CreatorHistoryController {
   constructor(
     private readonly historyService: CreatorHistoryService,

@@ -18,6 +18,10 @@ import {
   ParentLinkResponseDto,
 } from './dto/bulk-student-import.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { SchoolScopeGuard } from '../auth/guards/school-scope.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserType } from '@prisma/client';
 import {
   ApiTags,
   ApiOperation,
@@ -31,7 +35,8 @@ export class BulkImportController {
   constructor(private readonly bulkImportService: BulkImportService) {}
 
   @Post('students')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard, SchoolScopeGuard)
+  @Roles(UserType.SCHOOL_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Start bulk student import' })
   @ApiResponse({
@@ -78,7 +83,8 @@ export class BulkImportController {
   }
 
   @Get('progress/:id')
-  @UseGuards(JwtAuthGuard)
+  @UseGuards(JwtAuthGuard, RolesGuard)
+  @Roles(UserType.SCHOOL_ADMIN)
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Get bulk import progress' })
   @ApiResponse({

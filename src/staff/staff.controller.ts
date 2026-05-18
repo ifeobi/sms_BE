@@ -13,10 +13,14 @@ import { StaffService } from './staff.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { SchoolScopeGuard } from '../auth/guards/school-scope.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserType } from '@prisma/client';
 
 @Controller('staff')
-@UseGuards(JwtAuthGuard, SchoolScopeGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, SchoolScopeGuard)
+@Roles(UserType.SCHOOL_ADMIN)
 export class StaffController {
   constructor(private readonly staffService: StaffService) {}
 

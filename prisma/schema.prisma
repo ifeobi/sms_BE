@@ -38,9 +38,27 @@ model User {
   settings            UserSettings?
   creatorSubscription CreatorSubscription?
   creatorTransactions CreatorTransaction[]
+  refreshTokens       RefreshToken[]
 
   @@unique([email, type])
   @@map("users")
+}
+
+model RefreshToken {
+  id          String    @id @default(cuid())
+  userId      String
+  tokenHash   String    @unique
+  expiresAt   DateTime
+  createdAt   DateTime  @default(now())
+  revokedAt   DateTime?
+  replacedBy  String?
+  ipAddress   String?
+  userAgent   String?
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([tokenHash])
+  @@map("refresh_tokens")
 }
 
 model UserSettings {

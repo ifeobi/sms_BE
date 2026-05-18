@@ -1,13 +1,17 @@
 import { Controller, Post, Body, UseGuards, Request, ForbiddenException, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
 import { SchoolScopeGuard } from '../auth/guards/school-scope.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserType } from '@prisma/client';
 import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 
 @ApiTags('Students')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard, SchoolScopeGuard)
+@UseGuards(JwtAuthGuard, RolesGuard, SchoolScopeGuard)
+@Roles(UserType.SCHOOL_ADMIN, UserType.TEACHER, UserType.MASTER)
 @Controller('students')
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}

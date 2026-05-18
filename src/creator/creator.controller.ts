@@ -10,9 +10,13 @@ import {
 } from '@nestjs/common';
 import { CreatorService } from './creator.service';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { RolesGuard } from '../auth/guards/roles.guard';
+import { Roles } from '../auth/decorators/roles.decorator';
+import { UserType } from '@prisma/client';
 
 @Controller('creator')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, RolesGuard)
+@Roles(UserType.CREATOR, UserType.MASTER)
 export class CreatorController {
   constructor(private readonly creatorService: CreatorService) {}
 

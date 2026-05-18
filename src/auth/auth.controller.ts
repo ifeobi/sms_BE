@@ -10,6 +10,7 @@ import {
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
+import { RefreshTokenService } from './refresh-token.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { SchoolAdminRegisterDto } from './dto/school-admin-register.dto';
@@ -28,7 +29,10 @@ import { plainToClass } from 'class-transformer';
 @ApiTags('Authentication')
 @Controller('auth')
 export class AuthController {
-  constructor(private authService: AuthService) {}
+  constructor(
+    private authService: AuthService,
+    private refreshTokens: RefreshTokenService,
+  ) {}
   private readonly logger = new Logger(AuthController.name);
 
   @Post('login')
@@ -170,5 +174,39 @@ export class AuthController {
   })
   async verifyCreatorEmail(@Body() data: { email: string; code: string }) {
     return this.authService.verifyCreatorEmail(data.email, data.code);
+  }
+
+  @Post('refresh')
+  @Throttle({ short: { limit: 10, ttl: 60_000 } })
+  @ApiOperation({ summary: 'Rotate access + refresh tokens' })
+  @ApiResponse({ status: 200, description: 'New token pair issued' })
+  @ApiResponse({ status: 401, description: 'Invalid/expired/reused refresh token' })
+  async refresh(
+    @Body() body: { refresh_token: string },
+    @Request() req: any,
+  ) {
+    return this.refreshTokens.rotate(
+      body.refresh_token,
+      (userId) => this.authService.buildJwtPayloadForUser(userId),
+      { ipAddress: req.ip, userAgent: req.headers['user-agent'] },
+    );
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke a refresh token (single device)' })
+  async logout(@Body() body: { refresh_token: string }) {
+    await this.refreshTokens.revoke(body.refresh_token);
+    return { success: true };
+  }
+
+  @UseGuards(JwtAuthGuard)
+  @Post('logout-all')
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Revoke all refresh tokens (all devices)' })
+  async logoutAll(@Request() req: any) {
+    await this.refreshTokens.revokeAllForUser(req.user.id);
+    return { success: true };
   }
 }
