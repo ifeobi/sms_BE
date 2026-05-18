@@ -4,8 +4,7 @@ dist/
 /dist
 /generated/prisma
 
-# Env
-.env
+# Env (.env is tracked per project convention; ignore only local overrides)
 .env.local
 .env.*.local
 
