@@ -8,6 +8,7 @@ import {
   Patch,
   Logger,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -31,6 +32,7 @@ export class AuthController {
   private readonly logger = new Logger(AuthController.name);
 
   @Post('login')
+  @Throttle({ short: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'User login' })
   @ApiResponse({ status: 200, description: 'Login successful' })
   @ApiResponse({ status: 401, description: 'Invalid credentials' })
@@ -39,6 +41,7 @@ export class AuthController {
   }
 
   @Post('register')
+  @Throttle({ short: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'User registration' })
   @ApiResponse({ status: 201, description: 'Registration successful' })
   @ApiResponse({ status: 409, description: 'User already exists' })
@@ -141,6 +144,7 @@ export class AuthController {
   }
 
   @Post('forgot-password')
+  @Throttle({ short: { limit: 3, ttl: 60_000 } })
   @ApiOperation({ summary: 'Request password reset' })
   @ApiResponse({ status: 200, description: 'Password reset email sent' })
   @ApiResponse({ status: 400, description: 'Invalid request data' })
@@ -149,6 +153,7 @@ export class AuthController {
   }
 
   @Post('reset-password')
+  @Throttle({ short: { limit: 5, ttl: 60_000 } })
   @ApiOperation({ summary: 'Reset password with token' })
   @ApiResponse({ status: 200, description: 'Password reset successfully' })
   @ApiResponse({ status: 400, description: 'Invalid token or passwords' })

@@ -146,37 +146,41 @@ export class AuthService {
       console.log('🟢 [LOGIN DEBUG] User type:', user.type);
       console.log('🟢 [LOGIN DEBUG] User ID:', user.id);
 
-      // Fetch schoolId for school admin users
+      // Fetch schoolId for single-school roles (SCHOOL_ADMIN, TEACHER, STUDENT).
+      // PARENT is multi-school and must declare the active schoolId per request.
       let schoolId: string | undefined;
       if (user.type === 'SCHOOL_ADMIN') {
-        console.log(
-          '🟢 [LOGIN DEBUG] User is SCHOOL_ADMIN, fetching schoolId...',
-        );
         const schoolAdmin = await this.prisma.schoolAdmin.findUnique({
           where: { userId: user.id },
           select: { schoolId: true },
         });
-
-        console.log('🟢 [LOGIN DEBUG] SchoolAdmin lookup result:', schoolAdmin);
-
         if (schoolAdmin) {
           schoolId = schoolAdmin.schoolId;
-          this.logger.log(`Found schoolId for school admin: ${schoolId}`);
-          console.log('✅ [LOGIN DEBUG] Found schoolId:', schoolId);
         } else {
           this.logger.warn(
             `School admin ${user.id} does not have a school assigned`,
           );
-          console.warn(
-            '⚠️ [LOGIN DEBUG] No SchoolAdmin record found for user:',
-            user.id,
-          );
         }
-      } else {
-        console.log(
-          '🟢 [LOGIN DEBUG] User is NOT SCHOOL_ADMIN, type:',
-          user.type,
-        );
+      } else if (user.type === 'TEACHER') {
+        const teacher = await this.prisma.teacher.findUnique({
+          where: { userId: user.id },
+          select: { schoolId: true },
+        });
+        if (teacher) {
+          schoolId = teacher.schoolId;
+        } else {
+          this.logger.warn(`Teacher ${user.id} has no Teacher record`);
+        }
+      } else if (user.type === 'STUDENT') {
+        const student = await this.prisma.student.findUnique({
+          where: { userId: user.id },
+          select: { schoolId: true },
+        });
+        if (student) {
+          schoolId = student.schoolId;
+        } else {
+          this.logger.warn(`Student ${user.id} has no Student record`);
+        }
       }
 
       const payload: any = {
@@ -187,23 +191,11 @@ export class AuthService {
         lastName: user.lastName,
       };
 
-      // Include schoolId in JWT payload if user is a school admin
+      // Include schoolId in JWT payload for single-school roles
+      // (SCHOOL_ADMIN, TEACHER, STUDENT). PARENT is multi-school.
       if (schoolId) {
         payload.schoolId = schoolId;
-        console.log(
-          '✅ [LOGIN DEBUG] Added schoolId to JWT payload:',
-          schoolId,
-        );
-      } else {
-        console.warn(
-          '⚠️ [LOGIN DEBUG] schoolId is undefined, NOT adding to payload',
-        );
       }
-
-      console.log(
-        '🟢 [LOGIN DEBUG] Final JWT payload:',
-        JSON.stringify(payload, null, 2),
-      );
 
       const userResponse: any = {
         id: user.id,

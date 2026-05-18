@@ -13,9 +13,10 @@ import { StaffService } from './staff.service';
 import { CreateStaffDto } from './dto/create-staff.dto';
 import { UpdateStaffDto } from './dto/update-staff.dto';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SchoolScopeGuard } from '../auth/guards/school-scope.guard';
 
 @Controller('staff')
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SchoolScopeGuard)
 export class StaffController {
   constructor(private readonly staffService: StaffService) {}
 

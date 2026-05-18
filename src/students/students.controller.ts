@@ -1,12 +1,13 @@
 import { Controller, Post, Body, UseGuards, Request, ForbiddenException, Get, Query } from '@nestjs/common';
 import { ApiTags, ApiBearerAuth, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../auth/guards/jwt-auth.guard';
+import { SchoolScopeGuard } from '../auth/guards/school-scope.guard';
 import { StudentsService } from './students.service';
 import { CreateStudentDto } from './dto/create-student.dto';
 
 @ApiTags('Students')
 @ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
+@UseGuards(JwtAuthGuard, SchoolScopeGuard)
 @Controller('students')
 export class StudentsController {
   constructor(private readonly studentsService: StudentsService) {}
