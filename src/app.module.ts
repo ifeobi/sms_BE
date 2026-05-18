@@ -17,6 +17,8 @@ import { ContentModule } from './content/content.module';
 import { DigitalPurchasesModule } from './digital-purchases/digital-purchases.module';
 import { TeachersModule } from './teachers/teachers.module';
 import { CreatorModule } from './creator/creator.module';
+import { RatingsModule } from './ratings/ratings.module';
+import { EscrowModule } from './escrow/escrow.module';
 
 @Module({
   imports: [
@@ -38,6 +40,8 @@ import { CreatorModule } from './creator/creator.module';
     DigitalPurchasesModule,
     TeachersModule,
     CreatorModule,
+    RatingsModule,
+    EscrowModule,
   ],
   controllers: [AppController],
   providers: [AppService],
